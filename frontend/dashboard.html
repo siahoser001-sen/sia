@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e; --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa; --error:#f7614f; --exito:#4fca8e; --warn:#f7c44f; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; }
+
+    .sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--tinta); border-right:1px solid var(--linea); display:flex; flex-direction:column; padding:1.5rem; }
+    .sidebar-logo { font-family:'DM Serif Display',serif; font-size:1.8rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.2rem; }
+    .sidebar-nombre { font-size:0.82rem; font-weight:500; color:var(--blanco); }
+    .sidebar-rol { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); margin-bottom:2rem; }
+    .nav-item { display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.88rem; color:var(--gris); cursor:pointer; transition:background 0.15s, color 0.15s; margin-bottom:0.2rem; text-decoration:none; }
+    .nav-item:hover { background:var(--carbon); color:var(--blanco); }
+    .nav-item.activo { background:var(--carbon); color:var(--blanco); }
+    .sidebar-bottom { margin-top:auto; }
+    .btn-cerrar { width:100%; padding:0.6rem; background:none; border:1px solid var(--linea); border-radius:8px; color:var(--gris); font-size:0.82rem; cursor:pointer; transition:border-color 0.2s, color 0.2s; }
+    .btn-cerrar:hover { border-color:var(--error); color:var(--error); }
+
+    .main { margin-left:220px; padding:2.5rem; }
+    .bienvenida { margin-bottom:2.5rem; animation:bajar 0.5s ease both; }
+    .bienvenida-hora { font-size:0.78rem; color:var(--gris); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.4rem; }
+    .bienvenida h1 { font-family:'DM Serif Display',serif; font-size:2.4rem; font-weight:400; }
+    .bienvenida h1 span { color:var(--acento); font-style:italic; }
+    .bienvenida-inst { font-size:0.85rem; color:var(--gris); margin-top:0.3rem; }
+
+    /* Notificaciones */
+    .notif-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+    .notif-header h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; font-weight:400; }
+    .notif-header a { font-size:0.8rem; color:var(--acento); text-decoration:none; }
+
+    .notif-lista { display:flex; flex-direction:column; gap:0.75rem; margin-bottom:2.5rem; animation:bajar 0.7s ease both; }
+    .notif-card { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:1rem 1.25rem; display:flex; align-items:flex-start; gap:1rem; }
+    .notif-card.no-leida { border-color:var(--acento); background:#4f8ef708; }
+    .notif-icono { font-size:1.4rem; flex-shrink:0; margin-top:0.1rem; }
+    .notif-titulo { font-size:0.9rem; font-weight:600; margin-bottom:0.2rem; }
+    .notif-msg { font-size:0.82rem; color:var(--gris); line-height:1.5; }
+    .notif-fecha { font-size:0.72rem; color:var(--gris); margin-top:0.4rem; }
+    .notif-empty { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:2rem; text-align:center; color:var(--gris); font-size:0.88rem; }
+
+    /* Accesos rápidos */
+    .accesos-titulo { font-family:'DM Serif Display',serif; font-size:1.3rem; font-weight:400; margin-bottom:1rem; }
+    .accesos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem; animation:bajar 0.9s ease both; }
+    .acceso-card { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:1.25rem; cursor:pointer; transition:border-color 0.2s, transform 0.2s; text-decoration:none; display:block; }
+    .acceso-card:hover { border-color:var(--acento); transform:translateY(-2px); }
+    .acceso-icono { font-size:1.8rem; margin-bottom:0.6rem; }
+    .acceso-nombre { font-size:0.88rem; font-weight:600; margin-bottom:0.2rem; }
+    .acceso-desc { font-size:0.75rem; color:var(--gris); }
+
+    @keyframes bajar { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">SIA</div>
+    <div class="sidebar-nombre" id="sidebarNombre">—</div>
+    <div class="sidebar-rol"   id="sidebarRol">—</div>
+    <nav id="sidebarNav"></nav>
+    <div class="sidebar-bottom">
+      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="bienvenida">
+      <div class="bienvenida-hora" id="saludo">—</div>
+      <h1>Hola, <span id="nombreUsuario">—</span></h1>
+      <div class="bienvenida-inst" id="instUsuario"></div>
+    </div>
+
+    <div class="notif-header">
+      <h2>Notificaciones recientes</h2>
+    </div>
+    <div class="notif-lista" id="notifLista">
+      <div class="notif-empty">Cargando notificaciones...</div>
+    </div>
+
+    <div class="accesos-titulo">Accesos rápidos</div>
+    <div class="accesos" id="accesos"></div>
+  </main>
+
+  <script>
+    const API     = 'http://localhost:3000';
+    const token   = localStorage.getItem('sia_token');
+    const usuario = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
+    if (!token) window.location.href = 'login.html';
+
+    // Saludo según hora
+    const hora = new Date().getHours();
+    const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+    document.getElementById('saludo').textContent = saludo;
+    document.getElementById('nombreUsuario').textContent = usuario.nombres || '—';
+    document.getElementById('sidebarNombre').textContent = `${usuario.nombres || ''} ${usuario.apellidos || ''}`;
+    document.getElementById('sidebarRol').textContent = usuario.rol || '—';
+    if (usuario.institucion_nombre) {
+      document.getElementById('instUsuario').textContent = usuario.institucion_nombre;
+    }
+
+    // Navegación y accesos según rol
+    const navPorRol = {
+      superadmin: [
+        { icon:'🏫', label:'Instituciones', href:'panel-superadmin.html' },
+        { icon:'📊', label:'Dashboard',     href:'dashboard.html', activo:true },
+      ],
+      admin: [
+        { icon:'👨‍🏫', label:'Docentes',   href:'panel-admin.html' },
+        { icon:'📊', label:'Dashboard',     href:'dashboard.html', activo:true },
+      ],
+      docente: [
+        { icon:'📝', label:'Mis clases',   href:'#' },
+        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
+      ],
+      estudiante: [
+        { icon:'📖', label:'Mis materias', href:'#' },
+        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
+      ],
+      acudiente: [
+        { icon:'👦', label:'Mi acudido',   href:'#' },
+        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
+      ],
+    };
+
+    const accesosPorRol = {
+      superadmin: [
+        { icon:'🏫', nombre:'Instituciones', desc:'Aprobar solicitudes', href:'panel-superadmin.html' },
+      ],
+      admin: [
+        { icon:'👨‍🏫', nombre:'Docentes', desc:'Gestionar solicitudes', href:'panel-admin.html' },
+        { icon:'📢', nombre:'Comunicados', desc:'Publicar avisos', href:'#' },
+      ],
+      docente: [
+        { icon:'📝', nombre:'Notas', desc:'Registrar calificaciones', href:'#' },
+        { icon:'✅', nombre:'Asistencia', desc:'Pasar lista', href:'#' },
+        { icon:'📂', nombre:'Tareas', desc:'Asignar actividades', href:'#' },
+      ],
+      estudiante: [
+        { icon:'📊', nombre:'Mis notas', desc:'Ver calificaciones', href:'#' },
+        { icon:'📅', nombre:'Asistencia', desc:'Ver mi asistencia', href:'#' },
+        { icon:'📂', nombre:'Tareas', desc:'Ver entregas', href:'#' },
+      ],
+      acudiente: [
+        { icon:'📊', nombre:'Notas', desc:'Ver calificaciones', href:'#' },
+      ],
+    };
+
+    const rol = usuario.rol || 'estudiante';
+
+    // Render navegación
+    const nav = document.getElementById('sidebarNav');
+    (navPorRol[rol] || []).forEach(item => {
+      const a = document.createElement('a');
+      a.className = 'nav-item' + (item.activo ? ' activo' : '');
+      a.href = item.href;
+      a.textContent = `${item.icon} ${item.label}`;
+      nav.appendChild(a);
+    });
+
+    // Render accesos rápidos
+    const accesosEl = document.getElementById('accesos');
+    (accesosPorRol[rol] || []).forEach(item => {
+      accesosEl.innerHTML += `
+        <a class="acceso-card" href="${item.href}">
+          <div class="acceso-icono">${item.icon}</div>
+          <div class="acceso-nombre">${item.nombre}</div>
+          <div class="acceso-desc">${item.desc}</div>
+        </a>`;
+    });
+
+    // Cargar notificaciones
+    async function cargarNotificaciones() {
+      const lista = document.getElementById('notifLista');
+      try {
+        const res  = await fetch(`${API}/api/notificaciones`, {
+          headers: { Authorization:`Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.ok || !data.notificaciones?.length) {
+          lista.innerHTML = '<div class="notif-empty">No tienes notificaciones nuevas.</div>';
+          return;
+        }
+        const iconos = {
+          solicitud_institucion: '🏫', solicitud_docente: '👨‍🏫',
+          aprobacion: '✅', rechazo: '❌', comunicado: '📢',
+          nota_publicada: '📊', tarea_asignada: '📂', entrega_calificada: '📝',
+        };
+        lista.innerHTML = data.notificaciones.slice(0, 5).map(n => `
+          <div class="notif-card ${n.leida ? '' : 'no-leida'}">
+            <div class="notif-icono">${iconos[n.tipo] || '🔔'}</div>
+            <div>
+              <div class="notif-titulo">${n.titulo}</div>
+              <div class="notif-msg">${n.mensaje}</div>
+              <div class="notif-fecha">${new Date(n.created_at).toLocaleString('es-CO')}</div>
+            </div>
+          </div>`).join('');
+      } catch {
+        lista.innerHTML = '<div class="notif-empty">No se pudieron cargar las notificaciones.</div>';
+      }
+    }
+
+    function cerrarSesion() {
+      localStorage.removeItem('sia_token');
+      localStorage.removeItem('sia_usuario');
+      window.location.href = 'login.html';
+    }
+
+    cargarNotificaciones();
+  </script>
+</body>
+</html>

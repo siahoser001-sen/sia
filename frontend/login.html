@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Iniciar sesión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────── */
+    :root {
+      --negro:    #0a0a0f;
+      --tinta:    #12121a;
+      --carbon:   #1e1e2e;
+      --linea:    #2a2a3e;
+      --acento:   #4f8ef7;
+      --acento2:  #7c6af7;
+      --blanco:   #f0f0f8;
+      --gris:     #8888aa;
+      --error:    #f7614f;
+      --exito:    #4fca8e;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--negro);
+      color: var(--blanco);
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+
+    /* ── Panel izquierdo — identidad ───────────────── */
+    .panel-izq {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 3rem;
+      background: var(--tinta);
+      overflow: hidden;
+    }
+
+    /* Cuadrícula decorativa de fondo */
+    .panel-izq::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--linea) 1px, transparent 1px),
+        linear-gradient(90deg, var(--linea) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.4;
+    }
+
+    /* Blob de color */
+    .blob {
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #4f8ef722 0%, transparent 70%);
+      top: -80px;
+      left: -80px;
+      animation: pulsarBlob 6s ease-in-out infinite;
+    }
+
+    .blob-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, #7c6af711 0%, transparent 70%);
+      top: auto;
+      left: auto;
+      bottom: -60px;
+      right: -60px;
+      animation-delay: 3s;
+    }
+
+    @keyframes pulsarBlob {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.12); }
+    }
+
+    .logo-area {
+      position: relative;
+      z-index: 1;
+      animation: bajarSuave 0.7s ease both;
+    }
+
+    .logo-sigla {
+      font-family: 'DM Serif Display', serif;
+      font-size: 4.5rem;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--acento), var(--acento2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -2px;
+    }
+
+    .logo-nombre {
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gris);
+      margin-top: 0.4rem;
+    }
+
+    .tagline {
+      position: relative;
+      z-index: 1;
+      animation: bajarSuave 0.9s ease both;
+    }
+
+    .tagline h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.6rem;
+      line-height: 1.2;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      color: var(--blanco);
+    }
+
+    .tagline h1 em {
+      font-style: italic;
+      color: var(--acento);
+    }
+
+    .tagline p {
+      font-size: 0.92rem;
+      color: var(--gris);
+      line-height: 1.7;
+      max-width: 320px;
+    }
+
+    .roles-lista {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      animation: bajarSuave 1.1s ease both;
+    }
+
+    .rol-tag {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.8rem;
+      border: 1px solid var(--linea);
+      border-radius: 999px;
+      color: var(--gris);
+      background: var(--carbon);
+    }
+
+    /* ── Panel derecho — formulario ────────────────── */
+    .panel-der {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      background: var(--negro);
+    }
+
+    .form-contenedor {
+      width: 100%;
+      max-width: 400px;
+      animation: bajarSuave 0.6s ease both;
+    }
+
+    .form-titulo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      margin-bottom: 0.4rem;
+    }
+
+    .form-subtitulo {
+      font-size: 0.88rem;
+      color: var(--gris);
+      margin-bottom: 2.5rem;
+    }
+
+    /* Grupos de campo */
+    .campo {
+      margin-bottom: 1.4rem;
+    }
+
+    .campo label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gris);
+      margin-bottom: 0.5rem;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap svg {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gris);
+      pointer-events: none;
+      width: 16px;
+      height: 16px;
+    }
+
+    .campo input {
+      width: 100%;
+      padding: 0.85rem 1rem 0.85rem 2.8rem;
+      background: var(--carbon);
+      border: 1px solid var(--linea);
+      border-radius: 10px;
+      color: var(--blanco);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .campo input:focus {
+      border-color: var(--acento);
+      box-shadow: 0 0 0 3px #4f8ef718;
+    }
+
+    .campo input::placeholder { color: var(--gris); opacity: 0.6; }
+
+    /* Toggle mostrar contraseña */
+    .toggle-pass {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--gris);
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Mensaje de error */
+    .msg-error {
+      display: none;
+      background: #f7614f18;
+      border: 1px solid #f7614f44;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: var(--error);
+      margin-bottom: 1.2rem;
+      animation: aparecer 0.3s ease;
+    }
+
+    .msg-error.visible { display: block; }
+
+    /* Botón principal */
+    .btn-login {
+      width: 100%;
+      padding: 0.95rem;
+      background: linear-gradient(135deg, var(--acento), var(--acento2));
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-login:hover  { opacity: 0.92; transform: translateY(-1px); }
+    .btn-login:active { transform: translateY(0); }
+
+    .btn-login.cargando {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid #ffffff55;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: girar 0.7s linear infinite;
+      margin: 0 auto;
+    }
+
+    .btn-login.cargando .btn-texto  { display: none; }
+    .btn-login.cargando .spinner    { display: block; }
+
+    /* Divisor */
+    .divisor {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin: 1.8rem 0;
+      color: var(--gris);
+      font-size: 0.78rem;
+    }
+
+    .divisor::before,
+    .divisor::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--linea);
+    }
+
+    /* Pie del formulario */
+    .pie-form {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--gris);
+      margin-top: 1.5rem;
+    }
+
+    .pie-form a {
+      color: var(--acento);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* Animaciones */
+    @keyframes bajarSuave {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes aparecer {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes girar {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 768px) {
+      body { grid-template-columns: 1fr; }
+      .panel-izq { display: none; }
+      .panel-der { padding: 2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Panel izquierdo ── -->
+  <div class="panel-izq">
+    <div class="blob"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="logo-area">
+      <div class="logo-sigla">SIA</div>
+      <div class="logo-nombre">Sistema Integral Académico</div>
+    </div>
+
+    <div class="tagline">
+      <h1>Gestión académica <em>inteligente</em> para Colombia</h1>
+      <p>Plataforma integral para colegios de Preescolar hasta 7° grado. Notas, asistencia, comunicados y más, todo en un solo lugar.</p>
+    </div>
+
+    <div class="roles-lista">
+      <span class="rol-tag">Rector</span>
+      <span class="rol-tag">Docente</span>
+      <span class="rol-tag">Estudiante</span>
+      <span class="rol-tag">Acudiente</span>
+      <span class="rol-tag">Admin</span>
+    </div>
+  </div>
+
+  <!-- ── Panel derecho — formulario ── -->
+  <div class="panel-der">
+    <div class="form-contenedor">
+      <h2 class="form-titulo">Bienvenido</h2>
+      <p class="form-subtitulo">Inicia sesión para continuar</p>
+
+      <!-- Mensaje de error -->
+      <div class="msg-error" id="msgError"></div>
+
+      <form id="formLogin" novalidate>
+
+        <!-- Email -->
+        <div class="campo">
+          <label for="email">Correo electrónico</label>
+          <div class="input-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            <input type="email" id="email" name="email" placeholder="correo@institución.edu.co" autocomplete="email" required />
+          </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="campo">
+          <label for="password">Contraseña</label>
+          <div class="input-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+            <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contraseña">
+              <!-- ojo abierto -->
+              <svg id="iconOjo" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Botón -->
+        <button type="submit" class="btn-login" id="btnLogin">
+          <span class="btn-texto">Iniciar sesión</span>
+          <div class="spinner"></div>
+        </button>
+
+      </form>
+
+      <div class="divisor">acceso seguro con JWT</div>
+
+      <div class="pie-form">
+        ¿Olvidaste tu contraseña? <a href="#">Contáctanos</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================================================
+    //  Configuración — cambia esto según tu entorno
+    // ================================================
+    const API_URL = 'http://localhost:3000';
+
+    // ── Elementos del DOM ───────────────────────────
+    const form      = document.getElementById('formLogin');
+    const btnLogin  = document.getElementById('btnLogin');
+    const msgError  = document.getElementById('msgError');
+    const inputPass = document.getElementById('password');
+    const toggleBtn = document.getElementById('togglePass');
+    const iconOjo   = document.getElementById('iconOjo');
+
+    // ── Toggle mostrar/ocultar contraseña ───────────
+    toggleBtn.addEventListener('click', () => {
+      const visible = inputPass.type === 'text';
+      inputPass.type = visible ? 'password' : 'text';
+      iconOjo.innerHTML = visible
+        ? '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'
+        : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    });
+
+    // ── Mostrar error ───────────────────────────────
+    function mostrarError(texto) {
+      msgError.textContent = texto;
+      msgError.classList.add('visible');
+    }
+
+    function ocultarError() {
+      msgError.classList.remove('visible');
+    }
+
+    function redirigirPorRol(rol) {
+      const rutas = {
+       superadmin: '/frontend/panel-superadmin.html',
+       admin:      '/frontend/panel-admin.html',
+       docente:    '/frontend/dashboard.html',
+       estudiante: '/frontend/dashboard.html',
+       acudiente:  '/frontend/dashboard.html',
+      };
+      window.location.href = rutas[rol] || '/frontend/dashboard.html';
+    }
+
+    // ── Envío del formulario ────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      ocultarError();
+
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      // Validación básica en cliente
+      if (!email || !password) {
+        mostrarError('Por favor completa todos los campos.');
+        return;
+      }
+
+      // Estado cargando
+      btnLogin.classList.add('cargando');
+
+      try {
+        const respuesta = await fetch(`${API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const datos = await respuesta.json();
+
+        if (!respuesta.ok || !datos.ok) {
+          mostrarError(datos.mensaje || 'Error al iniciar sesión.');
+          return;
+        }
+
+        // Guardar token y redirigir
+        guardarSesion(datos.token, datos.usuario);
+        redirigirPorRol(datos.usuario.rol);
+
+      } catch (err) {
+        // Error de red (servidor apagado, etc.)
+        mostrarError('No se pudo conectar con el servidor. Verifica que esté en ejecución.');
+        console.error('Error de red:', err);
+      } finally {
+        btnLogin.classList.remove('cargando');
+      }
+    });
+
+    // ── Si ya hay sesión activa, redirigir ──────────
+    const tokenGuardado = localStorage.getItem('sia_token');
+    if (tokenGuardado) {
+      const usuarioGuardado = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
+      if (usuarioGuardado.rol) {
+        // Opcional: verificar con el servidor si el token sigue válido
+        // Por ahora redirigir directamente
+        redirigirPorRol(usuarioGuardado.rol);
+      }
+    }
+  </script>
+
+</body>
+</html>

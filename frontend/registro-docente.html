@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Registro de docente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e;
+      --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa;
+      --error:#f7614f; --exito:#4fca8e;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:3rem 1.5rem; }
+    .top { width:100%; max-width:620px; display:flex; align-items:center; justify-content:space-between; margin-bottom:2.5rem; }
+    .logo { font-family:'DM Serif Display',serif; font-size:2rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .volver { font-size:0.82rem; color:var(--gris); text-decoration:none; }
+    .volver:hover { color:var(--blanco); }
+    .contenedor { width:100%; max-width:620px; animation:bajar 0.6s ease both; }
+    h1 { font-family:'DM Serif Display',serif; font-size:2.2rem; font-weight:400; margin-bottom:0.4rem; }
+    .subtitulo { font-size:0.88rem; color:var(--gris); margin-bottom:2.5rem; line-height:1.6; }
+    .seccion-titulo { font-size:0.72rem; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--acento); margin-bottom:1rem; margin-top:2rem; padding-bottom:0.5rem; border-bottom:1px solid var(--linea); }
+    .seccion-titulo:first-of-type { margin-top:0; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .campo { display:flex; flex-direction:column; gap:0.4rem; }
+    .campo label { font-size:0.75rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--gris); }
+    .campo input, .campo select { padding:0.8rem 1rem; background:var(--carbon); border:1px solid var(--linea); border-radius:9px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.92rem; outline:none; transition:border-color 0.2s, box-shadow 0.2s; appearance:none; }
+    .campo input:focus, .campo select:focus { border-color:var(--acento); box-shadow:0 0 0 3px #4f8ef718; }
+    .campo input::placeholder { color:var(--gris); opacity:0.5; }
+    .campo select option { background:var(--carbon); }
+
+    /* Buscador de institución */
+    .inst-wrap { position:relative; }
+    .inst-lista { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--carbon); border:1px solid var(--linea); border-radius:9px; max-height:200px; overflow-y:auto; z-index:10; display:none; }
+    .inst-item { padding:0.7rem 1rem; font-size:0.88rem; cursor:pointer; border-bottom:1px solid var(--linea); transition:background 0.15s; }
+    .inst-item:last-child { border-bottom:none; }
+    .inst-item:hover { background:var(--linea); }
+    .inst-item .inst-dane { font-size:0.75rem; color:var(--gris); }
+
+    .msg-error { display:none; background:#f7614f18; border:1px solid #f7614f44; border-radius:8px; padding:0.75rem 1rem; font-size:0.85rem; color:var(--error); margin-bottom:1.2rem; }
+    .msg-error.visible { display:block; }
+    .msg-exito { display:none; background:#4fca8e18; border:1px solid #4fca8e44; border-radius:8px; padding:1rem; font-size:0.88rem; color:var(--exito); margin-bottom:1.2rem; text-align:center; line-height:1.6; }
+    .msg-exito.visible { display:block; }
+
+    .btn { margin-top:2rem; width:100%; padding:0.95rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); border:none; border-radius:10px; color:#fff; font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:600; cursor:pointer; transition:opacity 0.2s, transform 0.15s; }
+    .btn:hover { opacity:0.9; transform:translateY(-1px); }
+    .btn.cargando { opacity:0.6; pointer-events:none; }
+    .spinner { display:none; width:18px; height:18px; border:2px solid #ffffff55; border-top-color:#fff; border-radius:50%; animation:girar 0.7s linear infinite; margin:0 auto; }
+    .btn.cargando .txt { display:none; } .btn.cargando .spinner { display:block; }
+    .pie { text-align:center; margin-top:1.5rem; font-size:0.82rem; color:var(--gris); }
+    .pie a { color:var(--acento); text-decoration:none; font-weight:500; }
+    @keyframes bajar { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes girar { to{transform:rotate(360deg)} }
+    @media(max-width:560px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo">SIA</div>
+    <a href="login.html" class="volver">← Volver al inicio</a>
+  </div>
+
+  <div class="contenedor">
+    <h1>Registro de docente</h1>
+    <p class="subtitulo">Busca tu institución y completa tus datos. El rector recibirá tu solicitud y decidirá si aprobarte.</p>
+
+    <div class="msg-error" id="msgError"></div>
+    <div class="msg-exito" id="msgExito"></div>
+
+    <form id="form" novalidate>
+      <div class="seccion-titulo">Tu institución</div>
+      <div class="campo">
+        <label>Buscar institución *</label>
+        <div class="inst-wrap">
+          <input type="text" id="buscar_inst" placeholder="Escribe el nombre del colegio..." autocomplete="off" />
+          <div class="inst-lista" id="instLista"></div>
+        </div>
+        <input type="hidden" id="institucion_id" />
+      </div>
+
+      <div class="seccion-titulo">Tus datos personales</div>
+      <div class="grid">
+        <div class="campo">
+          <label>Nombres *</label>
+          <input type="text" id="nombres" placeholder="María" required />
+        </div>
+        <div class="campo">
+          <label>Apellidos *</label>
+          <input type="text" id="apellidos" placeholder="González" required />
+        </div>
+        <div class="campo">
+          <label>Tipo de documento</label>
+          <select id="tipo_documento">
+            <option value="CC">Cédula de Ciudadanía (CC)</option>
+            <option value="TI">Tarjeta de Identidad (TI)</option>
+            <option value="CE">Cédula de Extranjería (CE)</option>
+            <option value="PEP">PEP</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Número de documento *</label>
+          <input type="text" id="numero_documento" placeholder="1000000001" required />
+        </div>
+        <div class="campo">
+          <label>Correo electrónico *</label>
+          <input type="email" id="email_doc" placeholder="docente@correo.com" required />
+        </div>
+        <div class="campo">
+          <label>Teléfono</label>
+          <input type="tel" id="telefono" placeholder="300 000 0000" />
+        </div>
+        <div class="campo">
+          <label>Contraseña *</label>
+          <input type="password" id="password" placeholder="Mínimo 8 caracteres" required />
+        </div>
+        <div class="campo">
+          <label>Confirmar contraseña *</label>
+          <input type="password" id="password2" placeholder="Repite la contraseña" required />
+        </div>
+      </div>
+
+      <button type="submit" class="btn" id="btn">
+        <span class="txt">Enviar solicitud</span>
+        <div class="spinner"></div>
+      </button>
+    </form>
+    <div class="pie">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3000';
+    let instSeleccionada = null;
+
+    // Buscador de instituciones
+    const buscarInput = document.getElementById('buscar_inst');
+    const instLista   = document.getElementById('instLista');
+    const instHidden  = document.getElementById('institucion_id');
+
+    buscarInput.addEventListener('input', async () => {
+      const q = buscarInput.value.trim();
+      if (q.length < 2) { instLista.style.display = 'none'; return; }
+      try {
+        const res  = await fetch(`${API}/api/instituciones/buscar?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!data.ok || !data.instituciones.length) { instLista.style.display = 'none'; return; }
+        instLista.innerHTML = data.instituciones.map(i => `
+          <div class="inst-item" data-id="${i.id}" data-nombre="${i.nombre}">
+            ${i.nombre}
+            <div class="inst-dane">DANE: ${i.codigo_dane} · ${i.municipio || ''}</div>
+          </div>`).join('');
+        instLista.style.display = 'block';
+        instLista.querySelectorAll('.inst-item').forEach(el => {
+          el.addEventListener('click', () => {
+            instSeleccionada = el.dataset.id;
+            instHidden.value = el.dataset.id;
+            buscarInput.value = el.dataset.nombre;
+            instLista.style.display = 'none';
+          });
+        });
+      } catch { instLista.style.display = 'none'; }
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.inst-wrap')) instLista.style.display = 'none'; });
+
+    function errMsg(msg) {
+      const el = document.getElementById('msgError');
+      el.textContent = msg; el.classList.add('visible');
+      document.getElementById('msgExito').classList.remove('visible');
+    }
+    function exitoMsg(msg) {
+      const el = document.getElementById('msgExito');
+      el.innerHTML = msg; el.classList.add('visible');
+      document.getElementById('msgError').classList.remove('visible');
+      document.getElementById('form').style.display = 'none';
+    }
+
+    document.getElementById('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      document.getElementById('msgError').classList.remove('visible');
+
+      if (!instHidden.value) return errMsg('Selecciona una institución de la lista.');
+      const pass  = document.getElementById('password').value;
+      const pass2 = document.getElementById('password2').value;
+      if (pass !== pass2)   return errMsg('Las contraseñas no coinciden.');
+      if (pass.length < 8)  return errMsg('La contraseña debe tener al menos 8 caracteres.');
+
+      const btn = document.getElementById('btn');
+      btn.classList.add('cargando');
+      try {
+        const res = await fetch(`${API}/api/docentes/solicitar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            institucion_id:   instHidden.value,
+            nombres:          document.getElementById('nombres').value.trim(),
+            apellidos:        document.getElementById('apellidos').value.trim(),
+            tipo_documento:   document.getElementById('tipo_documento').value,
+            numero_documento: document.getElementById('numero_documento').value.trim(),
+            email_doc:        document.getElementById('email_doc').value.trim(),
+            telefono:         document.getElementById('telefono').value.trim(),
+            password:         pass,
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) return errMsg(data.mensaje || 'Error al enviar la solicitud.');
+        exitoMsg(`✅ <strong>Solicitud enviada.</strong><br>El administrador de la institución la revisará y te notificará a <strong>${document.getElementById('email_doc').value}</strong>.`);
+      } catch {
+        errMsg('No se pudo conectar con el servidor.');
+      } finally {
+        btn.classList.remove('cargando');
+      }
+    });
+  </script>
+</body>
+</html>

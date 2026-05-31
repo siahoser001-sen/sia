@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Panel Administrador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e; --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa; --error:#f7614f; --exito:#4fca8e; --warn:#f7c44f; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; }
+    .sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--tinta); border-right:1px solid var(--linea); display:flex; flex-direction:column; padding:1.5rem; }
+    .sidebar-logo { font-family:'DM Serif Display',serif; font-size:1.8rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.2rem; }
+    .sidebar-inst { font-size:0.72rem; color:var(--acento); font-weight:600; margin-bottom:0.2rem; }
+    .sidebar-rol { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); margin-bottom:2rem; }
+    .nav-item { display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.88rem; color:var(--gris); cursor:pointer; transition:background 0.15s, color 0.15s; margin-bottom:0.2rem; text-decoration:none; }
+    .nav-item:hover { background:var(--carbon); color:var(--blanco); }
+    .nav-item.activo { background:var(--carbon); color:var(--blanco); }
+    .sidebar-bottom { margin-top:auto; }
+    .btn-cerrar { width:100%; padding:0.6rem; background:none; border:1px solid var(--linea); border-radius:8px; color:var(--gris); font-size:0.82rem; cursor:pointer; }
+    .btn-cerrar:hover { border-color:var(--error); color:var(--error); }
+    .main { margin-left:220px; padding:2.5rem; }
+    .page-titulo { font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400; margin-bottom:0.3rem; }
+    .page-sub { font-size:0.85rem; color:var(--gris); margin-bottom:2rem; }
+
+    /* Notificación badge */
+    .notif-badge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:var(--warn); color:#000; border-radius:50%; font-size:0.65rem; font-weight:700; margin-left:auto; }
+
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:1.2rem 1.5rem; }
+    .stat-n { font-family:'DM Serif Display',serif; font-size:2.2rem; }
+    .stat-l { font-size:0.78rem; color:var(--gris); margin-top:0.2rem; text-transform:uppercase; letter-spacing:0.08em; }
+    .stat-n.pendiente { color:var(--warn); } .stat-n.aprobada { color:var(--exito); } .stat-n.rechazada { color:var(--error); }
+
+    .filtros { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+    .filtro-btn { padding:0.45rem 1rem; border-radius:999px; font-size:0.82rem; font-weight:500; cursor:pointer; border:1px solid var(--linea); background:none; color:var(--gris); transition:all 0.2s; }
+    .filtro-btn.activo { background:var(--acento); border-color:var(--acento); color:#fff; }
+
+    .tabla-wrap { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); padding:0.9rem 1.2rem; text-align:left; border-bottom:1px solid var(--linea); font-weight:600; }
+    td { padding:1rem 1.2rem; font-size:0.88rem; border-bottom:1px solid var(--linea); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#ffffff04; }
+    .badge { display:inline-block; padding:0.25rem 0.7rem; border-radius:999px; font-size:0.72rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; }
+    .badge.pendiente { background:#f7c44f22; color:var(--warn); border:1px solid #f7c44f44; }
+    .badge.aprobada  { background:#4fca8e22; color:var(--exito); border:1px solid #4fca8e44; }
+    .badge.rechazada { background:#f7614f22; color:var(--error); border:1px solid #f7614f44; }
+    .acciones { display:flex; gap:0.5rem; }
+    .btn-sm { padding:0.35rem 0.8rem; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; }
+    .btn-aprobar  { background:#4fca8e22; color:var(--exito); border:1px solid #4fca8e55; }
+    .btn-aprobar:hover  { background:#4fca8e44; }
+    .btn-rechazar { background:#f7614f22; color:var(--error); border:1px solid #f7614f55; }
+    .btn-rechazar:hover { background:#f7614f44; }
+    .empty { text-align:center; padding:3rem; color:var(--gris); font-size:0.88rem; }
+
+    .overlay { position:fixed; inset:0; background:#00000088; z-index:100; display:none; align-items:center; justify-content:center; }
+    .overlay.visible { display:flex; }
+    .modal { background:var(--carbon); border:1px solid var(--linea); border-radius:14px; padding:2rem; width:100%; max-width:440px; }
+    .modal h3 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin-bottom:0.5rem; }
+    .modal p { font-size:0.85rem; color:var(--gris); margin-bottom:1.2rem; }
+    .modal textarea { width:100%; padding:0.8rem; background:var(--tinta); border:1px solid var(--linea); border-radius:9px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.88rem; resize:vertical; min-height:90px; outline:none; }
+    .modal-btns { display:flex; gap:0.75rem; margin-top:1rem; }
+    .modal-btns button { flex:1; padding:0.7rem; border-radius:8px; font-size:0.88rem; font-weight:600; cursor:pointer; }
+    .btn-cancel { background:var(--carbon); border:1px solid var(--linea); color:var(--gris); }
+    .btn-confirm-rechazo { background:#f7614f22; color:var(--error); border:1px solid #f7614f55; }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">SIA</div>
+    <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
+    <div class="sidebar-rol">Administrador</div>
+    <nav>
+      <a class="nav-item activo">
+        👨‍🏫 Docentes
+        <span class="notif-badge" id="badgePendiente" style="display:none">0</span>
+      </a>
+      <a class="nav-item" href="dashboard.html">📊 Dashboard</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-titulo">Gestión de docentes</div>
+    <div class="page-sub">Aprueba o rechaza las solicitudes de docentes que quieren unirse a tu institución.</div>
+
+    <div class="stats">
+      <div class="stat-card"><div class="stat-n pendiente" id="nPendiente">—</div><div class="stat-l">Pendientes</div></div>
+      <div class="stat-card"><div class="stat-n aprobada"  id="nAprobada">—</div><div class="stat-l">Aprobados</div></div>
+      <div class="stat-card"><div class="stat-n rechazada" id="nRechazada">—</div><div class="stat-l">Rechazados</div></div>
+    </div>
+
+    <div class="filtros">
+      <button class="filtro-btn activo" data-estado="pendiente">Pendientes</button>
+      <button class="filtro-btn" data-estado="aprobada">Aprobados</button>
+      <button class="filtro-btn" data-estado="rechazada">Rechazados</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Docente</th>
+            <th>Documento</th>
+            <th>Correo</th>
+            <th>Teléfono</th>
+            <th>Fecha solicitud</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3>Rechazar docente</h3>
+      <p>Indica brevemente el motivo. El docente recibirá un correo con esta explicación.</p>
+      <textarea id="motivoTexto" placeholder="Motivo del rechazo (opcional)..."></textarea>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn-confirm-rechazo" id="btnConfirm">Confirmar rechazo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API   = 'http://localhost:3000';
+    const token = localStorage.getItem('sia_token');
+    if (!token) window.location.href = 'login.html';
+    const usuario = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
+    document.getElementById('sidebarInst').textContent = usuario.institucion_nombre || 'Mi institución';
+
+    const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
+    let estadoActual = 'pendiente';
+    let solicitudActual = null;
+
+    async function cargarStats() {
+      for (const est of ['pendiente','aprobada','rechazada']) {
+        try {
+          const res  = await fetch(`${API}/api/docentes/solicitudes?estado=${est}`, { headers });
+          const data = await res.json();
+          const idMap = { pendiente:'nPendiente', aprobada:'nAprobada', rechazada:'nRechazada' };
+          const n = data.total ?? 0;
+          document.getElementById(idMap[est]).textContent = n;
+          if (est === 'pendiente' && n > 0) {
+            const badge = document.getElementById('badgePendiente');
+            badge.textContent = n; badge.style.display = 'flex';
+          }
+        } catch {}
+      }
+    }
+
+    async function cargarSolicitudes(estado = 'pendiente') {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Cargando...</td></tr>';
+      try {
+        const res  = await fetch(`${API}/api/docentes/solicitudes?estado=${estado}`, { headers });
+        const data = await res.json();
+        if (!data.ok || !data.solicitudes.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="empty">No hay solicitudes ${estado === 'pendiente' ? 'pendientes' : estado + 's'}.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = data.solicitudes.map(s => `
+          <tr>
+            <td><strong>${s.nombres} ${s.apellidos}</strong></td>
+            <td>${s.numero_documento}</td>
+            <td>${s.email}</td>
+            <td>${s.telefono || '—'}</td>
+            <td>${new Date(s.created_at).toLocaleDateString('es-CO')}</td>
+            <td><span class="badge ${s.estado}">${s.estado}</span></td>
+            <td>
+              <div class="acciones">
+                ${s.estado === 'pendiente' ? `
+                  <button class="btn-sm btn-aprobar"  onclick="aprobar('${s.id}')">Aprobar</button>
+                  <button class="btn-sm btn-rechazar" onclick="abrirRechazo('${s.id}')">Rechazar</button>
+                ` : '—'}
+              </div>
+            </td>
+          </tr>`).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">Error cargando datos.</td></tr>';
+      }
+    }
+
+    async function aprobar(id) {
+      if (!confirm('¿Aprobar a este docente? Se creará su cuenta y recibirá un correo.')) return;
+      try {
+        const res  = await fetch(`${API}/api/docentes/${id}/aprobar`, { method:'POST', headers });
+        const data = await res.json();
+        alert(data.ok ? '✅ Docente aprobado.' : '❌ ' + data.mensaje);
+        cargarStats(); cargarSolicitudes(estadoActual);
+      } catch { alert('Error de conexión.'); }
+    }
+
+    function abrirRechazo(id) {
+      solicitudActual = id;
+      document.getElementById('motivoTexto').value = '';
+      document.getElementById('overlay').classList.add('visible');
+    }
+    function cerrarModal() { document.getElementById('overlay').classList.remove('visible'); }
+
+    document.getElementById('btnConfirm').addEventListener('click', async () => {
+      const motivo = document.getElementById('motivoTexto').value.trim();
+      try {
+        const res  = await fetch(`${API}/api/docentes/${solicitudActual}/rechazar`, {
+          method:'POST', headers, body: JSON.stringify({ motivo })
+        });
+        const data = await res.json();
+        alert(data.ok ? '✅ Solicitud rechazada.' : '❌ ' + data.mensaje);
+        cerrarModal(); cargarStats(); cargarSolicitudes(estadoActual);
+      } catch { alert('Error de conexión.'); }
+    });
+
+    document.querySelectorAll('.filtro-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo'));
+        btn.classList.add('activo');
+        estadoActual = btn.dataset.estado;
+        cargarSolicitudes(estadoActual);
+      });
+    });
+
+    function cerrarSesion() {
+      localStorage.removeItem('sia_token');
+      localStorage.removeItem('sia_usuario');
+      window.location.href = 'login.html';
+    }
+
+    cargarStats();
+    cargarSolicitudes();
+  </script>
+</body>
+</html>
