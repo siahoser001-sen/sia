@@ -3,71 +3,54 @@
 > Proyecto académico SENA · Ficha 3407184 · Teleinformática y Bases de Datos  
 > Autores: Oscar Andrés Navarro Ochoa - Juan Sebastian Calderon - Giovanny Esteban Reyes Rodriguez - Jhon Harold Hoyos Pacheco - Romel Sneider Toquica Corredor 
 
-Sistema web para gestión académica de instituciones educativas colombianas (Preescolar – 7°).
-
 ---
 
 ## Índice
 
-1. [Cómo funciona el sistema por dentro](#1-cómo-funciona-el-sistema-por-dentro)
+1. [Cómo funciona el sistema](#1-cómo-funciona-el-sistema)
 2. [Cómo se redirige según el rol](#2-cómo-se-redirige-según-el-rol)
 3. [Cómo están conectadas las pantallas](#3-cómo-están-conectadas-las-pantallas)
-4. [Flujos completos del sistema](#4-flujos-completos-del-sistema)
-5. [Cómo instalar y ejecutar](#5-cómo-instalar-y-ejecutar)
-6. [Estructura de archivos](#6-estructura-de-archivos)
-7. [Stack tecnológico](#7-stack-tecnológico)
-8. [Solución de errores frecuentes](#8-solución-de-errores-frecuentes)
+4. [Cómo instalar MySQL Workbench](#4-cómo-instalar-mysql-workbench)
+5. [Cómo instalar y ejecutar el proyecto](#5-cómo-instalar-y-ejecutar-el-proyecto)
+6. [Ver registros en tiempo real](#6-ver-registros-en-tiempo-real)
+7. [Estructura de archivos](#7-estructura-de-archivos)
+8. [Diferencias entre MySQL y PostgreSQL](#8-diferencias-entre-mysql-y-postgresql)
+9. [Solución de errores frecuentes](#9-solución-de-errores-frecuentes)
 
 ---
 
-## 1. Cómo funciona el sistema por dentro
+## 1. Cómo funciona el sistema
 
-El SIA tiene dos partes que trabajan juntas:
+El SIA tiene dos partes:
 
-### Backend (el cerebro)
-Vive en la carpeta `src/` y corre con Node.js en el puerto 3000.
-Es un servidor que recibe peticiones, consulta la base de datos PostgreSQL y devuelve respuestas en formato JSON.
-**Nunca lo ve el usuario directamente** — trabaja en segundo plano.
+**Backend** — carpeta `src/`, corre con Node.js en el puerto 3000. Nunca lo ve el usuario directamente. Recibe peticiones del frontend, consulta MySQL y devuelve JSON.
+
+**Frontend** — carpeta `frontend/`, archivos HTML que se abren con Live Server en el puerto 5500. Se comunican con el backend usando `fetch()`.
 
 ```
-Usuario hace clic → Frontend envía petición → Backend procesa → Base de datos responde → Frontend muestra resultado
+Usuario hace clic
+  → Frontend envía fetch() al backend
+    → Backend consulta MySQL
+      → MySQL responde
+        → Backend responde con JSON
+          → Frontend muestra el resultado
 ```
-
-### Frontend (lo que ve el usuario)
-Son archivos HTML en la carpeta `frontend/`.
-Se abren en el navegador con Live Server (puerto 5500).
-Usan `fetch()` para comunicarse con el backend.
 
 ### Por qué se abre en la misma pestaña
-Cuando el login es exitoso, el frontend ejecuta:
-```javascript
-window.location.href = rutas[rol];
-```
-`window.location.href` es una instrucción de JavaScript que cambia la URL de la pestaña actual — no abre una nueva. Es el comportamiento estándar de cualquier sistema web (igual que Google, Gmail, etc.).
+El login usa `window.location.href = ruta` — esto cambia la URL de la pestaña actual, igual que cualquier sistema web real (Gmail, Google, etc.). No abre una pestaña nueva.
 
 ---
 
 ## 2. Cómo se redirige según el rol
 
-Esta es la parte más importante del sistema de autenticación.
+Cuando el usuario inicia sesión:
 
-### Paso a paso del login
+1. El frontend envía email y contraseña al backend
+2. El backend verifica la contraseña con bcrypt
+3. Si es correcta, genera un JWT que contiene el rol del usuario
+4. El frontend guarda el token en localStorage
+5. Lee el rol del token y redirige:
 
-**1.** El usuario escribe su correo y contraseña y hace clic en "Iniciar sesión"
-
-**2.** El frontend envía una petición al backend:
-```javascript
-fetch('http://localhost:3000/api/auth/login', {
-  method: 'POST',
-  body: JSON.stringify({ email, password })
-})
-```
-
-**3.** El backend busca al usuario en PostgreSQL y verifica la contraseña con bcrypt
-
-**4.** Si todo está bien, genera un JWT (token) que contiene el rol del usuario
-
-**5.** El frontend recibe el token, lo guarda en localStorage y lee el rol:
 ```javascript
 function redirigirPorRol(rol) {
   const rutas = {
@@ -81,15 +64,22 @@ function redirigirPorRol(rol) {
 }
 ```
 
-### Roles y sus permisos
+### Roles del sistema
 
-| Rol | Pantalla inicial | Qué puede hacer |
+| Rol | Pantalla inicial | Permisos |
 |---|---|---|
-| `superadmin` | panel-superadmin.html | Aprobar/rechazar instituciones, ver todo el sistema |
+| `superadmin` | panel-superadmin.html | Aprobar/rechazar instituciones |
 | `admin` | panel-admin.html | Aprobar/rechazar docentes de su institución |
 | `docente` | dashboard.html | Notas, asistencia, tareas |
-| `estudiante` | dashboard.html | Ver sus notas y tareas |
-| `acudiente` | dashboard.html | Ver información de su acudido |
+| `estudiante` | dashboard.html | Ver notas y tareas |
+| `acudiente` | dashboard.html | Ver info de su acudido |
+
+### Cómo las pantallas protegidas verifican el acceso
+```javascript
+const token = localStorage.getItem('sia_token');
+if (!token) window.location.href = 'login.html';
+```
+Si no hay token → redirige al login automáticamente.
 
 ---
 
@@ -99,104 +89,127 @@ function redirigirPorRol(rol) {
 login.html
   ├── superadmin  → panel-superadmin.html
   ├── admin       → panel-admin.html
-  └── otros roles → dashboard.html
+  └── otros       → dashboard.html
 
 registro-institucion.html  (público)
-  └── Solicitud → superadmin la aprueba en panel-superadmin.html
+  └── POST /api/instituciones/solicitar
+        → superadmin recibe correo y notificación
+          → panel-superadmin.html → aprobar/rechazar
 
 registro-docente.html  (público)
-  └── Solicitud → admin la aprueba en panel-admin.html
-
-panel-superadmin.html  (solo superadmin)
-  ├── Aprobar institución → crea colegio + admin + envía correo
-  └── Rechazar → envía correo con motivo
-
-panel-admin.html  (solo admin institucional)
-  ├── Aprobar docente → crea cuenta + envía correo
-  └── Rechazar → envía correo con motivo
-
-dashboard.html  (todos los roles)
-  ├── Menú adaptado según rol
-  ├── Notificaciones internas
-  └── Accesos rápidos según permisos
+  └── POST /api/docentes/solicitar
+        → admin recibe correo y notificación
+          → panel-admin.html → aprobar/rechazar
 ```
 
 ---
 
-## 4. Flujos completos del sistema
+## 4. Cómo instalar MySQL Workbench
 
-### Registrar un colegio nuevo
-```
-1. Rector → registro-institucion.html → llena el formulario
-2. Backend guarda solicitud con estado "pendiente"
-3. Backend envía correo al superadmin
-4. Superadmin → panel-superadmin.html → aprueba
-5. Backend crea: institución + configuración + cuenta del rector
-6. Rector recibe correo y puede iniciar sesión
-```
+### Paso 1 — Descargar MySQL Installer
+Ve a: https://dev.mysql.com/downloads/installer/
 
-### Registrar un docente
-```
-1. Docente → registro-docente.html → busca su colegio y llena sus datos
-2. Backend guarda solicitud con estado "pendiente"
-3. Admin del colegio recibe correo y notificación interna
-4. Admin → panel-admin.html → aprueba o rechaza
-5. Docente recibe correo con el resultado
-6. Si aprobado: puede iniciar sesión
-```
+Descarga **MySQL Installer for Windows** (el archivo más grande, ~450MB)
+
+### Paso 2 — Instalar
+1. Ejecuta el instalador
+2. Elige **"Developer Default"** (instala MySQL Server + Workbench)
+3. Clic en **Execute** para instalar todos los componentes
+4. En la configuración:
+   - **Type and Networking:** deja todo por defecto (puerto 3306)
+   - **Authentication:** elige "Use Strong Password Encryption"
+   - **Accounts and Roles:** pon una contraseña para `root` y **guárdala**
+   - **Windows Service:** deja por defecto
+5. Finaliza la instalación
+
+### Paso 3 — Verificar
+Abre **MySQL Workbench** desde el menú inicio.  
+Verás una conexión llamada "Local instance MySQL" — haz doble clic e ingresa tu contraseña.  
+Si abre sin error, MySQL está funcionando.
+
+> ⚠️ El usuario por defecto de MySQL es `root`, no `postgres` como en PostgreSQL.  
+> ⚠️ El puerto de MySQL es `3306`, no `5432`.
 
 ---
 
-## 5. Cómo instalar y ejecutar
+## 5. Cómo instalar y ejecutar el proyecto
 
 ### Requisitos previos
 | Programa | Versión | Descarga |
 |---|---|---|
 | Node.js | 20 LTS | https://nodejs.org |
-| PostgreSQL | 16 | https://www.postgresql.org/download |
+| MySQL | 8.x | https://dev.mysql.com/downloads/installer/ |
+| MySQL Workbench | 8.x | Incluido en el instalador de MySQL |
 | Git | 2.x | https://git-scm.com |
 | VS Code | Última | https://code.visualstudio.com |
 
-### Extensiones de VS Code necesarias
-- **Live Server** (Ritwick Dey) — para abrir los HTML
-- **PostgreSQL** (Chris Kolkman) — opcional
+Extensiones de VS Code:
+- **Live Server** (Ritwick Dey)
 
-### Pasos
+---
 
-**1. Clonar**
+### Paso 1 — Clonar el repositorio
 ```bash
 cd C:\Proyectos
 git clone https://github.com/TU_USUARIO/sia.git
 cd sia
 ```
 
-**2. Crear el .env**
+### Paso 2 — Crear el archivo .env
 ```bash
 copy .env.example .env
 ```
-Abre `.env` y llena `DB_PASSWORD`, `EMAIL_USER`, `EMAIL_PASS` y `SUPERADMIN_EMAIL`.
+Abre `.env` y llena los valores:
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=sia_db
+DB_USER=root
+DB_PASSWORD=la_contraseña_que_pusiste_al_instalar_mysql
+JWT_SECRET=cualquier_texto_largo_y_secreto_minimo_32_caracteres
+JWT_EXPIRES_IN=8h
+PORT=3000
+CORS_ORIGIN=http://127.0.0.1:5500
+EMAIL_USER=sia.sena.2025@gmail.com
+EMAIL_PASS=contraseña_de_aplicacion_gmail
+SUPERADMIN_EMAIL=sia.sena.2025@gmail.com
+```
 
-**3. Crear la base de datos en pgAdmin**
-- Crea la base: `sia_db`
-- Abre Query Tool y ejecuta en orden:
-  - `database/01_sia_base.sql` → F5
-  - `database/02_sia_v2.sql` → F5
+### Paso 3 — Crear la base de datos en MySQL Workbench
+1. Abre MySQL Workbench
+2. Doble clic en "Local instance MySQL" → ingresa contraseña
+3. Clic en el ícono de hoja nueva (New SQL Tab) o **Ctrl+T**
+4. Pega y ejecuta esto primero para crear la base:
+```sql
+CREATE DATABASE IF NOT EXISTS sia_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+5. Presiona **Ctrl+Shift+Enter** para ejecutar
+6. Abre `database/01_sia_base.sql`:
+   - Menú **File → Open SQL Script** → selecciona el archivo
+   - Presiona **Ctrl+Shift+Enter**
+   - Espera a que diga "OK" abajo
+7. Repite con `database/02_sia_v2.sql`
 
-**4. Instalar y ejecutar** (usar Command Prompt, no PowerShell)
+### Paso 4 — Instalar dependencias
+Abre la terminal en VS Code (**Ctrl+ñ**), selecciona **Command Prompt**:
 ```bash
 npm install
+```
+
+### Paso 5 — Arrancar el servidor
+```bash
 npm run dev
 ```
 Debe aparecer:
 ```
 🚀 SIA corriendo en http://localhost:3000
-✅ Conectado a PostgreSQL — sia_db
+✅ Conectado a MySQL — sia_db
 ```
 
-**5. Abrir el frontend**
+### Paso 6 — Abrir el frontend
 Clic derecho sobre `frontend/login.html` → **Open with Live Server**
 
-**6. Credenciales de prueba**
+### Paso 7 — Credenciales iniciales
 ```
 Correo:     admin@sia.edu.co
 Contraseña: Admin2025!
@@ -205,7 +218,39 @@ Rol:        superadmin
 
 ---
 
-## 6. Estructura de archivos
+## 6. Ver registros en tiempo real
+
+En MySQL Workbench, abre una pestaña SQL (Ctrl+T) y ejecuta:
+
+**Ver todos los usuarios:**
+```sql
+USE sia_db;
+SELECT nombres, apellidos, email, rol, activo, created_at
+FROM usuarios
+ORDER BY created_at DESC;
+```
+
+**Ver solicitudes de instituciones:**
+```sql
+USE sia_db;
+SELECT nombre, admin_nombre, admin_email, estado, created_at
+FROM solicitudes_instituciones
+ORDER BY created_at DESC;
+```
+
+**Ver solicitudes de docentes:**
+```sql
+USE sia_db;
+SELECT nombres, apellidos, email, estado, created_at
+FROM solicitudes_docentes
+ORDER BY created_at DESC;
+```
+
+Presiona **Ctrl+Shift+Enter** para ejecutar. Cada vez que alguien se registre, vuelve a ejecutar la consulta y verás el nuevo registro.
+
+---
+
+## 7. Estructura de archivos
 
 ```
 SIA/
@@ -217,56 +262,61 @@ SIA/
 │   ├── panel-admin.html
 │   └── dashboard.html
 ├── src/
-│   ├── app.js
-│   ├── config/db.js
+│   ├── app.js                      ← Servidor Express
+│   ├── config/
+│   │   └── db.js                   ← Conexión MySQL con mysql2
 │   ├── controllers/
 │   │   ├── auth.controller.js
 │   │   ├── institucion.controller.js
 │   │   └── docente.controller.js
-│   ├── middleware/auth.middleware.js
+│   ├── middleware/
+│   │   └── auth.middleware.js      ← Verifica JWT y roles
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── institucion.routes.js
 │   │   └── docente.routes.js
 │   └── services/
-│       ├── email.service.js
+│       ├── email.service.js        ← Nodemailer
 │       └── notificacion.service.js
 ├── database/
-│   ├── 01_sia_base.sql
-│   └── 02_sia_v2.sql
-├── .env              ← NO subir a GitHub
-├── .env.example      ← Sí subir
+│   ├── 01_sia_base.sql             ← Tablas principales
+│   └── 02_sia_v2.sql               ← Solicitudes y notificaciones
+├── .env                            ← NO subir a GitHub
+├── .env.example
 ├── .gitignore
 └── package.json
 ```
 
 ---
 
-## 7. Stack tecnológico
+## 8. Diferencias entre MySQL y PostgreSQL
 
-| Tecnología | Versión | Uso |
+| Aspecto | PostgreSQL (antes) | MySQL (ahora) |
 |---|---|---|
-| Node.js | 20 LTS | Runtime del backend |
-| Express | 4.18 | Framework web |
-| PostgreSQL | 16 | Base de datos |
-| JWT | 9.0 | Autenticación |
-| bcrypt | 5.1 | Hash de contraseñas |
-| Nodemailer | 6.9 | Correos automáticos |
-| pg | 8.11 | Conexión a PostgreSQL |
+| Driver Node.js | `pg` | `mysql2` |
+| Parámetros en queries | `$1, $2, $3` | `?, ?, ?` |
+| Resultado de query | `{ rows }` | `[rows, fields]` |
+| UUID automático | `uuid_generate_v4()` | `UUID()` o `randomUUID()` en Node |
+| Hash en BD | `crypt()` de pgcrypto | bcrypt en Node.js |
+| Zona horaria | `TIMESTAMPTZ` | `DATETIME` |
+| Esquemas | `CREATE SCHEMA sia` | `CREATE DATABASE sia_db` |
+| Transacciones | `pool.connect()` → `BEGIN/COMMIT` | `pool.getConnection()` → `beginTransaction()/commit()` |
+| Puerto | 5432 | 3306 |
+| Usuario por defecto | `postgres` | `root` |
 
 ---
 
-## 8. Solución de errores frecuentes
+## 9. Solución de errores frecuentes
 
 | Error | Causa | Solución |
 |---|---|---|
-| `Cannot find module` | No corriste `npm install` | Corre `npm install` |
-| `password authentication failed` | Contraseña PostgreSQL incorrecta | Revisa `DB_PASSWORD` en `.env` |
+| `Cannot find module 'mysql2'` | No corriste npm install | Corre `npm install` |
+| `Access denied for user 'root'` | Contraseña incorrecta en .env | Revisa `DB_PASSWORD` |
+| `Unknown database 'sia_db'` | No creaste la base de datos | Ejecuta el CREATE DATABASE en Workbench |
+| `Table doesn't exist` | No ejecutaste los SQL | Ejecuta 01 y 02 en Workbench |
 | `port 3000 already in use` | Servidor ya corriendo | Cierra la otra terminal |
-| `relation does not exist` | No ejecutaste los SQL | Ejecuta los dos `.sql` en pgAdmin |
-| Frontend no carga datos | Backend no está corriendo | Corre `npm run dev` |
-| Correo no llega | `EMAIL_PASS` incorrecto | Genera nueva contraseña de aplicación en Google |
-| Scripts deshabilitados | Restricción de Windows | Usa Command Prompt en lugar de PowerShell |
+| Scripts deshabilitados | Restricción Windows | Usa Command Prompt, no PowerShell |
+| Correo no llega | EMAIL_PASS incorrecto | Genera nueva contraseña de aplicación Google |
 
 ---
 
@@ -275,11 +325,9 @@ SIA/
 ```bash
 git pull origin main
 git checkout -b feature/nombre-funcionalidad
-# ... trabajas ...
 git add .
 git commit -m "feat: descripción"
 git push origin feature/nombre-funcionalidad
-# Abre Pull Request en GitHub
 ```
 
 ---

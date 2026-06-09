@@ -1,8 +1,14 @@
-const pool    = require('../config/db');
-const bcrypt  = require('bcrypt');
-const jwt     = require('jsonwebtoken');
+// ============================================================
+//  auth.controller.js — MySQL
+//  Diferencia vs PostgreSQL:
+//    - pool.query devuelve [rows] → desestructuramos como const [rows]
+//    - Parámetros con ? en lugar de $1
+// ============================================================
 
-// POST /api/auth/login
+const pool   = require('../config/db');
+const bcrypt = require('bcrypt');
+const jwt    = require('jsonwebtoken');
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -11,9 +17,13 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const { rows } = await pool.query(
-      `SELECT id, nombres, apellidos, email, rol, password_hash, institucion_id, activo
-       FROM sia.usuarios WHERE email = $1 LIMIT 1`,
+    // MySQL devuelve [rows, fields] — tomamos solo rows
+    const [rows] = await pool.query(
+      `SELECT id, nombres, apellidos, email, rol,
+              password_hash, institucion_id, activo
+       FROM usuarios
+       WHERE email = ?
+       LIMIT 1`,
       [email.toLowerCase().trim()]
     );
 
@@ -27,7 +37,10 @@ exports.login = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'Cuenta inactiva. Contacta al administrador.' });
     }
 
-    await pool.query(`UPDATE sia.usuarios SET ultimo_acceso = NOW() WHERE id = $1`, [usuario.id]);
+    await pool.query(
+      `UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?`,
+      [usuario.id]
+    );
 
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, rol: usuario.rol, institucion_id: usuario.institucion_id },

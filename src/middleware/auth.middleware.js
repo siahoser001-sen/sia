@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 
-// Verifica que el token JWT sea válido
 function authMiddleware(req, res, next) {
   const header = req.headers['authorization'];
   if (!header?.startsWith('Bearer ')) {
@@ -17,8 +16,6 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// Solo permite acceso a los roles indicados
-// Uso: soloRoles('superadmin', 'admin')
 function soloRoles(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.usuario?.rol)) {

@@ -1,13 +1,10 @@
 const pool    = require('../config/db');
 const bcrypt  = require('bcrypt');
+const { randomUUID } = require('crypto');
 const email   = require('../services/email.service');
 const { crearNotificacion } = require('../services/notificacion.service');
 
-// ============================================================
-//  POST /api/docentes/solicitar
-//  Público — el docente se registra indicando a qué colegio quiere entrar.
-//  NO crea su cuenta todavía. El admin institucional decide.
-// ============================================================
+// ── POST /api/docentes/solicitar (público) ────────────────────
 exports.solicitarRegistro = async (req, res) => {
   const { institucion_id, nombres, apellidos, tipo_documento,
           numero_documento, email_doc, telefono, password } = req.body;
@@ -17,19 +14,18 @@ exports.solicitarRegistro = async (req, res) => {
   }
 
   try {
-    // Verificar que la institución existe y está activa
-    const { rows: inst } = await pool.query(
-      `SELECT id, nombre, email_institucional FROM sia.instituciones WHERE id = $1 AND activa = true`,
+    const [inst] = await pool.query(
+      `SELECT id, nombre, email_institucional FROM instituciones
+       WHERE id = ? AND activa = TRUE`,
       [institucion_id]
     );
     if (!inst.length) {
       return res.status(404).json({ ok: false, mensaje: 'Institución no encontrada.' });
     }
 
-    // Verificar que no exista ya una solicitud pendiente del mismo email en esa institución
-    const { rows: existe } = await pool.query(
-      `SELECT id FROM sia.solicitudes_docentes
-       WHERE institucion_id = $1 AND email = $2 LIMIT 1`,
+    const [existe] = await pool.query(
+      `SELECT id FROM solicitudes_docentes
+       WHERE institucion_id = ? AND email = ? LIMIT 1`,
       [institucion_id, email_doc]
     );
     if (existe.length) {
@@ -37,43 +33,42 @@ exports.solicitarRegistro = async (req, res) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
+    const id = randomUUID();
 
-    const { rows } = await pool.query(
-      `INSERT INTO sia.solicitudes_docentes
-         (institucion_id, nombres, apellidos, tipo_documento, numero_documento, email, telefono, password_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-      [institucion_id, nombres, apellidos, tipo_documento || 'CC',
+    await pool.query(
+      `INSERT INTO solicitudes_docentes
+         (id, institucion_id, nombres, apellidos, tipo_documento,
+          numero_documento, email, telefono, password_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, institucion_id, nombres, apellidos, tipo_documento || 'CC',
        numero_documento, email_doc, telefono, password_hash]
     );
 
-    // Buscar al admin de esa institución para notificarle
-    const { rows: admins } = await pool.query(
-      `SELECT id, email FROM sia.usuarios
-       WHERE institucion_id = $1 AND rol = 'admin' AND activo = true LIMIT 1`,
+    const [admins] = await pool.query(
+      `SELECT id, email FROM usuarios
+       WHERE institucion_id = ? AND rol = 'admin' AND activo = TRUE LIMIT 1`,
       [institucion_id]
     );
 
     if (admins.length) {
-      // Correo al admin institucional
       await email.enviarCorreo(
         email.correoNuevaSolicitudDocente({
-          admin_email:   admins[0].email,
+          admin_email:    admins[0].email,
           docente_nombre: `${nombres} ${apellidos}`,
           docente_email:  email_doc,
         })
       );
-      // Notificación interna al admin
       await crearNotificacion({
         destinatario: admins[0].id,
         tipo:         'solicitud_docente',
         titulo:       `Nuevo docente: ${nombres} ${apellidos}`,
         mensaje:      `${nombres} ${apellidos} solicita ser docente en tu institución.`,
-        ref_id:       rows[0].id,
+        ref_id:       id,
         ref_tabla:    'solicitudes_docentes',
       });
     }
 
-    return res.status(201).json({ ok: true, mensaje: 'Solicitud enviada. El administrador del colegio la revisará.' });
+    return res.status(201).json({ ok: true, mensaje: 'Solicitud enviada. El administrador la revisará.' });
 
   } catch (err) {
     console.error('solicitarRegistro docente error:', err.message);
@@ -81,53 +76,48 @@ exports.solicitarRegistro = async (req, res) => {
   }
 };
 
-// ============================================================
-//  POST /api/docentes/:solicitudId/aprobar
-//  Solo admin institucional — crea el usuario docente activo
-// ============================================================
+// ── POST /api/docentes/:solicitudId/aprobar (admin) ───────────
 exports.aprobarDocente = async (req, res) => {
   const { solicitudId } = req.params;
   const adminId         = req.usuario.id;
   const adminInstId     = req.usuario.institucion_id;
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
-    const { rows } = await client.query(
-      `SELECT * FROM sia.solicitudes_docentes
-       WHERE id = $1 AND institucion_id = $2 AND estado = 'pendiente'`,
+    const [rows] = await conn.query(
+      `SELECT * FROM solicitudes_docentes
+       WHERE id = ? AND institucion_id = ? AND estado = 'pendiente'`,
       [solicitudId, adminInstId]
     );
     if (!rows.length) {
-      await client.query('ROLLBACK');
+      await conn.rollback();
       return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada o ya revisada.' });
     }
     const s = rows[0];
+    const docenteId = randomUUID();
 
-    // Crear el usuario docente activo
-    const { rows: userRows } = await client.query(
-      `INSERT INTO sia.usuarios
-         (institucion_id, rol, nombres, apellidos, tipo_documento, numero_documento, email, password_hash, activo)
-       VALUES ($1,'docente',$2,$3,$4,$5,$6,$7,true) RETURNING id`,
-      [s.institucion_id, s.nombres, s.apellidos, s.tipo_documento,
-       s.numero_documento, s.email, s.password_hash]
+    await conn.query(
+      `INSERT INTO usuarios
+         (id, institucion_id, rol, nombres, apellidos, tipo_documento,
+          numero_documento, email, password_hash, activo)
+       VALUES (?, ?, 'docente', ?, ?, ?, ?, ?, ?, TRUE)`,
+      [docenteId, s.institucion_id, s.nombres, s.apellidos,
+       s.tipo_documento, s.numero_documento, s.email, s.password_hash]
     );
-    const docente_id = userRows[0].id;
 
-    // Marcar solicitud como aprobada
-    await client.query(
-      `UPDATE sia.solicitudes_docentes
-       SET estado = 'aprobada', revisado_por = $1, revisado_at = NOW()
-       WHERE id = $2`,
+    await conn.query(
+      `UPDATE solicitudes_docentes
+       SET estado = 'aprobada', revisado_por = ?, revisado_at = NOW()
+       WHERE id = ?`,
       [adminId, solicitudId]
     );
 
-    await client.query('COMMIT');
+    await conn.commit();
 
-    // Obtener nombre de la institución para el correo
-    const { rows: inst } = await pool.query(
-      `SELECT nombre FROM sia.instituciones WHERE id = $1`, [adminInstId]
+    const [inst] = await pool.query(
+      `SELECT nombre FROM instituciones WHERE id = ?`, [adminInstId]
     );
 
     await email.enviarCorreo(
@@ -138,7 +128,7 @@ exports.aprobarDocente = async (req, res) => {
       })
     );
     await crearNotificacion({
-      destinatario: docente_id,
+      destinatario: docenteId,
       tipo:         'aprobacion',
       titulo:       '¡Tu registro como docente fue aprobado!',
       mensaje:      `Ya puedes iniciar sesión en ${inst[0]?.nombre || 'el SIA'}.`,
@@ -149,43 +139,31 @@ exports.aprobarDocente = async (req, res) => {
     return res.json({ ok: true, mensaje: 'Docente aprobado y cuenta creada.' });
 
   } catch (err) {
-    await client.query('ROLLBACK');
+    await conn.rollback();
     console.error('aprobarDocente error:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno. Cambios revertidos.' });
   } finally {
-    client.release();
+    conn.release();
   }
 };
 
-// ============================================================
-//  POST /api/docentes/:solicitudId/rechazar
-//  Solo admin institucional
-// ============================================================
+// ── POST /api/docentes/:solicitudId/rechazar (admin) ──────────
 exports.rechazarDocente = async (req, res) => {
   const { solicitudId } = req.params;
   const { motivo }      = req.body;
 
   try {
-    const { rows } = await pool.query(
-      `UPDATE sia.solicitudes_docentes
-       SET estado = 'rechazada', motivo_rechazo = $1,
-           revisado_por = $2, revisado_at = NOW()
-       WHERE id = $3 AND institucion_id = $4 AND estado = 'pendiente'
-       RETURNING email, nombres, apellidos`,
+    const [result] = await pool.query(
+      `UPDATE solicitudes_docentes
+       SET estado = 'rechazada', motivo_rechazo = ?,
+           revisado_por = ?, revisado_at = NOW()
+       WHERE id = ? AND institucion_id = ? AND estado = 'pendiente'`,
       [motivo || null, req.usuario.id, solicitudId, req.usuario.institucion_id]
     );
 
-    if (!rows.length) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada.' });
     }
-
-    await email.enviarCorreo(
-      email.correoDocenteRechazado({
-        docente_email:  rows[0].email,
-        docente_nombre: `${rows[0].nombres} ${rows[0].apellidos}`,
-        motivo,
-      })
-    );
 
     return res.json({ ok: true, mensaje: 'Solicitud rechazada.' });
 
@@ -195,17 +173,14 @@ exports.rechazarDocente = async (req, res) => {
   }
 };
 
-// ============================================================
-//  GET /api/docentes/solicitudes
-//  Admin institucional — lista sus solicitudes pendientes
-// ============================================================
+// ── GET /api/docentes/solicitudes (admin) ─────────────────────
 exports.listarSolicitudes = async (req, res) => {
-  const { estado = 'pendiente' } = req.query;
+  const estado = req.query.estado || 'pendiente';
   try {
-    const { rows } = await pool.query(
+    const [rows] = await pool.query(
       `SELECT id, nombres, apellidos, email, numero_documento, estado, created_at
-       FROM sia.solicitudes_docentes
-       WHERE institucion_id = $1 AND estado = $2
+       FROM solicitudes_docentes
+       WHERE institucion_id = ? AND estado = ?
        ORDER BY created_at DESC`,
       [req.usuario.institucion_id, estado]
     );
