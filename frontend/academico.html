@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Gestión académica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e; --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa; --error:#f7614f; --exito:#4fca8e; --warn:#f7c44f; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; }
+
+    .sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--tinta); border-right:1px solid var(--linea); display:flex; flex-direction:column; padding:1.5rem; }
+    .sidebar-logo { font-family:'DM Serif Display',serif; font-size:1.8rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.2rem; }
+    .sidebar-inst { font-size:0.72rem; color:var(--acento); font-weight:600; margin-bottom:0.2rem; }
+    .sidebar-rol { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); margin-bottom:2rem; }
+    .nav-item { display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.88rem; color:var(--gris); cursor:pointer; transition:background 0.15s, color 0.15s; margin-bottom:0.2rem; text-decoration:none; }
+    .nav-item:hover { background:var(--carbon); color:var(--blanco); }
+    .nav-item.activo { background:var(--carbon); color:var(--blanco); }
+    .sidebar-bottom { margin-top:auto; }
+    .btn-cerrar { width:100%; padding:0.6rem; background:none; border:1px solid var(--linea); border-radius:8px; color:var(--gris); font-size:0.82rem; cursor:pointer; }
+    .btn-cerrar:hover { border-color:var(--error); color:var(--error); }
+
+    .main { margin-left:220px; padding:2.5rem; }
+    .page-titulo { font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400; margin-bottom:0.3rem; }
+    .page-sub { font-size:0.85rem; color:var(--gris); margin-bottom:2rem; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--linea); }
+    .tab { padding:0.7rem 1.2rem; font-size:0.88rem; font-weight:500; color:var(--gris); cursor:pointer; border-bottom:2px solid transparent; transition:color 0.2s, border-color 0.2s; }
+    .tab:hover { color:var(--blanco); }
+    .tab.activo { color:var(--acento); border-bottom-color:var(--acento); }
+
+    .tab-content { display:none; animation:bajar 0.3s ease both; }
+    .tab-content.activo { display:block; }
+
+    /* Toolbar */
+    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; gap:1rem; }
+    .toolbar select { padding:0.6rem 1rem; background:var(--carbon); border:1px solid var(--linea); border-radius:8px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.85rem; outline:none; }
+    .btn-nuevo { padding:0.6rem 1.2rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); border:none; border-radius:8px; color:#fff; font-size:0.85rem; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
+    .btn-nuevo:hover { opacity:0.9; }
+
+    /* Tabla */
+    .tabla-wrap { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); padding:0.9rem 1.2rem; text-align:left; border-bottom:1px solid var(--linea); font-weight:600; }
+    td { padding:0.85rem 1.2rem; font-size:0.88rem; border-bottom:1px solid var(--linea); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#ffffff04; }
+    .empty { text-align:center; padding:3rem; color:var(--gris); font-size:0.88rem; }
+
+    .badge { display:inline-block; padding:0.25rem 0.7rem; border-radius:999px; font-size:0.72rem; font-weight:600; }
+    .badge.activo   { background:#4fca8e22; color:var(--exito); border:1px solid #4fca8e44; }
+    .badge.inactivo { background:#8888aa22; color:var(--gris); border:1px solid #8888aa44; }
+
+    .color-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:0.5rem; vertical-align:middle; }
+
+    .acciones { display:flex; gap:0.5rem; }
+    .btn-sm { padding:0.35rem 0.8rem; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1px solid var(--linea); background:var(--carbon); color:var(--gris); transition:all 0.15s; }
+    .btn-sm:hover { color:var(--blanco); border-color:var(--acento); }
+    .btn-sm.danger:hover { color:var(--error); border-color:var(--error); }
+
+    /* Modal */
+    .overlay { position:fixed; inset:0; background:#00000088; z-index:100; display:none; align-items:center; justify-content:center; }
+    .overlay.visible { display:flex; }
+    .modal { background:var(--carbon); border:1px solid var(--linea); border-radius:14px; padding:2rem; width:100%; max-width:440px; }
+    .modal h3 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin-bottom:1.2rem; }
+    .campo { margin-bottom:1rem; }
+    .campo label { display:block; font-size:0.75rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--gris); margin-bottom:0.4rem; }
+    .campo input, .campo select, .campo textarea {
+      width:100%; padding:0.7rem 0.9rem; background:var(--tinta); border:1px solid var(--linea);
+      border-radius:8px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.88rem; outline:none;
+    }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { border-color:var(--acento); }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .modal-btns { display:flex; gap:0.75rem; margin-top:1.2rem; }
+    .modal-btns button { flex:1; padding:0.7rem; border-radius:8px; font-size:0.88rem; font-weight:600; cursor:pointer; border:none; }
+    .btn-cancel { background:var(--tinta); border:1px solid var(--linea) !important; color:var(--gris); }
+    .btn-guardar { background:linear-gradient(135deg,var(--acento),var(--acento2)); color:#fff; }
+
+    .msg { padding:0.7rem 1rem; border-radius:8px; font-size:0.82rem; margin-bottom:1rem; display:none; }
+    .msg.error { background:#f7614f18; border:1px solid #f7614f44; color:var(--error); display:block; }
+    .msg.exito { background:#4fca8e18; border:1px solid #4fca8e44; color:var(--exito); display:block; }
+
+    @keyframes bajar { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">SIA</div>
+    <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
+    <div class="sidebar-rol">Administrador</div>
+    <nav>
+      <a class="nav-item" href="panel-admin.html">👨‍🏫 Docentes</a>
+      <a class="nav-item activo">🎓 Gestión académica</a>
+      <a class="nav-item" href="dashboard.html">📊 Dashboard</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-titulo">Gestión académica</div>
+    <div class="page-sub">Configura los grados, grupos y materias de tu institución. Este es el primer paso antes de matricular estudiantes.</div>
+
+    <div class="tabs">
+      <div class="tab activo" data-tab="grados">Grados</div>
+      <div class="tab" data-tab="grupos">Grupos</div>
+      <div class="tab" data-tab="materias">Materias</div>
+    </div>
+
+    <!-- ════════ TAB: GRADOS ════════ -->
+    <div class="tab-content activo" id="tab-grados">
+      <div class="toolbar">
+        <div></div>
+        <button class="btn-nuevo" onclick="abrirModalGrado()">+ Nuevo grado</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Orden</th><th>Nombre</th><th>Nivel</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyGrados"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ TAB: GRUPOS ════════ -->
+    <div class="tab-content" id="tab-grupos">
+      <div class="toolbar">
+        <select id="filtroGradoGrupos" onchange="cargarGrupos()">
+          <option value="">Todos los grados</option>
+        </select>
+        <button class="btn-nuevo" onclick="abrirModalGrupo()">+ Nuevo grupo</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Grado</th><th>Grupo</th><th>Capacidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyGrupos"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ TAB: MATERIAS ════════ -->
+    <div class="tab-content" id="tab-materias">
+      <div class="toolbar">
+        <select id="filtroGradoMaterias" onchange="cargarMaterias()">
+          <option value="">Todos los grados</option>
+        </select>
+        <button class="btn-nuevo" onclick="abrirModalMateria()">+ Nueva materia</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Área</th><th>Materia</th><th>Grado</th><th>Horas/sem</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyMaterias"><tr><td colspan="6" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ════════ MODAL: GRADO ════════ -->
+  <div class="overlay" id="overlayGrado">
+    <div class="modal">
+      <h3 id="tituloModalGrado">Nuevo grado</h3>
+      <div class="msg" id="msgGrado"></div>
+      <input type="hidden" id="gradoId" />
+      <div class="campo">
+        <label>Nombre *</label>
+        <input type="text" id="gradoNombre" placeholder="Ej: Primero, Transición" />
+      </div>
+      <div class="grid2">
+        <div class="campo">
+          <label>Nivel *</label>
+          <select id="gradoNivel">
+            <option value="preescolar">Preescolar</option>
+            <option value="primaria">Primaria</option>
+            <option value="secundaria">Secundaria</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Orden *</label>
+          <input type="number" id="gradoOrden" placeholder="0, 1, 2..." min="0" />
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="cerrarModal('overlayGrado')">Cancelar</button>
+        <button class="btn-guardar" onclick="guardarGrado()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ MODAL: GRUPO ════════ -->
+  <div class="overlay" id="overlayGrupo">
+    <div class="modal">
+      <h3>Nuevo grupo</h3>
+      <div class="msg" id="msgGrupo"></div>
+      <div class="campo">
+        <label>Grado *</label>
+        <select id="grupoGradoId"></select>
+      </div>
+      <div class="grid2">
+        <div class="campo">
+          <label>Nombre del grupo *</label>
+          <input type="text" id="grupoNombre" placeholder="A, B, C..." maxlength="10" />
+        </div>
+        <div class="campo">
+          <label>Capacidad máxima</label>
+          <input type="number" id="grupoCapacidad" placeholder="35" min="1" value="35" />
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="cerrarModal('overlayGrupo')">Cancelar</button>
+        <button class="btn-guardar" onclick="guardarGrupo()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ MODAL: MATERIA ════════ -->
+  <div class="overlay" id="overlayMateria">
+    <div class="modal">
+      <h3>Nueva materia</h3>
+      <div class="msg" id="msgMateria"></div>
+      <div class="grid2">
+        <div class="campo">
+          <label>Grado *</label>
+          <select id="materiaGradoId"></select>
+        </div>
+        <div class="campo">
+          <label>Área *</label>
+          <select id="materiaAreaId"></select>
+        </div>
+      </div>
+      <div class="campo">
+        <label>Nombre de la materia *</label>
+        <input type="text" id="materiaNombre" placeholder="Ej: Álgebra, Lectura Crítica" />
+      </div>
+      <div class="grid2">
+        <div class="campo">
+          <label>Horas semanales</label>
+          <input type="number" id="materiaHoras" placeholder="4" min="1" />
+        </div>
+        <div class="campo">
+          <label>Descripción</label>
+          <input type="text" id="materiaDescripcion" placeholder="Opcional" />
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="cerrarModal('overlayMateria')">Cancelar</button>
+        <button class="btn-guardar" onclick="guardarMateria()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API   = 'http://localhost:3000';
+    const token = localStorage.getItem('sia_token');
+    if (!token) window.location.href = 'login.html';
+    const usuario = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
+    document.getElementById('sidebarInst').textContent = usuario.institucion_nombre || 'Mi institución';
+
+    const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
+
+    let gradosCache  = [];
+    let areasCache   = [];
+
+    // ── Tabs ─────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('activo'));
+        tab.classList.add('activo');
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('activo');
+      });
+    });
+
+    // ════════════════════════════════════════════════════════
+    //  GRADOS
+    // ════════════════════════════════════════════════════════
+    async function cargarGrados() {
+      const tbody = document.getElementById('tbodyGrados');
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
+      try {
+        const res  = await fetch(`${API}/api/academico/grados`, { headers });
+        const data = await res.json();
+        gradosCache = data.grados || [];
+        llenarSelectsGrados();
+
+        if (!data.ok || !data.grados.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay grados creados. Crea el primero con "+ Nuevo grado".</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.grados.map(g => `
+          <tr>
+            <td>${g.orden}</td>
+            <td><strong>${g.nombre}</strong></td>
+            <td>${capitalizar(g.nivel)}</td>
+            <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
+            <td class="acciones">
+              <button class="btn-sm" onclick='editarGrado(${JSON.stringify(g)})'>Editar</button>
+              <button class="btn-sm danger" onclick="eliminarGrado('${g.id}')">Desactivar</button>
+            </td>
+          </tr>`).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando grados.</td></tr>';
+      }
+    }
+
+    function llenarSelectsGrados() {
+      const opciones = gradosCache.map(g => `<option value="${g.id}">${g.nombre} (${capitalizar(g.nivel)})</option>`).join('');
+
+      const selGrupo   = document.getElementById('grupoGradoId');
+      const selMateria = document.getElementById('materiaGradoId');
+      const filtroG    = document.getElementById('filtroGradoGrupos');
+      const filtroM    = document.getElementById('filtroGradoMaterias');
+
+      selGrupo.innerHTML   = opciones || '<option value="">No hay grados</option>';
+      selMateria.innerHTML = opciones || '<option value="">No hay grados</option>';
+
+      const filtroOpciones = '<option value="">Todos los grados</option>' + opciones;
+      filtroG.innerHTML = filtroOpciones;
+      filtroM.innerHTML = filtroOpciones;
+    }
+
+    function abrirModalGrado() {
+      document.getElementById('tituloModalGrado').textContent = 'Nuevo grado';
+      document.getElementById('gradoId').value = '';
+      document.getElementById('gradoNombre').value = '';
+      document.getElementById('gradoNivel').value = 'primaria';
+      document.getElementById('gradoOrden').value = '';
+      ocultarMsg('msgGrado');
+      document.getElementById('overlayGrado').classList.add('visible');
+    }
+
+    function editarGrado(g) {
+      document.getElementById('tituloModalGrado').textContent = 'Editar grado';
+      document.getElementById('gradoId').value = g.id;
+      document.getElementById('gradoNombre').value = g.nombre;
+      document.getElementById('gradoNivel').value = g.nivel;
+      document.getElementById('gradoOrden').value = g.orden;
+      ocultarMsg('msgGrado');
+      document.getElementById('overlayGrado').classList.add('visible');
+    }
+
+    async function guardarGrado() {
+      const id     = document.getElementById('gradoId').value;
+      const nombre = document.getElementById('gradoNombre').value.trim();
+      const nivel  = document.getElementById('gradoNivel').value;
+      const orden  = document.getElementById('gradoOrden').value;
+
+      if (!nombre || orden === '') return mostrarMsg('msgGrado', 'Completa nombre y orden.', 'error');
+
+      try {
+        const url    = id ? `${API}/api/academico/grados/${id}` : `${API}/api/academico/grados`;
+        const method = id ? 'PUT' : 'POST';
+        const res  = await fetch(url, { method, headers, body: JSON.stringify({ nombre, nivel, orden: Number(orden) }) });
+        const data = await res.json();
+        if (!data.ok) return mostrarMsg('msgGrado', data.mensaje, 'error');
+        cerrarModal('overlayGrado');
+        cargarGrados();
+      } catch { mostrarMsg('msgGrado', 'Error de conexión.', 'error'); }
+    }
+
+    async function eliminarGrado(id) {
+      if (!confirm('¿Desactivar este grado? Podrás reactivarlo después editándolo.')) return;
+      await fetch(`${API}/api/academico/grados/${id}`, { method:'DELETE', headers });
+      cargarGrados();
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  GRUPOS
+    // ════════════════════════════════════════════════════════
+    async function cargarGrupos() {
+      const tbody = document.getElementById('tbodyGrupos');
+      const gradoId = document.getElementById('filtroGradoGrupos').value;
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
+      try {
+        const url = gradoId ? `${API}/api/academico/grupos?grado_id=${gradoId}` : `${API}/api/academico/grupos`;
+        const res  = await fetch(url, { headers });
+        const data = await res.json();
+        if (!data.ok || !data.grupos.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay grupos. Crea uno con "+ Nuevo grupo" (primero necesitas al menos un grado).</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.grupos.map(g => `
+          <tr>
+            <td>${g.grado_nombre}</td>
+            <td><strong>${g.nombre}</strong></td>
+            <td>${g.capacidad_max}</td>
+            <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
+            <td class="acciones">
+              <button class="btn-sm danger" onclick="eliminarGrupo('${g.id}')">Desactivar</button>
+            </td>
+          </tr>`).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando grupos.</td></tr>';
+      }
+    }
+
+    function abrirModalGrupo() {
+      if (!gradosCache.length) return alert('Primero crea al menos un grado.');
+      document.getElementById('grupoNombre').value = '';
+      document.getElementById('grupoCapacidad').value = '35';
+      ocultarMsg('msgGrupo');
+      document.getElementById('overlayGrupo').classList.add('visible');
+    }
+
+    async function guardarGrupo() {
+      const grado_id = document.getElementById('grupoGradoId').value;
+      const nombre   = document.getElementById('grupoNombre').value.trim();
+      const capacidad_max = document.getElementById('grupoCapacidad').value;
+
+      if (!grado_id || !nombre) return mostrarMsg('msgGrupo', 'Completa grado y nombre.', 'error');
+
+      try {
+        const res  = await fetch(`${API}/api/academico/grupos`, {
+          method:'POST', headers,
+          body: JSON.stringify({ grado_id, nombre, capacidad_max: Number(capacidad_max) || 35 })
+        });
+        const data = await res.json();
+        if (!data.ok) return mostrarMsg('msgGrupo', data.mensaje, 'error');
+        cerrarModal('overlayGrupo');
+        cargarGrupos();
+      } catch { mostrarMsg('msgGrupo', 'Error de conexión.', 'error'); }
+    }
+
+    async function eliminarGrupo(id) {
+      if (!confirm('¿Desactivar este grupo?')) return;
+      await fetch(`${API}/api/academico/grupos/${id}`, { method:'DELETE', headers });
+      cargarGrupos();
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  MATERIAS
+    // ════════════════════════════════════════════════════════
+    async function cargarAreas() {
+      try {
+        const res  = await fetch(`${API}/api/academico/areas`, { headers });
+        const data = await res.json();
+        areasCache = data.areas || [];
+        document.getElementById('materiaAreaId').innerHTML = areasCache
+          .map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+      } catch {}
+    }
+
+    async function cargarMaterias() {
+      const tbody = document.getElementById('tbodyMaterias');
+      const gradoId = document.getElementById('filtroGradoMaterias').value;
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Cargando...</td></tr>';
+      try {
+        const url = gradoId ? `${API}/api/academico/materias?grado_id=${gradoId}` : `${API}/api/academico/materias`;
+        const res  = await fetch(url, { headers });
+        const data = await res.json();
+        if (!data.ok || !data.materias.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay materias. Crea una con "+ Nueva materia" (primero necesitas al menos un grado).</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.materias.map(m => `
+          <tr>
+            <td><span class="color-dot" style="background:${m.color_hex}"></span>${m.area_nombre}</td>
+            <td><strong>${m.nombre}</strong></td>
+            <td>${m.grado_nombre}</td>
+            <td>${m.intensidad_hs || '—'}</td>
+            <td><span class="badge ${m.activa ? 'activo' : 'inactivo'}">${m.activa ? 'Activa' : 'Inactiva'}</span></td>
+            <td class="acciones">
+              <button class="btn-sm danger" onclick="eliminarMateria('${m.id}')">Desactivar</button>
+            </td>
+          </tr>`).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Error cargando materias.</td></tr>';
+      }
+    }
+
+    function abrirModalMateria() {
+      if (!gradosCache.length) return alert('Primero crea al menos un grado.');
+      document.getElementById('materiaNombre').value = '';
+      document.getElementById('materiaHoras').value = '';
+      document.getElementById('materiaDescripcion').value = '';
+      ocultarMsg('msgMateria');
+      document.getElementById('overlayMateria').classList.add('visible');
+    }
+
+    async function guardarMateria() {
+      const grado_id    = document.getElementById('materiaGradoId').value;
+      const area_id     = document.getElementById('materiaAreaId').value;
+      const nombre      = document.getElementById('materiaNombre').value.trim();
+      const horas       = document.getElementById('materiaHoras').value;
+      const descripcion = document.getElementById('materiaDescripcion').value.trim();
+
+      if (!grado_id || !area_id || !nombre) return mostrarMsg('msgMateria', 'Completa grado, área y nombre.', 'error');
+
+      try {
+        const res  = await fetch(`${API}/api/academico/materias`, {
+          method:'POST', headers,
+          body: JSON.stringify({ grado_id, area_id, nombre, intensidad_hs: Number(horas) || null, descripcion: descripcion || null })
+        });
+        const data = await res.json();
+        if (!data.ok) return mostrarMsg('msgMateria', data.mensaje, 'error');
+        cerrarModal('overlayMateria');
+        cargarMaterias();
+      } catch { mostrarMsg('msgMateria', 'Error de conexión.', 'error'); }
+    }
+
+    async function eliminarMateria(id) {
+      if (!confirm('¿Desactivar esta materia?')) return;
+      await fetch(`${API}/api/academico/materias/${id}`, { method:'DELETE', headers });
+      cargarMaterias();
+    }
+
+    // ── Helpers ─────────────────────────────────────────────
+    function cerrarModal(id) { document.getElementById(id).classList.remove('visible'); }
+    function mostrarMsg(id, texto, tipo) {
+      const el = document.getElementById(id);
+      el.textContent = texto;
+      el.className = `msg ${tipo}`;
+    }
+    function ocultarMsg(id) {
+      const el = document.getElementById(id);
+      el.className = 'msg';
+      el.textContent = '';
+    }
+    function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function cerrarSesion() {
+      localStorage.removeItem('sia_token');
+      localStorage.removeItem('sia_usuario');
+      window.location.href = 'login.html';
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    (async function init() {
+      await cargarGrados();
+      await cargarAreas();
+      await cargarGrupos();
+      await cargarMaterias();
+    })();
+  </script>
+</body>
+</html>
