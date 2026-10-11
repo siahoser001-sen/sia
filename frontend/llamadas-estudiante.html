@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Mis Videollamadas</title>
+  <script>
+  try {
+    var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+    var atrs   = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+    for (var k in claves) {
+      var v = localStorage.getItem(claves[k]);
+      if (v) document.documentElement.setAttribute(atrs[k], v);
+    }
+  } catch(e) {}
+  </script>
+  <style>
+  html[data-ui-scale="2"]{zoom:1.15}
+  html[data-ui-scale="3"]{zoom:1.3}
+  html[data-ui-contrast="1"]{
+    --text-1:#ffffff;
+    --text-2:rgba(255,255,255,0.85);
+    --text-3:rgba(255,255,255,0.65);
+    --glass-bg:rgba(14,22,56,0.88);
+    --glass-bg-hover:rgba(14,22,56,0.96);
+    --glass-bg-strong:rgba(8,14,42,0.97);
+    --glass-border:rgba(255,255,255,0.35);
+    --glass-border-hi:rgba(255,255,255,0.55);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.45);
+    --sidebar-bg:rgba(5,10,32,0.94);
+    --blur:blur(0);
+    --blur-strong:blur(0);
+  }
+  html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,0.90),rgba(10,5,30,0.88),rgba(2,14,40,0.90))}
+  html[data-ui-contrast="1"] .btn-ghost{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10)}
+  html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none !important;transition:none !important}
+  html[data-ui-density="1"] .main{padding-top:0.6rem;gap:0.7rem}
+  html[data-ui-density="1"] .topbar{padding-top:0.5rem;padding-bottom:0.5rem}
+  html[data-ui-density="1"] .sidebar{padding-top:0.8rem;padding-bottom:0.8rem}
+  html[data-ui-density="1"] th,html[data-ui-density="1"] td{padding-top:0.2rem !important;padding-bottom:0.2rem !important}
+  html[data-ui-density="1"] .modal{padding:1.25rem !important}
+  html[data-ui-density="1"] .card-header{margin-bottom:0.5rem}
+  html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+  html[data-ui-accent="verde"] .btn-primary{box-shadow:0 4px 16px rgba(16,185,129,0.35)}
+  html[data-ui-accent="verde"] .nav-item.activo{background:rgba(16,185,129,0.20);border-color:rgba(16,185,129,0.35)}
+  html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+  html[data-ui-accent="ambar"] .btn-primary{box-shadow:0 4px 16px rgba(245,158,11,0.35)}
+  html[data-ui-accent="ambar"] .nav-item.activo{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.35)}
+  html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+  html[data-ui-accent="rosa"] .btn-primary{box-shadow:0 4px 16px rgba(236,72,153,0.35)}
+  html[data-ui-accent="rosa"] .nav-item.activo{background:rgba(236,72,153,0.20);border-color:rgba(236,72,153,0.35)}
+  html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+  html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+  </style>
+  <style>html.shell .sidebar{display:none}html.shell .topbar{display:flex;background:transparent;border:0;box-shadow:none;padding:0 0 0.6rem;justify-content:flex-end;align-items:center}html.shell .topbar>:first-child{display:none}html.shell .main{margin-left:0;padding:1rem;min-height:100vh}html.shell .btn[title="Ajustes y personalización"]{display:none}html.shell #btnFondo{display:none}html.shell .btn[title="Notificaciones"]{display:none}html.shell .btn[onclick="cerrarSesion()"]{display:none}html.shell .sia-fondo{display:none}</style>
+  <script>if(/[?&]shell=1/.test(location.search))document.documentElement.className+=' shell';</script>
+<style>
+  /* SIA · Ajustes y personalización (overlay en todas las páginas) */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(5,10,30,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem}
+  .overlay.visible{display:flex}
+  .modal{width:100%;max-width:520px;padding:2rem;border-radius:var(--r-xl)}
+  .modal h3{font-family:var(--font-d);font-size:1.25rem;font-weight:700;margin-bottom:0.4rem}
+  .modal p{font-size:0.84rem;color:var(--text-2);margin-bottom:1rem;line-height:1.5}
+  .modal-btns{display:flex;gap:0.6rem;margin-top:1rem}
+  .modal-btns .btn{flex:1;justify-content:center}
+  #overlayAjustes{z-index:320;overflow-y:auto;align-items:flex-start}
+  #overlayAjustes .modal{max-width:780px;max-height:calc(100vh - 2rem);margin:auto 0;overflow-y:auto;padding:1.6rem}
+  .aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-top:0.25rem}
+  .aj-bloque{border:1px solid var(--glass-border);border-radius:var(--r-md);padding:0.9rem;background:rgba(255,255,255,0.04)}
+  .aj-bloque .aj-titulo{font-family:var(--font-d);font-size:0.92rem;font-weight:800;color:var(--text-1);margin-bottom:2px}
+  .aj-bloque .aj-sub{font-size:0.70rem;color:var(--text-3);margin-bottom:0.75rem;line-height:1.4}
+  .tam-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+  .tam-btn{display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:0.8rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-2);font-family:var(--font-b);transition:all 150ms}
+  .tam-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .tam-btn.seleccionada{border-color:var(--blue);color:var(--text-1);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .tam-btn .tam-sigla{font-family:var(--font-d);font-weight:800;color:var(--text-1)}
+  .tam-btn.seleccionada .tam-sigla{color:var(--blue-light)}
+  .tam-btn[data-z="1"] .tam-sigla{font-size:14px}
+  .tam-btn[data-z="2"] .tam-sigla{font-size:19px}
+  .tam-btn[data-z="3"] .tam-sigla{font-size:24px}
+  .tam-btn .tam-texto{font-size:0.68rem;font-weight:600}
+  .opc-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem}
+  .opc-btn{display:flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.65rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-1);font-family:var(--font-b);font-size:0.8rem;transition:all 150ms}
+  .opc-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .opc-btn.seleccionada{border-color:var(--blue);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .opc-btn.ancho{width:100%}
+  .opc-btn .swatch{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,0.35);flex-shrink:0}
+  .fila-fondo{display:flex;align-items:center;justify-content:space-between;gap:0.8rem}
+  .fondo-mini{width:76px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--glass-border);background-size:cover;background-position:center}
+  .aj-minifondo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0.7rem}
+  .aj-minifondo .aj-mf{aspect-ratio:16/9;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;background-size:cover;background-position:center;transition:all 150ms}
+  .aj-minifondo .aj-mf.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.25)}
+  @media (max-width:760px){.aj-grid{grid-template-columns:1fr}}
+  </style>
+  <script>
+  /* SIA · Ajustes y personalización en todas las páginas (overlay) */
+  (function () {
+    var FONDOS_AJ = [
+      { id: 'f01', nombre: 'Aurora boreal', src: 'static/fondos/fondo-01.jpg' },
+      { id: 'f02', nombre: 'Montañas',      src: 'static/fondos/fondo-02.jpg' },
+      { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
+      { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
+      { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+    ];
+    function inyectarAjustes() {
+      if (document.getElementById('overlayAjustes')) return;
+      var o = document.createElement('div');
+      o.className = 'overlay';
+      o.id = 'overlayAjustes';
+var miniFondos = '';
+      for (var i = 0; i < FONDOS_AJ.length; i++) {
+        var f = FONDOS_AJ[i];
+        miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
+      }
+      miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      o.innerHTML =
+        '<div class="glass glass-strong modal">' +
+        '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
+        '<p style="margin-bottom:0.9rem">Cambia el tamaño, el color, las esquinas, el fondo y la accesibilidad. Todo queda guardado en este dispositivo.</p>' +
+        '<div class="aj-grid">' +
+        '<div class="aj-bloque"><div class="aj-titulo">Tamaño de la interfaz</div><div class="aj-sub">Aumenta todos los elementos y letras.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-z="1" onclick="ajEscala(1)"><span class="tam-sigla">A</span><span class="tam-texto">Normal</span></button>' +
+        '<button type="button" class="tam-btn" data-z="2" onclick="ajEscala(2)"><span class="tam-sigla">A</span><span class="tam-texto">Grande</span></button>' +
+        '<button type="button" class="tam-btn" data-z="3" onclick="ajEscala(3)"><span class="tam-sigla">A</span><span class="tam-texto">Extra grande</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Color de acento</div><div class="aj-sub">Botones, enlaces y elementos destacados.</div><div class="opc-opts">' +
+        '<button type="button" class="opc-btn" data-accent="" onclick="ajAcento(\'\')"><span class="swatch" style="background:linear-gradient(135deg,#3B82F6,#8B5CF6)"></span><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="verde" onclick="ajAcento(\'verde\')"><span class="swatch" style="background:linear-gradient(135deg,#10B981,#14B8A6)"></span><span class="tam-texto">Verde</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="ambar" onclick="ajAcento(\'ambar\')"><span class="swatch" style="background:linear-gradient(135deg,#F59E0B,#F97316)"></span><span class="tam-texto">Ámbar</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="rosa" onclick="ajAcento(\'rosa\')"><span class="swatch" style="background:linear-gradient(135deg,#EC4899,#A855F7)"></span><span class="tam-texto">Rosa</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Forma de las esquinas</div><div class="aj-sub">Qué tan redondeadas se ven tarjetas y ventanas.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-ajr="0" onclick="ajRedondez(\'0\')"><span class="tam-texto">Rectas</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="1" onclick="ajRedondez(\'1\')"><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="2" onclick="ajRedondez(\'2\')"><span class="tam-texto">Redondeado</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Alto contraste</div><div class="aj-sub">Fondos más opacos y textos más nítidos. También reduce el consumo de batería.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajContraste" onclick="ajToggle(\'contraste\')"><span class="tam-texto" id="ajTxtContraste">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Reducir movimiento</div><div class="aj-sub">Desactiva animaciones y transiciones.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajMovimiento" onclick="ajToggle(\'movimiento\')"><span class="tam-texto" id="ajTxtMovimiento">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Densidad compacta</div><div class="aj-sub">Reduce los espacios para ver más contenido.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
+        '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
+        '</div>' +
+        '<div class="modal-btns"><button type="button" class="btn btn-ghost" onclick="cerrarAjustes()">Cerrar</button></div>' +
+        '</div>';
+      document.body.appendChild(o);
+      o.addEventListener('click', function (e) { if (e.target === o) cerrarAjustes(); });
+    }
+    function aplicarAtributo(a, v) { if (v) document.documentElement.setAttribute(a, v); else document.documentElement.removeAttribute(a); }
+    function pintarEscala(e) {
+      var esc = localStorage.getItem('sia_ui_scale') || '1';
+      e.querySelectorAll('.tam-btn[data-z]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.z === esc); });
+    }
+    function pintarAcento(e) {
+      var ac = localStorage.getItem('sia_acento') || '';
+      e.querySelectorAll('.opc-btn[data-accent]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.accent === ac); });
+    }
+    function pintarRedondez(e) {
+      var rd = localStorage.getItem('sia_redondez') || '1';
+      e.querySelectorAll('.tam-btn[data-ajr]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.ajr === rd); });
+    }
+    var PREFS = {
+      contraste:  { key: 'sia_alto_contraste', attr: 'data-ui-contrast',  btn: 'ajContraste',  txt: 'ajTxtContraste'  },
+      movimiento: { key: 'sia_movimiento',      attr: 'data-ui-motion',   btn: 'ajMovimiento', txt: 'ajTxtMovimiento' },
+      densidad:   { key: 'sia_densidad',        attr: 'data-ui-density',  btn: 'ajDensidad',   txt: 'ajTxtDensidad'   }
+    };
+    function pintarToggle(n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      var b = document.getElementById(p.btn), t = document.getElementById(p.txt);
+      if (b) b.classList.toggle('seleccionada', on);
+      if (t) t.textContent = on ? 'Activado ✓' : 'Desactivado';
+    }
+    function pintarFondo() {
+      var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var mini = document.getElementById('ajFondoMini');
+      if (mini) {
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+      }
+      var nombre = document.getElementById('ajFondoNombre');
+      if (nombre) {
+        var nf = null;
+        for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
+        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+      }
+      var el = document.getElementById('overlayAjustes');
+      if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
+    }
+    function ajPintarTodo() {
+      var e = document.getElementById('overlayAjustes'); if (!e) return;
+      pintarEscala(e); pintarAcento(e); pintarRedondez(e);
+      ['contraste', 'movimiento', 'densidad'].forEach(pintarToggle);
+      pintarFondo();
+    }
+    window.abrirAjustes = function () {
+      inyectarAjustes();
+      ajPintarTodo();
+      document.getElementById('overlayAjustes').classList.add('visible');
+    };
+    window.cerrarAjustes = function () {
+      var o = document.getElementById('overlayAjustes');
+      if (o) o.classList.remove('visible');
+    };
+    window.ajEscala = function (z) {
+      if (z === 1) { localStorage.removeItem('sia_ui_scale'); aplicarAtributo('data-ui-scale', ''); }
+      else { localStorage.setItem('sia_ui_scale', String(z)); document.documentElement.setAttribute('data-ui-scale', String(z)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarEscala(e);
+    };
+    window.ajToggle = function (n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      if (on) { localStorage.removeItem(p.key); aplicarAtributo(p.attr, ''); }
+      else { localStorage.setItem(p.key, '1'); document.documentElement.setAttribute(p.attr, '1'); }
+      pintarToggle(n);
+    };
+    window.ajAcento = function (v) {
+      if (v) { localStorage.setItem('sia_acento', v); document.documentElement.setAttribute('data-ui-accent', v); }
+      else { localStorage.removeItem('sia_acento'); aplicarAtributo('data-ui-accent', ''); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarAcento(e);
+    };
+    window.ajRedondez = function (v) {
+      if (v === '1') { localStorage.removeItem('sia_redondez'); aplicarAtributo('data-ui-radius', ''); }
+      else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
+    };
+window.ajSelFondo = function (id, src) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSubirFondo = function () {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+      inp.onchange = function () {
+        var file = inp.files && inp.files[0];
+        if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function () {
+          var sf = document.getElementById('siaFondo');
+          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          localStorage.setItem('sia_fondo', 'custom');
+          localStorage.setItem('sia_fondo_src', rd.result);
+          pintarFondo();
+        };
+        rd.readAsDataURL(file);
+      };
+      inp.click();
+    };
+    window.ajRestablecer = function () {
+      if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      window.location.reload();
+    };
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+  })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --glass-bg:       rgba(255,255,255,0.11);
+      --glass-bg-hover: rgba(255,255,255,0.17);
+      --glass-border:   rgba(255,255,255,0.22);
+      --glass-shadow:   0 8px 32px rgba(0,0,0,0.28);
+      --blur:           blur(20px);
+      --sidebar-bg:     rgba(8,14,40,0.55);
+      --blue:           #3B82F6;
+      --blue-light:     #93C5FD;
+      --purple:         #8B5CF6;
+      --green:          #10B981;
+      --green-light:    #6EE7B7;
+      --red:            #EF4444;
+      --red-light:      #FCA5A5;
+      --amber:          #F59E0B;
+      --amber-light:    #FCD34D;
+      --text-1: rgba(255,255,255,0.96);
+      --text-2: rgba(255,255,255,0.68);
+      --text-3: rgba(255,255,255,0.42);
+      --font-d: 'Nunito', sans-serif;
+      --font-b: 'Inter', sans-serif;
+      --r-sm: 8px; --r-md: 14px; --r-lg: 20px; --r-full: 9999px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-b); color: var(--text-1); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    .sia-fondo {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('static/fondos/fondo-01.jpg');
+      background-size: cover; background-position: center;
+    }
+    .sia-fondo::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(8,16,50,0.62) 0%, rgba(25,8,60,0.50) 50%, rgba(5,28,72,0.58) 100%);
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 230px; z-index: 100;
+      display: flex; flex-direction: column; padding: 1.5rem 1rem;
+      background: var(--sidebar-bg);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border-right: 1px solid var(--glass-border);
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; margin-bottom: 2rem; }
+    .sidebar-logo img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(147,197,253,0.5)); }
+    .logo-fallback {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg,var(--blue),var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 800; font-size: 17px; color: white;
+    }
+    .logo-txt .sigla {
+      font-family: var(--font-d); font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), #C4B5FD);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-txt .rol { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); }
+
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .nav-section { font-size: 0.60rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); padding: 1rem 0.6rem 0.4rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem;
+      border-radius: var(--r-md); font-size: 0.84rem; font-weight: 500; color: var(--text-2);
+      cursor: pointer; text-decoration: none; transition: background 150ms, color 150ms;
+    }
+    .nav-item:hover { background: var(--glass-bg); color: var(--text-1); }
+    .nav-item.activo { background: rgba(59,130,246,0.22); color: var(--blue-light); border: 1px solid rgba(59,130,246,0.30); }
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-profile {
+      margin-top: auto; border-top: 1px solid var(--glass-border);
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.75rem 0.5rem; border-radius: var(--r-md); cursor: pointer; transition: background 150ms;
+    }
+    .sidebar-profile:hover { background: var(--glass-bg); }
+    .avatar-sm {
+      width: 34px; height: 34px; border-radius: var(--r-full);
+      border: 2px solid var(--glass-border); background: rgba(59,130,246,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 700; font-size: 13px; color: var(--blue-light);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-name { font-size: 0.82rem; font-weight: 600; color: var(--text-1); }
+    .profile-role { font-size: 0.68rem; color: var(--text-3); }
+
+    /* MAIN */
+    .main { position: relative; z-index: 1; margin-left: 230px; min-height: 100vh; padding: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+    /* GLASS */
+    .glass {
+      background: var(--glass-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border); border-radius: var(--r-lg); box-shadow: var(--glass-shadow);
+    }
+
+    /* TOPBAR */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; }
+    .topbar-titulo { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; }
+    .topbar-sub { font-size: 0.80rem; color: var(--text-2); margin-top: 2px; }
+
+    /* BOTONES */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.55rem 1rem; border-radius: var(--r-md); font-family: var(--font-d);
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; transition: all 150ms; white-space: nowrap;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--purple)); color: white; box-shadow: 0 4px 16px rgba(59,130,246,0.35); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,130,246,0.50); }
+    .btn-ghost { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-1); backdrop-filter: var(--blur); }
+    .btn-ghost:hover { background: var(--glass-bg-hover); }
+    .btn-blue { background: rgba(59,130,246,0.20); border: 1px solid rgba(59,130,246,0.35); color: var(--blue-light); }
+    .btn-blue:hover { background: rgba(59,130,246,0.32); }
+    .btn-disabled { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10); color: var(--text-3); cursor: not-allowed; }
+    .btn-sm { padding: 0.38rem 0.75rem; font-size: 0.75rem; border-radius: var(--r-sm); }
+    .btn:disabled { opacity: 0.45; pointer-events: none; }
+
+    /* GRID */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+
+    /* CARD MATERIA */
+    .materia-card {
+      padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;
+      transition: border-color 150ms;
+    }
+    .materia-card:hover { border-color: rgba(255,255,255,0.35); }
+    .materia-nombre {
+      font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; color: var(--text-1);
+    }
+    .materia-docente { font-size: 0.78rem; color: var(--text-2); line-height: 1.5; }
+    .materia-actions {
+      display: flex; gap: 0.6rem; margin-top: 0.5rem;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; z-index: 999;
+      padding: 1rem 1.25rem; border-radius: var(--r-md);
+      background: rgba(59,130,246,0.20); border: 1px solid rgba(59,130,246,0.35);
+      color: var(--blue-light); font-size: 0.84rem;
+      animation: slideIn 300ms ease both;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+    .toast.salida { animation: slideOut 300ms ease both; }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 0.84rem; }
+
+    /* ANIMACIÓN */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    .ani { animation: fadeUp 350ms ease both; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 1rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sia-fondo" id="siaFondo"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+<img src="static/logo/SIA_LOGO.svg?v=2" id="logoInstImg" alt="SIA" onerror="this.style.display='none';document.getElementById('logoFb').style.display='flex'" />
+    <div class="logo-fallback" id="logoFb" style="display:none">S</div>
+    <input type="file" id="inputLogoInst" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="logo-txt">
+      <div class="sigla">SIA</div>
+      <div class="rol" id="sidebarRol">Estudiante</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <a class="nav-item" href="dashboard.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Mis clases
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Tareas
+    </a>
+    <a class="nav-item activo" href="llamadas-estudiante.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Mis videollamadas
+    </a>
+    <div class="nav-section">Académico</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Notas
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Asistencia
+    </a>
+  </nav>
+  <div class="sidebar-profile">
+    <div class="avatar-sm" id="sidebarAvatar">E</div>
+    <div>
+      <div class="profile-name" id="perfilNombre">Estudiante</div>
+      <div class="profile-role">Ver perfil</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- Topbar -->
+  <div class="glass topbar ani">
+    <div>
+      <div class="topbar-titulo">Mis Videollamadas</div>
+      <div class="topbar-sub">Únete a las videollamadas iniciadas por tus docentes</div>
+    </div>
+    <button type="button" class="btn btn-ghost" title="Ajustes y personalización" onclick="abrirAjustes()" style="width:36px;height:36px;padding:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <!-- Materias con llamadas activas -->
+  <div class="glass ani" style="animation-delay:60ms">
+    <div style="padding:1.25rem 1.4rem 0.75rem;border-bottom:1px solid var(--glass-border)">
+      <div style="font-family:var(--font-d);font-size:1rem;font-weight:700">Tus clases</div>
+      <div style="font-size:0.76rem;color:var(--text-2);margin-top:2px">Llamadas disponibles para unirse</div>
+    </div>
+    <div id="listaMaterias" style="padding:1.25rem">
+      <div class="empty">Cargando tus materias...</div>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+<script>
+/* CONFIG */
+const API   = window.location.origin;
+const token = sessionStorage.getItem('sia_token');
+if (!token) window.location.href = 'login.html';
+const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+/* FONDO Y PERFIL */
+(function init() {
+  const fondoId  = localStorage.getItem('sia_fondo') || 'f01';
+  const fondoNum = fondoId.replace('f', '').padStart(2, '0');
+  document.getElementById('siaFondo').style.backgroundImage = `url('static/fondos/fondo-${fondoNum}.jpg')`;
+
+  const u = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('perfilNombre').textContent = u.nombre;
+    document.getElementById('sidebarAvatar').textContent = u.nombre.charAt(0).toUpperCase();
+    document.getElementById('sidebarRol').textContent = u.rol || 'Estudiante';
+  }
+  const av = JSON.parse(localStorage.getItem('sia_avatar') || 'null');
+  if (av) document.getElementById('sidebarAvatar').innerHTML =
+    `<img src="${av.src}" onerror="this.parentElement.textContent='E'" />`;
+})();
+
+/* MATERIAS DEL ESTUDIANTE */
+let MIS_MATERIAS = [];
+let ESTADOS_LLAMADAS = {}; // { docente_materia_id: { activa: bool, sala, url, sesion_id } }
+let socket = null;
+
+async function cargarMaterias() {
+  try {
+    const res = await fetch(`${API}/api/clases/mis-materias-estudiante`, { headers });
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.materias)) {
+      MIS_MATERIAS = data.materias;
+    }
+  } catch (err) {
+    console.error('Error cargando materias:', err);
+  }
+  await renderMaterias();
+  conectarSocket();
+}
+
+async function renderMaterias() {
+  const lista = document.getElementById('listaMaterias');
+  if (!MIS_MATERIAS.length) {
+    lista.innerHTML = '<div class="empty">No tienes materias asignadas.</div>';
+    return;
+  }
+  
+  lista.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-2);">Cargando estado de materias...</div>';
+  
+  const items = [];
+  for (const m of MIS_MATERIAS) {
+    let estadoLlamada = { activa: false };
+    try {
+      const res = await fetch(`${API}/api/clases/${m.docente_materia_id}/estado-llamada`, { headers });
+      if (res.ok) {
+        estadoLlamada = await res.json();
+      }
+    } catch (err) {
+      console.error(`Error consultando estado:`, err);
+    }
+    
+    // Guardar estado para uso posterior con socket.io
+    ESTADOS_LLAMADAS[m.docente_materia_id] = estadoLlamada;
+    
+    const btnClase = estadoLlamada.activa 
+      ? `<button class="btn btn-blue btn-sm" onclick="unirseALlamada('${m.docente_materia_id}', '${estadoLlamada.url}', '${m.materia}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Unirse a llamada
+        </button>`
+      : `<span style="font-size:0.75rem;color:var(--text-3)">No hay llamada en curso</span>`;
+
+    items.push(`
+      <div class="glass materia-card ani" style="animation-delay:${items.length * 60}ms" data-materia-id="${m.docente_materia_id}">
+        <div>
+          <div class="materia-nombre">${m.materia}</div>
+          <div class="materia-docente">Docente: <strong>${m.docente}</strong></div>
+          <div class="materia-docente" style="margin-top:0.5rem">Grado: <strong>${m.grado}</strong></div>
+        </div>
+        <div class="materia-actions">
+          ${btnClase}
+        </div>
+      </div>
+    `);
+  }
+  
+  lista.innerHTML = items.join('');
+}
+
+function unirseALlamada(docenteMateriaId, url, nombreMateria) {
+  if (!url) {
+    mostrarToast('No hay URL disponible para esta llamada.', 'error');
+    return;
+  }
+  // Abrir en ventana nueva o misma ventana (personalizable)
+  window.open(url, `llamada-${docenteMateriaId}`);
+}
+
+function mostrarToast(mensaje, tipo = 'info') {
+  const container = document.createElement('div');
+  container.className = 'toast';
+  container.textContent = mensaje;
+  container.style.background = tipo === 'error' 
+    ? 'rgba(239,68,68,0.20)' 
+    : 'rgba(59,130,246,0.20)';
+  container.style.borderColor = tipo === 'error' 
+    ? 'rgba(239,68,68,0.35)' 
+    : 'rgba(59,130,246,0.35)';
+  container.style.color = tipo === 'error' 
+    ? '#FCA5A5' 
+    : '#93C5FD';
+  
+  document.body.appendChild(container);
+  
+  setTimeout(() => {
+    container.classList.add('salida');
+    setTimeout(() => container.remove(), 300);
+  }, 5000);
+}
+
+function conectarSocket() {
+  if (socket) return; // Ya conectado
+  
+  socket = io(API, {
+    auth: { token }
+  });
+
+  socket.on('connect', () => {
+    console.log('✅ Conectado a socket.io');
+    // Emitir unirse a cada materia
+    for (const m of MIS_MATERIAS) {
+      socket.emit('unirse-materia', { docente_materia_id: m.docente_materia_id });
+    }
+  });
+
+  // Escuchar cuando se inicia una llamada
+  socket.on('llamada-iniciada', (data) => {
+    const { docente_materia_id, sesion_id, sala, url } = data;
+    console.log('📞 Llamada iniciada:', docente_materia_id);
+    
+    // Actualizar estado
+    ESTADOS_LLAMADAS[docente_materia_id] = { activa: true, sesion_id, sala, url };
+    
+    // Actualizar UI: cambiar botón a "Unirse a llamada"
+    const materiaCard = document.querySelector(`[data-materia-id="${docente_materia_id}"]`);
+    if (materiaCard) {
+      const btnContainer = materiaCard.querySelector('.materia-actions');
+      const nombreMateria = materiaCard.querySelector('.materia-nombre').textContent;
+      btnContainer.innerHTML = `
+        <button class="btn btn-blue btn-sm" onclick="unirseALlamada('${docente_materia_id}', '${url}', '${nombreMateria}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Unirse a llamada
+        </button>
+      `;
+    }
+    
+    mostrarToast(`Llamada iniciada en ${nombreMateria}`, 'info');
+  });
+
+  // Escuchar cuando finaliza una llamada
+  socket.on('llamada-finalizada', (data) => {
+    const { docente_materia_id } = data;
+    console.log('❌ Llamada finalizada:', docente_materia_id);
+    
+    // Actualizar estado
+    ESTADOS_LLAMADAS[docente_materia_id] = { activa: false };
+    
+    // Actualizar UI: cambiar botón a "No hay llamada"
+    const materiaCard = document.querySelector(`[data-materia-id="${docente_materia_id}"]`);
+    if (materiaCard) {
+      const btnContainer = materiaCard.querySelector('.materia-actions');
+      btnContainer.innerHTML = `
+        <span style="font-size:0.75rem;color:var(--text-3)">No hay llamada en curso</span>
+      `;
+    }
+    
+    mostrarToast('La llamada ha finalizado.', 'info');
+  });
+
+  socket.on('error-autorizacion', (data) => {
+    console.error('❌ Error de autorización socket:', data.mensaje);
+    mostrarToast(data.mensaje, 'error');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Desconectado de socket.io');
+  });
+}
+
+/* INIT */
+cargarMaterias();
+</script>
+<script src="chat-drawer-inyector.js"></script>
+<script src="sia-identidad.js"></script>
+</body>
+</html>

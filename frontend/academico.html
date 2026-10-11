@@ -4,115 +4,879 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SIA — Gestión académica</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <style>
-    :root { --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e; --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa; --error:#f7614f; --exito:#4fca8e; --warn:#f7c44f; }
-    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; }
-
-    .sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--tinta); border-right:1px solid var(--linea); display:flex; flex-direction:column; padding:1.5rem; }
-    .sidebar-logo { font-family:'DM Serif Display',serif; font-size:1.8rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.2rem; }
-    .sidebar-inst { font-size:0.72rem; color:var(--acento); font-weight:600; margin-bottom:0.2rem; }
-    .sidebar-rol { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); margin-bottom:2rem; }
-    .nav-item { display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.88rem; color:var(--gris); cursor:pointer; transition:background 0.15s, color 0.15s; margin-bottom:0.2rem; text-decoration:none; }
-    .nav-item:hover { background:var(--carbon); color:var(--blanco); }
-    .nav-item.activo { background:var(--carbon); color:var(--blanco); }
-    .sidebar-bottom { margin-top:auto; }
-    .btn-cerrar { width:100%; padding:0.6rem; background:none; border:1px solid var(--linea); border-radius:8px; color:var(--gris); font-size:0.82rem; cursor:pointer; }
-    .btn-cerrar:hover { border-color:var(--error); color:var(--error); }
-
-    .main { margin-left:220px; padding:2.5rem; }
-    .page-titulo { font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400; margin-bottom:0.3rem; }
-    .page-sub { font-size:0.85rem; color:var(--gris); margin-bottom:2rem; }
-
-    /* Tabs */
-    .tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--linea); }
-    .tab { padding:0.7rem 1.2rem; font-size:0.88rem; font-weight:500; color:var(--gris); cursor:pointer; border-bottom:2px solid transparent; transition:color 0.2s, border-color 0.2s; }
-    .tab:hover { color:var(--blanco); }
-    .tab.activo { color:var(--acento); border-bottom-color:var(--acento); }
-
-    .tab-content { display:none; animation:bajar 0.3s ease both; }
-    .tab-content.activo { display:block; }
-
-    /* Toolbar */
-    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; gap:1rem; }
-    .toolbar select { padding:0.6rem 1rem; background:var(--carbon); border:1px solid var(--linea); border-radius:8px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.85rem; outline:none; }
-    .btn-nuevo { padding:0.6rem 1.2rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); border:none; border-radius:8px; color:#fff; font-size:0.85rem; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
-    .btn-nuevo:hover { opacity:0.9; }
-
-    /* Tabla */
-    .tabla-wrap { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; overflow:hidden; }
-    table { width:100%; border-collapse:collapse; }
-    th { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); padding:0.9rem 1.2rem; text-align:left; border-bottom:1px solid var(--linea); font-weight:600; }
-    td { padding:0.85rem 1.2rem; font-size:0.88rem; border-bottom:1px solid var(--linea); vertical-align:middle; }
-    tr:last-child td { border-bottom:none; }
-    tr:hover td { background:#ffffff04; }
-    .empty { text-align:center; padding:3rem; color:var(--gris); font-size:0.88rem; }
-
-    .badge { display:inline-block; padding:0.25rem 0.7rem; border-radius:999px; font-size:0.72rem; font-weight:600; }
-    .badge.activo   { background:#4fca8e22; color:var(--exito); border:1px solid #4fca8e44; }
-    .badge.inactivo { background:#8888aa22; color:var(--gris); border:1px solid #8888aa44; }
-
-    .color-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:0.5rem; vertical-align:middle; }
-
-    .acciones { display:flex; gap:0.5rem; }
-    .btn-sm { padding:0.35rem 0.8rem; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1px solid var(--linea); background:var(--carbon); color:var(--gris); transition:all 0.15s; }
-    .btn-sm:hover { color:var(--blanco); border-color:var(--acento); }
-    .btn-sm.danger:hover { color:var(--error); border-color:var(--error); }
-
-    /* Modal */
-    .overlay { position:fixed; inset:0; background:#00000088; z-index:100; display:none; align-items:center; justify-content:center; }
-    .overlay.visible { display:flex; }
-    .modal { background:var(--carbon); border:1px solid var(--linea); border-radius:14px; padding:2rem; width:100%; max-width:440px; }
-    .modal h3 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin-bottom:1.2rem; }
-    .campo { margin-bottom:1rem; }
-    .campo label { display:block; font-size:0.75rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--gris); margin-bottom:0.4rem; }
-    .campo input, .campo select, .campo textarea {
-      width:100%; padding:0.7rem 0.9rem; background:var(--tinta); border:1px solid var(--linea);
-      border-radius:8px; color:var(--blanco); font-family:'DM Sans',sans-serif; font-size:0.88rem; outline:none;
+  <script>
+  try {
+    var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+    var atrs   = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+    for (var k in claves) {
+      var v = localStorage.getItem(claves[k]);
+      if (v) document.documentElement.setAttribute(atrs[k], v);
     }
-    .campo input:focus, .campo select:focus, .campo textarea:focus { border-color:var(--acento); }
-    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .modal-btns { display:flex; gap:0.75rem; margin-top:1.2rem; }
-    .modal-btns button { flex:1; padding:0.7rem; border-radius:8px; font-size:0.88rem; font-weight:600; cursor:pointer; border:none; }
-    .btn-cancel { background:var(--tinta); border:1px solid var(--linea) !important; color:var(--gris); }
-    .btn-guardar { background:linear-gradient(135deg,var(--acento),var(--acento2)); color:#fff; }
+  } catch(e) {}
+  </script>
+  <style>
+  html[data-ui-scale="2"]{zoom:1.15}
+  html[data-ui-scale="3"]{zoom:1.3}
+  html[data-ui-contrast="1"]{
+    --text-1:#ffffff;
+    --text-2:rgba(255,255,255,0.85);
+    --text-3:rgba(255,255,255,0.65);
+    --glass-bg:rgba(14,22,56,0.88);
+    --glass-bg-hover:rgba(14,22,56,0.96);
+    --glass-bg-strong:rgba(8,14,42,0.97);
+    --glass-border:rgba(255,255,255,0.35);
+    --glass-border-hi:rgba(255,255,255,0.55);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.45);
+    --sidebar-bg:rgba(5,10,32,0.94);
+    --blur:blur(0);
+    --blur-strong:blur(0);
+  }
+  html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,0.90),rgba(10,5,30,0.88),rgba(2,14,40,0.90))}
+  html[data-ui-contrast="1"] .btn-ghost{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10)}
+  html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none !important;transition:none !important}
+  html[data-ui-density="1"] .main{padding-top:0.6rem;gap:0.7rem}
+  html[data-ui-density="1"] .topbar{padding-top:0.5rem;padding-bottom:0.5rem}
+  html[data-ui-density="1"] .sidebar{padding-top:0.8rem;padding-bottom:0.8rem}
+  html[data-ui-density="1"] th,html[data-ui-density="1"] td{padding-top:0.2rem !important;padding-bottom:0.2rem !important}
+  html[data-ui-density="1"] .modal{padding:1.25rem !important}
+  html[data-ui-density="1"] .card-header{margin-bottom:0.5rem}
+  html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+  html[data-ui-accent="verde"] .btn-primary{box-shadow:0 4px 16px rgba(16,185,129,0.35)}
+  html[data-ui-accent="verde"] .nav-item.activo{background:rgba(16,185,129,0.20);border-color:rgba(16,185,129,0.35)}
+  html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+  html[data-ui-accent="ambar"] .btn-primary{box-shadow:0 4px 16px rgba(245,158,11,0.35)}
+  html[data-ui-accent="ambar"] .nav-item.activo{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.35)}
+  html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+  html[data-ui-accent="rosa"] .btn-primary{box-shadow:0 4px 16px rgba(236,72,153,0.35)}
+  html[data-ui-accent="rosa"] .nav-item.activo{background:rgba(236,72,153,0.20);border-color:rgba(236,72,153,0.35)}
+  html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+  html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+  </style>
+  <style>html.shell .sidebar{display:none}html.shell .topbar{display:flex;background:transparent;border:0;box-shadow:none;padding:0 0 0.6rem;justify-content:flex-end;align-items:center}html.shell .topbar>:first-child{display:none}html.shell .main{margin-left:0;padding:1rem;min-height:100vh}html.shell .btn[title="Ajustes y personalización"]{display:none}html.shell #btnFondo{display:none}html.shell .btn[title="Notificaciones"]{display:none}html.shell .btn[onclick="cerrarSesion()"]{display:none}html.shell .sia-fondo{display:none}</style>
+  <script>if(/[?&]shell=1/.test(location.search))document.documentElement.className+=' shell';</script>
+  <style>
+  /* SIA · Ajustes y personalización (overlay en todas las páginas) */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(5,10,30,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem}
+  .overlay.visible{display:flex}
+  .modal{width:100%;max-width:520px;padding:2rem;border-radius:var(--r-xl)}
+  .modal h3{font-family:var(--font-d);font-size:1.25rem;font-weight:700;margin-bottom:0.4rem}
+  .modal p{font-size:0.84rem;color:var(--text-2);margin-bottom:1rem;line-height:1.5}
+  .modal-btns{display:flex;gap:0.6rem;margin-top:1rem}
+  .modal-btns .btn{flex:1;justify-content:center}
+  #overlayAjustes{z-index:320;overflow-y:auto;align-items:flex-start}
+  #overlayAjustes .modal{max-width:780px;max-height:calc(100vh - 2rem);margin:auto 0;overflow-y:auto;padding:1.6rem}
+  .aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-top:0.25rem}
+  .aj-bloque{border:1px solid var(--glass-border);border-radius:var(--r-md);padding:0.9rem;background:rgba(255,255,255,0.04)}
+  .aj-bloque .aj-titulo{font-family:var(--font-d);font-size:0.92rem;font-weight:800;color:var(--text-1);margin-bottom:2px}
+  .aj-bloque .aj-sub{font-size:0.70rem;color:var(--text-3);margin-bottom:0.75rem;line-height:1.4}
+  .tam-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+  .tam-btn{display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:0.8rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-2);font-family:var(--font-b);transition:all 150ms}
+  .tam-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .tam-btn.seleccionada{border-color:var(--blue);color:var(--text-1);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .tam-btn .tam-sigla{font-family:var(--font-d);font-weight:800;color:var(--text-1)}
+  .tam-btn.seleccionada .tam-sigla{color:var(--blue-light)}
+  .tam-btn[data-z="1"] .tam-sigla{font-size:14px}
+  .tam-btn[data-z="2"] .tam-sigla{font-size:19px}
+  .tam-btn[data-z="3"] .tam-sigla{font-size:24px}
+  .tam-btn .tam-texto{font-size:0.68rem;font-weight:600}
+  .opc-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem}
+  .opc-btn{display:flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.65rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-1);font-family:var(--font-b);font-size:0.8rem;transition:all 150ms}
+  .opc-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .opc-btn.seleccionada{border-color:var(--blue);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .opc-btn.ancho{width:100%}
+  .opc-btn .swatch{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,0.35);flex-shrink:0}
+  .fila-fondo{display:flex;align-items:center;justify-content:space-between;gap:0.8rem}
+  .fondo-mini{width:76px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--glass-border);background-size:cover;background-position:center}
+  .aj-minifondo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0.7rem}
+  .aj-minifondo .aj-mf{aspect-ratio:16/9;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;background-size:cover;background-position:center;transition:all 150ms}
+  .aj-minifondo .aj-mf.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.25)}
+  @media (max-width:760px){.aj-grid{grid-template-columns:1fr}}
+  </style>
+  <script>
+  /* SIA · Ajustes y personalización en todas las páginas (overlay) */
+  (function () {
+    var FONDOS_AJ = [
+      { id: 'f01', nombre: 'Aurora boreal', src: 'static/fondos/fondo-01.jpg' },
+      { id: 'f02', nombre: 'Montañas',      src: 'static/fondos/fondo-02.jpg' },
+      { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
+      { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
+      { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+    ];
+    function inyectarAjustes() {
+      if (document.getElementById('overlayAjustes')) return;
+      var o = document.createElement('div');
+      o.className = 'overlay';
+      o.id = 'overlayAjustes';
+var miniFondos = '';
+      for (var i = 0; i < FONDOS_AJ.length; i++) {
+        var f = FONDOS_AJ[i];
+        miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
+      }
+      miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      o.innerHTML =
+        '<div class="glass glass-strong modal">' +
+        '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
+        '<p style="margin-bottom:0.9rem">Cambia el tamaño, el color, las esquinas, el fondo y la accesibilidad. Todo queda guardado en este dispositivo.</p>' +
+        '<div class="aj-grid">' +
+        '<div class="aj-bloque"><div class="aj-titulo">Tamaño de la interfaz</div><div class="aj-sub">Aumenta todos los elementos y letras.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-z="1" onclick="ajEscala(1)"><span class="tam-sigla">A</span><span class="tam-texto">Normal</span></button>' +
+        '<button type="button" class="tam-btn" data-z="2" onclick="ajEscala(2)"><span class="tam-sigla">A</span><span class="tam-texto">Grande</span></button>' +
+        '<button type="button" class="tam-btn" data-z="3" onclick="ajEscala(3)"><span class="tam-sigla">A</span><span class="tam-texto">Extra grande</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Color de acento</div><div class="aj-sub">Botones, enlaces y elementos destacados.</div><div class="opc-opts">' +
+        '<button type="button" class="opc-btn" data-accent="" onclick="ajAcento(\'\')"><span class="swatch" style="background:linear-gradient(135deg,#3B82F6,#8B5CF6)"></span><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="verde" onclick="ajAcento(\'verde\')"><span class="swatch" style="background:linear-gradient(135deg,#10B981,#14B8A6)"></span><span class="tam-texto">Verde</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="ambar" onclick="ajAcento(\'ambar\')"><span class="swatch" style="background:linear-gradient(135deg,#F59E0B,#F97316)"></span><span class="tam-texto">Ámbar</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="rosa" onclick="ajAcento(\'rosa\')"><span class="swatch" style="background:linear-gradient(135deg,#EC4899,#A855F7)"></span><span class="tam-texto">Rosa</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Forma de las esquinas</div><div class="aj-sub">Qué tan redondeadas se ven tarjetas y ventanas.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-ajr="0" onclick="ajRedondez(\'0\')"><span class="tam-texto">Rectas</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="1" onclick="ajRedondez(\'1\')"><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="2" onclick="ajRedondez(\'2\')"><span class="tam-texto">Redondeado</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Alto contraste</div><div class="aj-sub">Fondos más opacos y textos más nítidos. También reduce el consumo de batería.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajContraste" onclick="ajToggle(\'contraste\')"><span class="tam-texto" id="ajTxtContraste">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Reducir movimiento</div><div class="aj-sub">Desactiva animaciones y transiciones.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajMovimiento" onclick="ajToggle(\'movimiento\')"><span class="tam-texto" id="ajTxtMovimiento">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Densidad compacta</div><div class="aj-sub">Reduce los espacios para ver más contenido.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
+        '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
+        '</div>' +
+        '<div class="modal-btns"><button type="button" class="btn btn-ghost" onclick="cerrarAjustes()">Cerrar</button></div>' +
+        '</div>';
+      document.body.appendChild(o);
+      o.addEventListener('click', function (e) { if (e.target === o) cerrarAjustes(); });
+    }
+    function aplicarAtributo(a, v) { if (v) document.documentElement.setAttribute(a, v); else document.documentElement.removeAttribute(a); }
+    function pintarEscala(e) {
+      var esc = localStorage.getItem('sia_ui_scale') || '1';
+      e.querySelectorAll('.tam-btn[data-z]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.z === esc); });
+    }
+    function pintarAcento(e) {
+      var ac = localStorage.getItem('sia_acento') || '';
+      e.querySelectorAll('.opc-btn[data-accent]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.accent === ac); });
+    }
+    function pintarRedondez(e) {
+      var rd = localStorage.getItem('sia_redondez') || '1';
+      e.querySelectorAll('.tam-btn[data-ajr]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.ajr === rd); });
+    }
+    var PREFS = {
+      contraste:  { key: 'sia_alto_contraste', attr: 'data-ui-contrast',  btn: 'ajContraste',  txt: 'ajTxtContraste'  },
+      movimiento: { key: 'sia_movimiento',      attr: 'data-ui-motion',   btn: 'ajMovimiento', txt: 'ajTxtMovimiento' },
+      densidad:   { key: 'sia_densidad',        attr: 'data-ui-density',  btn: 'ajDensidad',   txt: 'ajTxtDensidad'   }
+    };
+    function pintarToggle(n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      var b = document.getElementById(p.btn), t = document.getElementById(p.txt);
+      if (b) b.classList.toggle('seleccionada', on);
+      if (t) t.textContent = on ? 'Activado ✓' : 'Desactivado';
+    }
+    function pintarFondo() {
+      var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var mini = document.getElementById('ajFondoMini');
+      if (mini) {
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+      }
+      var nombre = document.getElementById('ajFondoNombre');
+      if (nombre) {
+        var nf = null;
+        for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
+        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+      }
+      var el = document.getElementById('overlayAjustes');
+      if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
+    }
+    function ajPintarTodo() {
+      var e = document.getElementById('overlayAjustes'); if (!e) return;
+      pintarEscala(e); pintarAcento(e); pintarRedondez(e);
+      ['contraste', 'movimiento', 'densidad'].forEach(pintarToggle);
+      pintarFondo();
+    }
+    window.abrirAjustes = function () {
+      inyectarAjustes();
+      ajPintarTodo();
+      document.getElementById('overlayAjustes').classList.add('visible');
+    };
+    window.cerrarAjustes = function () {
+      var o = document.getElementById('overlayAjustes');
+      if (o) o.classList.remove('visible');
+    };
+    window.ajEscala = function (z) {
+      if (z === 1) { localStorage.removeItem('sia_ui_scale'); aplicarAtributo('data-ui-scale', ''); }
+      else { localStorage.setItem('sia_ui_scale', String(z)); document.documentElement.setAttribute('data-ui-scale', String(z)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarEscala(e);
+    };
+    window.ajToggle = function (n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      if (on) { localStorage.removeItem(p.key); aplicarAtributo(p.attr, ''); }
+      else { localStorage.setItem(p.key, '1'); document.documentElement.setAttribute(p.attr, '1'); }
+      pintarToggle(n);
+    };
+    window.ajAcento = function (v) {
+      if (v) { localStorage.setItem('sia_acento', v); document.documentElement.setAttribute('data-ui-accent', v); }
+      else { localStorage.removeItem('sia_acento'); aplicarAtributo('data-ui-accent', ''); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarAcento(e);
+    };
+    window.ajRedondez = function (v) {
+      if (v === '1') { localStorage.removeItem('sia_redondez'); aplicarAtributo('data-ui-radius', ''); }
+      else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
+    };
+window.ajSelFondo = function (id, src) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSubirFondo = function () {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+      inp.onchange = function () {
+        var file = inp.files && inp.files[0];
+        if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function () {
+          var sf = document.getElementById('siaFondo');
+          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          localStorage.setItem('sia_fondo', 'custom');
+          localStorage.setItem('sia_fondo_src', rd.result);
+          pintarFondo();
+        };
+        rd.readAsDataURL(file);
+      };
+      inp.click();
+    };
+    window.ajRestablecer = function () {
+      if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      window.location.reload();
+    };
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+  })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --glass-bg:        rgba(255,255,255,0.11);
+      --glass-bg-hover:  rgba(255,255,255,0.17);
+      --glass-bg-strong: rgba(255,255,255,0.20);
+      --glass-border:    rgba(255,255,255,0.22);
+      --glass-border-hi: rgba(255,255,255,0.40);
+      --glass-shadow:    0 8px 32px rgba(0,0,0,0.28);
+      --glass-shadow-lg: 0 20px 60px rgba(0,0,0,0.38);
+      --blur:            blur(20px);
+      --blur-strong:     blur(28px);
+      --sidebar-bg:      rgba(8,14,40,0.55);
 
-    .msg { padding:0.7rem 1rem; border-radius:8px; font-size:0.82rem; margin-bottom:1rem; display:none; }
-    .msg.error { background:#f7614f18; border:1px solid #f7614f44; color:var(--error); display:block; }
-    .msg.exito { background:#4fca8e18; border:1px solid #4fca8e44; color:var(--exito); display:block; }
+      --blue:       #3B82F6;
+      --blue-light: #93C5FD;
+      --purple:     #8B5CF6;
+      --green:      #10B981;
+      --green-light:#6EE7B7;
+      --amber:      #F59E0B;
+      --amber-light:#FCD34D;
+      --red:        #EF4444;
+      --red-light:  #FCA5A5;
 
-    @keyframes bajar { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      --text-1: rgba(255,255,255,0.96);
+      --text-2: rgba(255,255,255,0.68);
+      --text-3: rgba(255,255,255,0.42);
+
+      --font-d: 'Nunito', sans-serif;
+      --font-b: 'Inter', sans-serif;
+
+      --r-sm: 8px;
+      --r-md: 14px;
+      --r-lg: 20px;
+      --r-xl: 28px;
+      --r-full: 9999px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: var(--font-b);
+      color: var(--text-1);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ════════════════════════════════
+       FONDO
+    ════════════════════════════════ */
+    .sia-fondo {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('static/fondos/fondo-02.jpg');
+      background-size: cover;
+      background-position: center;
+      transition: background-image 600ms ease;
+    }
+    .sia-fondo::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg,
+        rgba(8,16,50,0.62) 0%,
+        rgba(25,8,60,0.50) 50%,
+        rgba(5,28,72,0.58) 100%
+      );
+    }
+
+    /* ════════════════════════════════
+       SIDEBAR
+    ════════════════════════════════ */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 230px; z-index: 100;
+      display: flex; flex-direction: column;
+      padding: 1.5rem 1rem;
+      background: var(--sidebar-bg);
+      backdrop-filter: var(--blur-strong);
+      -webkit-backdrop-filter: var(--blur-strong);
+      border-right: 1px solid var(--glass-border);
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 0.5rem 0;
+      margin-bottom: 0.6rem;
+    }
+    .sidebar-logo img {
+      width: 38px; height: 38px; object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(147,197,253,0.5));
+    }
+    .logo-fallback {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg,var(--blue),var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 800; font-size: 17px; color: white;
+    }
+    .logo-txt { line-height: 1; }
+    .logo-txt .sigla {
+      font-family: var(--font-d); font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), #C4B5FD);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; letter-spacing: -0.5px;
+    }
+    .logo-txt .rol {
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.10em;
+      text-transform: uppercase; color: var(--text-3); margin-top: 1px;
+    }
+    .sidebar-inst {
+      font-size: 0.72rem; font-weight: 700; color: var(--blue-light);
+      padding: 0 0.6rem; margin-bottom: 1.4rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+    .nav-section {
+      font-size: 0.60rem; font-weight: 700; letter-spacing: 0.10em;
+      text-transform: uppercase; color: var(--text-3);
+      padding: 1rem 0.6rem 0.4rem;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.6rem 0.75rem; border-radius: var(--r-md);
+      font-size: 0.84rem; font-weight: 500; color: var(--text-2);
+      cursor: pointer; text-decoration: none;
+      transition: background 150ms, color 150ms;
+      position: relative; white-space: nowrap; overflow: hidden;
+    }
+    .nav-item:hover { background: var(--glass-bg); color: var(--text-1); }
+    .nav-item.activo {
+      background: rgba(59,130,246,0.22);
+      color: var(--blue-light);
+      border: 1px solid rgba(59,130,246,0.30);
+    }
+    .nav-item.activo::before {
+      content: '';
+      position: absolute; left: -16px; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 55%; background: var(--blue); border-radius: 0 2px 2px 0;
+    }
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-bottom { margin-top: 0.5rem; padding-top: 1rem; }
+    .btn-cerrar {
+      width: 100%; padding: 0.6rem; background: transparent;
+      border: 1px solid var(--glass-border); border-radius: var(--r-md);
+      color: var(--text-2); font-family: var(--font-b); font-size: 0.82rem; cursor: pointer;
+      transition: all 150ms;
+    }
+    .btn-cerrar:hover { border-color: var(--red); color: var(--red-light); background: rgba(239,68,68,0.08); }
+
+    .sidebar-profile {
+      margin-top: auto;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 1rem;
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.75rem 0.5rem;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: background 150ms;
+    }
+    .sidebar-profile:hover { background: var(--glass-bg); }
+    .avatar-sm {
+      width: 34px; height: 34px; border-radius: var(--r-full);
+      border: 2px solid var(--glass-border);
+      background: rgba(59,130,246,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 700; font-size: 13px;
+      color: var(--blue-light); flex-shrink: 0; overflow: hidden;
+    }
+    .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info { overflow: hidden; }
+    .profile-name {
+      font-size: 0.82rem; font-weight: 600; color: var(--text-1);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .profile-role { font-size: 0.68rem; color: var(--text-3); margin-top: 1px; }
+
+    /* ════════════════════════════════
+       MAIN
+    ════════════════════════════════ */
+    .main {
+      position: relative; z-index: 1;
+      margin-left: 230px;
+      min-height: 100vh;
+      padding: 1.75rem 2rem;
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--glass-shadow);
+    }
+    .glass-strong {
+      background: var(--glass-bg-strong);
+      backdrop-filter: var(--blur-strong);
+      -webkit-backdrop-filter: var(--blur-strong);
+    }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.5rem; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .topbar-titulo { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; }
+    .topbar-sub { font-size: 0.80rem; color: var(--text-2); margin-top: 2px; }
+    .topbar-actions { display: flex; align-items: center; gap: 0.6rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0.55rem 1rem;
+      border-radius: var(--r-md); font-family: var(--font-d);
+      font-size: 0.82rem; font-weight: 700; cursor: pointer;
+      border: none; text-decoration: none; white-space: nowrap;
+      transition: all 150ms;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: white; box-shadow: 0 4px 16px rgba(59,130,246,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,130,246,0.50); }
+    .btn-ghost {
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
+      color: var(--text-1); backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+    }
+    .btn-ghost:hover { background: var(--glass-bg-hover); border-color: var(--glass-border-hi); }
+    .btn-icon { width: 34px; height: 34px; padding: 0; border-radius: var(--r-md); }
+
+    /* ════════════════════════════════
+       TABS
+    ════════════════════════════════ */
+    .tabs { display: flex; gap: 0.4rem; padding: 0 1.5rem; flex-wrap: wrap; }
+    .tab {
+      padding: 0.65rem 1.1rem; font-size: 0.83rem; font-weight: 600;
+      color: var(--text-2); cursor: pointer; border-radius: var(--r-md) var(--r-md) 0 0;
+      border-bottom: 2px solid transparent; transition: color 150ms, border-color 150ms, background 150ms;
+    }
+    .tab:hover { color: var(--text-1); background: var(--glass-bg); }
+    .tab.activo { color: var(--blue-light); border-bottom-color: var(--blue); background: var(--glass-bg); }
+
+    .tab-content { display: none; animation: fadeUp 300ms ease both; }
+    .tab-content.activo { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    /* ════════════════════════════════
+       TOOLBAR / TABLA
+    ════════════════════════════════ */
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 0.75rem; padding: 1.25rem 1.4rem 0;
+    }
+    .toolbar select, .toolbar input[type="text"] {
+      padding: 0.55rem 0.9rem; border-radius: var(--r-md);
+      border: 1px solid var(--glass-border); background: rgba(255,255,255,0.07);
+      color: var(--text-1); font-family: var(--font-b); font-size: 0.83rem; outline: none;
+    }
+    .toolbar select:focus, .toolbar input[type="text"]:focus { border-color: rgba(59,130,246,0.55); }
+
+    .btn-nuevo {
+      padding: 0.6rem 1.2rem; border: none; border-radius: var(--r-md);
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff; font-family: var(--font-d); font-size: 0.83rem; font-weight: 700;
+      cursor: pointer; transition: all 150ms; white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.30);
+    }
+    .btn-nuevo:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,130,246,0.45); }
+
+    .tabla-wrap { overflow-x: auto; padding: 1rem 1.4rem 1.4rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 0.65rem 1rem; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-3); text-align: left;
+      border-bottom: 1px solid var(--glass-border); white-space: nowrap;
+    }
+    td {
+      padding: 0.85rem 1rem; font-size: 0.84rem; color: var(--text-1);
+      border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 120ms; }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 0.84rem; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: var(--r-full);
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .badge.activo   { background: rgba(16,185,129,0.18); color: var(--green-light); border: 1px solid rgba(16,185,129,0.30); }
+    .badge.inactivo { background: rgba(255,255,255,0.08); color: var(--text-3); border: 1px solid var(--glass-border); }
+
+    .color-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; }
+
+    .acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 0.35rem 0.75rem; border-radius: var(--r-sm); font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--glass-border);
+      background: var(--glass-bg); color: var(--text-2); transition: all 150ms;
+    }
+    .btn-sm:hover { color: var(--text-1); border-color: var(--blue-light); background: var(--glass-bg-hover); }
+    .btn-sm.danger:hover { color: var(--red-light); border-color: var(--red); }
+
+    /* ════════════════════════════════
+       MODAL
+    ════════════════════════════════ */
+    .overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(5,10,30,0.65);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: none; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto;
+    }
+    .overlay.visible { display: flex; }
+    .modal { width: 100%; max-width: 460px; padding: 2rem; border-radius: var(--r-xl); }
+    .modal h3 { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.1rem; }
+    .campo { margin-bottom: 1rem; }
+    .campo label {
+      display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 0.4rem;
+    }
+    .campo input, .campo select, .campo textarea {
+      width: 100%; padding: 0.65rem 0.9rem;
+      background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border);
+      border-radius: var(--r-md); color: var(--text-1);
+      font-family: var(--font-b); font-size: 0.86rem; outline: none;
+    }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { border-color: rgba(59,130,246,0.55); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .modal-btns { display: flex; gap: 0.6rem; margin-top: 1.1rem; }
+    .modal-btns button { flex: 1; }
+    .stat-label {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+    .btn-cancel {
+      padding: 0.65rem; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; cursor: pointer;
+      background: transparent; border: 1px solid var(--glass-border) !important; color: var(--text-2);
+    }
+    .btn-cancel:hover { background: var(--glass-bg); }
+    .btn-guardar {
+      padding: 0.65rem; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; cursor: pointer;
+      border: none; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff;
+    }
+
+    .msg { padding: 0.65rem 1rem; border-radius: var(--r-md); font-size: 0.80rem; margin: 0 1.4rem; display: none; }
+    .msg.error { background: rgba(239,68,68,0.14); border: 1px solid rgba(239,68,68,0.35); color: var(--red-light); display: block; }
+    .msg.exito { background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.35); color: var(--green-light); display: block; }
+    /* Dentro de modales el mensaje no debe llevar el margen lateral de la tarjeta */
+    .modal .msg { margin: 0 0 1rem; }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .ani { animation: fadeUp 350ms ease both; }
+
+    @media (max-width: 760px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 1rem; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Horario ── */
+    .horario-tabla {
+      display: grid;
+      grid-template-columns: 70px repeat(7, 1fr);
+      gap: 4px;
+      overflow-x: auto;
+      min-width: 0;
+    }
+    .horario-head {
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 6px 4px;
+      background: rgba(255,255,255,0.10);
+      border-radius: 6px;
+      color: var(--text-2);
+    }
+    .horario-hora {
+      font-size: 0.72rem;
+      text-align: center;
+      padding: 6px 2px;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .horario-celda {
+      min-height: 46px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      padding: 6px;
+      cursor: default;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 2px;
+      position: relative;
+    }
+    .horario-celda.ocup {
+      background: color-mix(in srgb, var(--fc, #4A90D9) 22%, transparent);
+      border-left: 3px solid var(--fc, #4A90D9);
+      cursor: pointer;
+    }
+    .horario-celda.ocup b { font-size: 0.78rem; }
+    .horario-celda.ocup span { opacity: 0.82; font-size: 0.68rem; }
+.horario-celda.libre {
+      background: rgba(255,255,255,0.05);
+      color: var(--text-3);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px dashed rgba(255,255,255,0.14);
+    }
+    .horario-celda.libre:hover { background: rgba(255,255,255,0.12); }
+    /* Carriles: cuando dos franjas coinciden en el tiempo, se dibujan
+       lado a lado dentro de la misma columna sin tapar el texto. */
+    .horario-region { position: relative; min-width: 0; }
+.horario-region .horario-celda.ocup.lanes-franja {
+      position: absolute;
+      box-sizing: border-box;
+      margin: 0;
+      overflow: hidden;
+      min-height: 0;
+    }
+.horario-acc {
+      display: flex;
+      gap: 4px;
+      margin-top: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .horario-celda.ocup:hover .horario-acc { opacity: 1; }
+    /* Las filas de horas son contenedores invisibles: así la cuadrícula
+       (Hora + 7 días) fluye bien con display:contents. Sin esto cada fila
+       se aplastaba en la primera columna. */
+    .horario-fila { display: contents; }
+    .dia-nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .dia-chip {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-2);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .dia-chip:hover { background: rgba(255,255,255,0.11); }
+    .dia-chip.sel {
+      background: color-mix(in srgb, var(--fc, #4A90D9) 30%, transparent);
+      border-color: var(--fc, #4A90D9);
+      color: var(--text-1);
+    }
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="sidebar-logo">SIA</div>
-    <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
-    <div class="sidebar-rol">Administrador</div>
-    <nav>
-      <a class="nav-item" href="panel-admin.html">👨‍🏫 Docentes</a>
-      <a class="nav-item activo">🎓 Gestión académica</a>
-      <a class="nav-item" href="dashboard.html">📊 Dashboard</a>
-    </nav>
-    <div class="sidebar-bottom">
-      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+
+<!-- ════════ FONDO ════════ -->
+<div class="sia-fondo" id="siaFondo"></div>
+
+<!-- ════════ SIDEBAR ════════ -->
+<aside class="sidebar">
+
+  <div class="sidebar-logo">
+<img src="static/logo/SIA_LOGO.svg?v=2" id="logoInstImg" alt="SIA"
+         onerror="this.style.display='none'; document.getElementById('logoFb').style.display='flex'" />
+    <div class="logo-fallback" id="logoFb" style="display:none">S</div>
+    <input type="file" id="inputLogoInst" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="logo-txt">
+      <div class="sigla">SIA</div>
+      <div class="rol">Administrador</div>
     </div>
-  </aside>
+  </div>
+  <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
 
-  <main class="main">
-    <div class="page-titulo">Gestión académica</div>
-    <div class="page-sub">Configura los grados, grupos y materias de tu institución. Este es el primer paso antes de matricular estudiantes.</div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
 
+    <a class="nav-item" href="panel-admin.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Docentes
+    </a>
+
+    <a class="nav-item activo" href="academico.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/>
+      </svg>
+      Gestión académica
+    </a>
+
+    <a class="nav-item" href="estudiantes.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Estudiantes
+    </a>
+
+    <a class="nav-item" href="acudientes.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M14 7h4m-2-2v4"/>
+      </svg>
+      Acudientes
+    </a>
+
+    <a class="nav-item" href="calendario.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/>
+      </svg>
+      Calendario
+    </a>
+
+    <a class="nav-item" href="dashboard.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Dashboard
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+
+  <div class="sidebar-profile" id="btnPerfil">
+    <div class="avatar-sm" id="sidebarAvatar">A</div>
+    <div class="profile-info">
+      <div class="profile-name" id="perfilNombre">Administrador</div>
+      <div class="profile-role">Ver perfil</div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ════════ MAIN ════════ -->
+<main class="main">
+
+  <div class="glass topbar ani">
+    <div>
+      <div class="topbar-titulo">Gestión académica</div>
+      <div class="topbar-sub">Configura los grados, grupos y materias de tu institución. Este es el primer paso antes de matricular estudiantes.</div>
+    </div>
+    <div class="topbar-actions">
+      <button type="button" class="btn btn-ghost btn-icon" title="Ajustes y personalización" onclick="abrirAjustes()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="btn btn-ghost btn-icon" title="Cambiar fondo" id="btnFondo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="glass ani" style="animation-delay:60ms">
     <div class="tabs">
-      <div class="tab activo" data-tab="grados">Grados</div>
-      <div class="tab" data-tab="grupos">Grupos</div>
+      <div class="tab activo" data-tab="cursos">Cursos</div>
+      <div class="tab" data-tab="periodos">Periodos</div>
       <div class="tab" data-tab="materias">Materias</div>
+      <div class="tab" data-tab="horario">Horario</div>
+      <div class="tab" data-tab="grados">Grados (avanzado)</div>
+      <div class="tab" data-tab="grupos">Grupos (avanzado)</div>
+    </div>
+
+    <!-- ════════ TAB: CURSOS ════════ -->
+    <div class="tab-content activo" id="tab-cursos">
+      <div class="toolbar">
+        <div style="font-size:0.8rem;color:var(--text-2)">Escribe el código del curso: 601, 402, 303... (para 10° y 11° usa 4 dígitos: 1001, 1102)</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="inputCodigoCurso" placeholder="Ej: 601" maxlength="4" style="width:110px">
+          <button class="btn-nuevo" onclick="crearCurso()">+ Nuevo curso</button>
+        </div>
+      </div>
+      <div class="msg" id="msgCurso"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Curso</th><th>Capacidad</th><th>Director</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyCursos"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ TAB: PERIODOS ════════ -->
+    <div class="tab-content" id="tab-periodos">
+      <div class="toolbar">
+        <select id="filtroAnioPeriodos" onchange="cargarPeriodos()">
+          <option value="">Todos los años</option>
+        </select>
+        <button class="btn-nuevo" onclick="abrirModalPeriodo()">+ Nuevo periodo</button>
+      </div>
+      <div class="msg" id="msgPeriodosLista"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Año</th><th>N°</th><th>Nombre</th><th>Fecha inicio</th><th>Fecha fin</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyPeriodos"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ════════ TAB: GRADOS ════════ -->
-    <div class="tab-content activo" id="tab-grados">
+    <div class="tab-content" id="tab-grados">
       <div class="toolbar">
         <div></div>
         <button class="btn-nuevo" onclick="abrirModalGrado()">+ Nuevo grado</button>
@@ -135,8 +899,8 @@
       </div>
       <div class="tabla-wrap">
         <table>
-          <thead><tr><th>Grado</th><th>Grupo</th><th>Capacidad</th><th>Estado</th><th>Acciones</th></tr></thead>
-          <tbody id="tbodyGrupos"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+          <thead><tr><th>Grado</th><th>Grupo</th><th>Capacidad</th><th>Director</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyGrupos"><tr><td colspan="6" class="empty">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -144,395 +908,1649 @@
     <!-- ════════ TAB: MATERIAS ════════ -->
     <div class="tab-content" id="tab-materias">
       <div class="toolbar">
-        <select id="filtroGradoMaterias" onchange="cargarMaterias()">
-          <option value="">Todos los grados</option>
+        <select id="filtroCursoMaterias" onchange="cargarMaterias()">
+          <option value="">Todos los cursos</option>
         </select>
         <button class="btn-nuevo" onclick="abrirModalMateria()">+ Nueva materia</button>
       </div>
       <div class="tabla-wrap">
         <table>
-          <thead><tr><th>Área</th><th>Materia</th><th>Grado</th><th>Horas/sem</th><th>Estado</th><th>Acciones</th></tr></thead>
-          <tbody id="tbodyMaterias"><tr><td colspan="6" class="empty">Cargando...</td></tr></tbody>
+          <thead><tr><th>Área</th><th>Materia</th><th>Curso</th><th>Profesores</th><th>Horas sem.</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbodyMaterias"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
-  </main>
 
-  <!-- ════════ MODAL: GRADO ════════ -->
-  <div class="overlay" id="overlayGrado">
-    <div class="modal">
-      <h3 id="tituloModalGrado">Nuevo grado</h3>
-      <div class="msg" id="msgGrado"></div>
-      <input type="hidden" id="gradoId" />
-      <div class="campo">
-        <label>Nombre *</label>
-        <input type="text" id="gradoNombre" placeholder="Ej: Primero, Transición" />
+    <!-- ════════ TAB: HORARIO ════════ -->
+    <div class="tab-content" id="tab-horario">
+      <div class="toolbar">
+        <select id="filtroCursoHorario" onchange="cargarHorario()" style="min-width:220px">
+          <option value="">Elige un curso</option>
+        </select>
+        <button class="btn-nuevo" id="btnConfigHoras" onclick="abrirModalConfigHorario()">Horas de trabajo</button>
+        <button class="btn-nuevo" onclick="abrirModalFranja()">+ Agregar materia</button>
       </div>
-      <div class="grid2">
-        <div class="campo">
-          <label>Nivel *</label>
-          <select id="gradoNivel">
-            <option value="preescolar">Preescolar</option>
-            <option value="primaria">Primaria</option>
-            <option value="secundaria">Secundaria</option>
-          </select>
-        </div>
-        <div class="campo">
-          <label>Orden *</label>
-          <input type="number" id="gradoOrden" placeholder="0, 1, 2..." min="0" />
-        </div>
-      </div>
-      <div class="modal-btns">
-        <button class="btn-cancel" onclick="cerrarModal('overlayGrado')">Cancelar</button>
-        <button class="btn-guardar" onclick="guardarGrado()">Guardar</button>
-      </div>
+      <div class="msg" id="msgHorario"></div>
+      <div id="horarioWrap"></div>
     </div>
   </div>
+</main>
 
-  <!-- ════════ MODAL: GRUPO ════════ -->
-  <div class="overlay" id="overlayGrupo">
-    <div class="modal">
-      <h3>Nuevo grupo</h3>
-      <div class="msg" id="msgGrupo"></div>
-      <div class="campo">
-        <label>Grado *</label>
-        <select id="grupoGradoId"></select>
-      </div>
-      <div class="grid2">
-        <div class="campo">
-          <label>Nombre del grupo *</label>
-          <input type="text" id="grupoNombre" placeholder="A, B, C..." maxlength="10" />
-        </div>
-        <div class="campo">
-          <label>Capacidad máxima</label>
-          <input type="number" id="grupoCapacidad" placeholder="35" min="1" value="35" />
-        </div>
-      </div>
-      <div class="modal-btns">
-        <button class="btn-cancel" onclick="cerrarModal('overlayGrupo')">Cancelar</button>
-        <button class="btn-guardar" onclick="guardarGrupo()">Guardar</button>
-      </div>
+<!-- ════════ MODAL SELECTOR DE FONDO ════════ -->
+<div class="overlay" id="overlayFondo">
+  <div class="glass glass-strong modal" style="max-width:520px">
+    <h3 style="margin-bottom:0.4rem">Elige tu fondo</h3>
+    <p style="font-size:0.84rem;color:var(--text-2);margin-bottom:1rem">Se aplica a toda tu sesión</p>
+    <div id="galeriaFondos" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:1rem 0"></div>
+    <input type="file" id="inputFondoPersonalizado" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModalFondo()">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarFondo()">Aplicar</button>
     </div>
   </div>
+</div>
 
-  <!-- ════════ MODAL: MATERIA ════════ -->
-  <div class="overlay" id="overlayMateria">
-    <div class="modal">
-      <h3>Nueva materia</h3>
-      <div class="msg" id="msgMateria"></div>
-      <div class="grid2">
-        <div class="campo">
-          <label>Grado *</label>
-          <select id="materiaGradoId"></select>
-        </div>
-        <div class="campo">
-          <label>Área *</label>
-          <select id="materiaAreaId"></select>
-        </div>
+<!-- ════════ MODAL: HORAS DE TRABAJO DE LA INSTITUCIÓN ════════ -->
+<div class="overlay" id="overlayConfigHorario">
+  <div class="glass glass-strong modal" style="max-width:640px">
+    <h3 style="margin-bottom:0.4rem">Horas de trabajo de la institución</h3>
+    <p style="font-size:0.84rem;color:var(--text-2);margin-bottom:1rem">Define UNA VEZ en qué horas trabaja tu institución cada día. Los directores de curso asignan sus materias usando estas horas; no pueden inventar otras.</p>
+    <div class="msg" id="msgHorasTrabajo"></div>
+    <div id="horasTrabajoWrap" style="max-height:40vh;overflow:auto;margin-bottom:1rem"></div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding-top:0.5rem;border-top:1px solid var(--line-strong, rgba(255,255,255,0.08))">
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Día</label>
+        <select id="htDia">
+          <option value="1">Lunes</option>
+          <option value="2">Martes</option>
+          <option value="3">Miércoles</option>
+          <option value="4">Jueves</option>
+          <option value="5">Viernes</option>
+          <option value="6">Sábado</option>
+          <option value="7">Domingo</option>
+        </select>
       </div>
-      <div class="campo">
-        <label>Nombre de la materia *</label>
-        <input type="text" id="materiaNombre" placeholder="Ej: Álgebra, Lectura Crítica" />
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Empieza</label>
+        <input type="time" id="htInicio" style="width:110px">
       </div>
-      <div class="grid2">
-        <div class="campo">
-          <label>Horas semanales</label>
-          <input type="number" id="materiaHoras" placeholder="4" min="1" />
-        </div>
-        <div class="campo">
-          <label>Descripción</label>
-          <input type="text" id="materiaDescripcion" placeholder="Opcional" />
-        </div>
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Termina</label>
+        <input type="time" id="htFin" style="width:110px">
       </div>
-      <div class="modal-btns">
-        <button class="btn-cancel" onclick="cerrarModal('overlayMateria')">Cancelar</button>
-        <button class="btn-guardar" onclick="guardarMateria()">Guardar</button>
-      </div>
+      <button class="btn-guardar" id="htGuardar" onclick="guardarHoraTrabajo()" style="height:36px">+ Agregar hora</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModalConfigHorario()">Cerrar</button>
     </div>
   </div>
+</div>
 
-  <script>
-    const API   = 'http://localhost:3000';
-    const token = localStorage.getItem('sia_token');
-    if (!token) window.location.href = 'login.html';
-    const usuario = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
-    document.getElementById('sidebarInst').textContent = usuario.institucion_nombre || 'Mi institución';
+<!-- ════════ MODAL: AGREGAR/EDITAR FRANJA DE HORARIO ════════ -->
+<div class="overlay" id="overlayFranja">
+  <div class="glass glass-strong modal" style="max-width:520px">
+    <h3 id="tituloFranja" style="margin-bottom:0.4rem">Agregar materia al horario</h3>
+    <p style="font-size:0.84rem;color:var(--text-2);margin-bottom:1rem">Asigna una materia a una hora concreta de un día del curso.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:1rem">
+<div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Materia</label>
+        <select id="franjaMateriaId" style="width:100%"></select>
+      </div>
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Profesor que dicta</label>
+        <select id="franjaDocenteId" style="width:100%"></select>
+        <small class="card-sub" style="display:block;margin-top:2px">Solo los profesores asignados a la materia en ese curso.</small>
+      </div>
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Día</label>
+        <select id="franjaDia">
+          <option value="1">Lunes</option>
+          <option value="2">Martes</option>
+          <option value="3">Miércoles</option>
+          <option value="4">Jueves</option>
+          <option value="5">Viernes</option>
+          <option value="6">Sábado</option>
+          <option value="7">Domingo</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div style="flex:1">
+          <label style="display:block;font-size:0.8rem;margin-bottom:4px">Empieza</label>
+          <input type="time" id="franjaHoraInicio" style="width:100%">
+          <select id="franjaHoraInicioSel" style="width:100%;display:none"></select>
+        </div>
+        <div style="flex:1">
+          <label style="display:block;font-size:0.8rem;margin-bottom:4px">Termina</label>
+          <input type="time" id="franjaHoraFin" style="width:100%">
+          <select id="franjaHoraFinSel" style="width:100%;display:none"></select>
+        </div>
+      </div>
+      <div id="franjaAvisoPlantilla" style="display:none;font-size:0.8rem;color:var(--text-2);background:rgba(255,255,255,0.04);padding:0.5rem 0.7rem;border-radius:8px">Solo usas las horas definidas por el administrador. Elige el día y la hora de la plantilla.</div>
+      <div>
+        <label style="display:block;font-size:0.8rem;margin-bottom:4px">Aula (opcional)</label>
+        <input type="text" id="franjaAula" placeholder="Ej: Salón 2" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModalFranja()">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarFranja()">Guardar</button>
+    </div>
+  </div>
+</div>
 
-    const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
+<!-- ════════ MODAL: GRADO ════════ -->
+<div class="overlay" id="overlayGrado">
+  <div class="glass glass-strong modal">
+    <h3 id="tituloModalGrado">Nuevo grado</h3>
+    <div class="msg" id="msgGrado"></div>
+    <input type="hidden" id="gradoId" />
+    <div class="campo">
+      <label>Nombre *</label>
+      <input type="text" id="gradoNombre" placeholder="Ej: Primero, Transición" />
+    </div>
+    <div class="grid2">
+      <div class="campo">
+        <label>Nivel *</label>
+        <select id="gradoNivel">
+          <option value="preescolar">Preescolar</option>
+          <option value="primaria">Primaria</option>
+          <option value="secundaria">Secundaria</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Orden *</label>
+        <input type="number" id="gradoOrden" placeholder="0, 1, 2..." min="0" />
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayGrado')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarGrado()">Guardar</button>
+    </div>
+  </div>
+</div>
 
-    let gradosCache  = [];
-    let areasCache   = [];
+<!-- ════════ MODAL: GRUPO ════════ -->
+<div class="overlay" id="overlayGrupo">
+  <div class="glass glass-strong modal">
+    <h3>Nuevo grupo</h3>
+    <div class="msg" id="msgGrupo"></div>
+    <div class="campo">
+      <label>Grado *</label>
+      <select id="grupoGradoId"></select>
+    </div>
+    <div class="grid2">
+      <div class="campo">
+        <label>Nombre del grupo *</label>
+        <input type="text" id="grupoNombre" placeholder="A, B, C..." maxlength="10" />
+      </div>
+      <div class="campo">
+        <label>Capacidad máxima</label>
+        <input type="number" id="grupoCapacidad" placeholder="35" min="1" value="35" />
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayGrupo')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarGrupo()">Guardar</button>
+    </div>
+  </div>
+</div>
 
-    // ── Tabs ─────────────────────────────────────────────────
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('activo'));
-        tab.classList.add('activo');
-        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('activo');
+<!-- ════════ MODAL: DIRECTOR DE CURSO ════════ -->
+<!-- ════════ MODAL PERFIL ════════ -->
+<div class="overlay" id="overlayPerfil">
+  <div class="glass glass-strong modal">
+    <h3>Mi perfil</h3>
+    <p>Datos de tu cuenta de administrador institucional.</p>
+    <div style="display:flex;flex-direction:column;gap:0.85rem;margin-bottom:1.25rem">
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Nombre completo</div>
+        <div id="perfilModalNombre" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Correo</div>
+        <div id="perfilModalEmail" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Rol</div>
+        <div id="perfilModalRol" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Último acceso</div>
+        <div id="perfilModalAcceso" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModalPerfil()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayDirector">
+  <div class="glass glass-strong modal">
+    <h3>Director de curso</h3>
+    <div class="msg" id="msgDirector"></div>
+    <p style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.75rem" id="cursoDirectorNombre"></p>
+    <div class="campo">
+      <label>Docente</label>
+      <select id="selectDirector">
+        <option value="">Sin director asignado</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayDirector')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarDirector()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: MATERIA ════════ -->
+<div class="overlay" id="overlayMateria">
+  <div class="glass glass-strong modal">
+    <h3>Nueva materia</h3>
+    <div class="msg" id="msgMateria"></div>
+<div class="campo">
+      <label>Área *</label>
+      <div style="display:flex;gap:8px">
+        <select id="materiaAreaId" style="flex:1"></select>
+        <button type="button" class="btn-sm" onclick="abrirModalAreaNueva()" title="Crear área nueva">+</button>
+      </div>
+    </div>
+    <div class="campo">
+      <label>Nombre de la materia *</label>
+      <input type="text" id="materiaNombre" placeholder="Ej: Ética, Religión, Proyecto" />
+    </div>
+    <div class="campo">
+      <label>Descripción</label>
+      <input type="text" id="materiaDescripcion" placeholder="Opcional" />
+    </div>
+    <small class="card-sub" style="display:block;margin-bottom:0.75rem">La materia se crea como <strong>general</strong> de tu institución (sin un grado o curso fijo); después se asigna a los profesores y a los cursos desde "Profesores".</small>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayMateria')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarMateria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: ÁREA NUEVA (mini-form dentro del flujo de Materia) ════════ -->
+<div class="overlay" id="overlayAreaNueva">
+  <div class="glass glass-strong modal" style="max-width:380px">
+    <h3>Nueva área</h3>
+    <div class="msg" id="msgAreaNueva"></div>
+    <div class="campo">
+      <label>Nombre *</label>
+      <input type="text" id="areaNuevaNombre" placeholder="Ej: Educación Física" />
+    </div>
+    <div class="campo">
+      <label>Color</label>
+      <input type="color" id="areaNuevaColor" value="#4A90D9" style="height:38px;width:100%" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayAreaNueva')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarAreaNueva()">Crear área</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: PROFESORES DE LA MATERIA (co-docencia) ════════ -->
+<div class="overlay" id="overlayProfesoresMateria">
+  <div class="glass glass-strong modal">
+    <h3>Profesores de la materia</h3>
+    <div class="card-sub" id="profesoresMateriaNombre" style="margin-bottom:0.8rem;color:var(--text-2)">—</div>
+    <div class="msg" id="msgProfesoresMateria"></div>
+    <div id="listaProfesoresMateria" style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem"></div>
+<div class="campo" id="cursoProfesorMateriaRow" style="display:none">
+      <label>Curso *</label>
+      <select id="selectCursoProfesorMateria"></select>
+      <small class="card-sub" style="margin-top:4px;display:block">La materia es general: elige el curso en el que la dictará este profesor, o déjala "GENERAL" para asignarla a todos.</small>
+    </div>
+    <div class="campo">
+      <label>Agregar profesor</label>
+      <div style="display:flex;gap:8px">
+        <select id="selectNuevoProfesorMateria" style="flex:1"></select>
+        <button type="button" class="btn-guardar" onclick="agregarProfesorMateria()">Agregar</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayProfesoresMateria')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: PERIODO ════════ -->
+<div class="overlay" id="overlayPeriodo">
+  <div class="glass glass-strong modal">
+    <h3 id="tituloModalPeriodo">Nuevo periodo</h3>
+    <p style="font-size:0.82rem;color:var(--text-2);margin-bottom:0.75rem">
+      Tu institución define su propia cantidad y duración de periodos (no tienen que ser 3 ni durar exactamente lo mismo).
+    </p>
+    <div class="msg" id="msgPeriodo"></div>
+    <input type="hidden" id="periodoId" />
+    <div class="campo">
+      <label>Nombre *</label>
+      <input type="text" id="periodoNombre" placeholder="Ej: Primer trimestre, Bimestre 1" />
+    </div>
+    <div class="grid2">
+      <div class="campo">
+        <label>Año lectivo *</label>
+        <input type="number" id="periodoAnio" placeholder="2026" min="2000" max="2100" />
+      </div>
+      <div class="campo">
+        <label>Número de periodo *</label>
+        <input type="number" id="periodoNumero" placeholder="1" min="1" />
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="campo">
+        <label>Fecha inicio *</label>
+        <input type="date" id="periodoFechaInicio" />
+      </div>
+      <div class="campo">
+        <label>Fecha fin *</label>
+        <input type="date" id="periodoFechaFin" />
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayPeriodo')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarPeriodo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API   = window.location.origin;
+  const token = sessionStorage.getItem('sia_token');
+  if (!token) window.location.href = 'login.html';
+  const usuario = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+  document.getElementById('sidebarInst').textContent = usuario.institucion_nombre || 'Mi institución';
+
+  const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
+
+  let gradosCache  = [];
+  let areasCache   = [];
+  let cursosCache  = [];
+
+  /* ══════════════════════════════════
+     FONDOS (idéntico al resto del panel admin,
+     para que la imagen elegida persista entre módulos)
+  ══════════════════════════════════ */
+  let fondoActual   = localStorage.getItem('sia_fondo') || 'f02';
+  let fondoTemporal = fondoActual;
+
+  const FONDOS = [
+    { id:'f01', nombre:'Aurora boreal', src:'static/fondos/fondo-01.jpg' },
+    { id:'f02', nombre:'Montañas',      src:'static/fondos/fondo-02.jpg' },
+    { id:'f03', nombre:'Océano',        src:'static/fondos/fondo-03.jpg' },
+    { id:'f04', nombre:'Bosque',        src:'static/fondos/fondo-04.jpg' },
+    { id:'f05', nombre:'Galaxia',       src:'static/fondos/fondo-05.jpg' },
+    { id:'f06', nombre:'Desierto',      src:'static/fondos/fondo-06.jpg' },
+  ];
+
+  let fondosPersonalizados = [];
+  function todosFondos() { return [...FONDOS, ...fondosPersonalizados]; }
+
+  async function cargarFondosPersonalizados() {
+    try {
+      const resp = await fetch(`${API}/api/sistema/fondos`, { headers });
+      const data = await resp.json();
+      if (data.ok) {
+        fondosPersonalizados = data.fondos.map(f => ({ id: f.id, nombre: f.nombre || 'Personalizado', src: `${API}${f.src}` }));
+      }
+    } catch (err) {
+      console.error('No se pudieron cargar los fondos personalizados:', err);
+    } finally {
+      renderGaleriaFondos();
+      aplicarFondo(fondoActual);
+    }
+  }
+
+  async function subirFondoPersonalizado(archivo) {
+    const formData = new FormData();
+    formData.append('imagen', archivo);
+    try {
+      const resp = await fetch(`${API}/api/sistema/fondos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
+      const data = await resp.json();
+      if (!data.ok) { alert(data.mensaje || 'No se pudo subir el fondo.'); return; }
+      const nuevo = { id: data.fondo.id, nombre: 'Personalizado', src: `${API}${data.fondo.src}` };
+      fondosPersonalizados.push(nuevo);
+      selFondo(nuevo.id, nuevo.src);
+      fondoActual = nuevo.id;
+      localStorage.setItem('sia_fondo', fondoActual);
+    } catch (err) {
+      console.error('Error subiendo fondo:', err);
+      alert('No se pudo subir el fondo. Intenta de nuevo.');
+    }
+  }
+
+  document.getElementById('inputFondoPersonalizado').addEventListener('change', (e) => {
+    const archivo = e.target.files[0];
+    if (archivo) subirFondoPersonalizado(archivo);
+    e.target.value = '';
+  });
+
+  function aplicarFondo(id) {
+    const f = todosFondos().find(f => f.id === id);
+    if (f) document.getElementById('siaFondo').style.backgroundImage = `url('${f.src}')`;
+  }
+
+  function renderGaleriaFondos() {
+    const g = document.getElementById('galeriaFondos');
+    g.innerHTML = todosFondos().map(f => `
+      <div style="cursor:pointer" onclick="selFondo('${f.id}','${f.src}')">
+        <div style="
+          aspect-ratio:16/9; border-radius:10px; overflow:hidden;
+          border: 2px solid ${fondoTemporal===f.id ? 'var(--blue)':'transparent'};
+          box-shadow: ${fondoTemporal===f.id ? '0 0 0 3px rgba(59,130,246,0.25)':''};
+          transition: all 150ms; position:relative;
+        " id="fopt-${f.id}">
+          <img src="${f.src}" style="width:100%;height:100%;object-fit:cover;display:block"
+               onerror="this.parentElement.style.background='linear-gradient(135deg,#1e3a5f,#2d1b69)'" />
+          ${fondoTemporal===f.id ? '<div style="position:absolute;top:6px;right:6px;width:20px;height:20px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:700">✓</div>' : ''}
+        </div>
+        <div style="font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:4px">${f.nombre}</div>
+      </div>
+    `).join('') + `
+      <div style="cursor:pointer" onclick="document.getElementById('inputFondoPersonalizado').click()">
+        <div style="
+          aspect-ratio:16/9; border-radius:10px; overflow:hidden;
+          border: 2px dashed var(--text-3);
+          display:flex; align-items:center; justify-content:center;
+          font-size:1.8rem; font-weight:300; color:var(--text-3);
+        ">+</div>
+        <div style="font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:4px">Subir imagen</div>
+      </div>
+    `;
+  }
+
+  function selFondo(id, src) {
+    fondoTemporal = id;
+    document.getElementById('siaFondo').style.backgroundImage = `url('${src}')`;
+    renderGaleriaFondos();
+  }
+
+  function guardarFondo() {
+    fondoActual = fondoTemporal;
+    localStorage.setItem('sia_fondo', fondoActual);
+    cerrarModalFondo();
+  }
+
+  function cerrarModalFondo() {
+    aplicarFondo(fondoActual);
+    document.getElementById('overlayFondo').classList.remove('visible');
+  }
+
+  document.getElementById('btnFondo').addEventListener('click', () => {
+    renderGaleriaFondos();
+    document.getElementById('overlayFondo').classList.add('visible');
+  });
+
+  document.getElementById('overlayFondo').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalFondo();
+  });
+
+  document.getElementById('overlayConfigHorario').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalConfigHorario();
+  });
+  document.getElementById('overlayFranja').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalFranja();
+  });
+
+  // ── Tabs ─────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('activo'));
+      tab.classList.add('activo');
+      document.getElementById(`tab-${tab.dataset.tab}`).classList.add('activo');
     });
+  });
 
-    // ════════════════════════════════════════════════════════
-    //  GRADOS
-    // ════════════════════════════════════════════════════════
-    async function cargarGrados() {
-      const tbody = document.getElementById('tbodyGrados');
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
-      try {
-        const res  = await fetch(`${API}/api/academico/grados`, { headers });
-        const data = await res.json();
-        gradosCache = data.grados || [];
-        llenarSelectsGrados();
+  // ════════════════════════════════════════════════════════
+  //  CURSOS (atajo simple: crea grado+grupo con un código)
+  // ════════════════════════════════════════════════════════
+  async function cargarCursos() {
+    const tbody = document.getElementById('tbodyCursos');
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
+    try {
+      const res  = await fetch(`${API}/api/academico/cursos`, { headers });
+      const data = await res.json();
+      cursosCache = data.ok ? data.cursos : [];
+      llenarSelectsCursos();
 
-        if (!data.ok || !data.grados.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay grados creados. Crea el primero con "+ Nuevo grado".</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.grados.map(g => `
-          <tr>
-            <td>${g.orden}</td>
-            <td><strong>${g.nombre}</strong></td>
-            <td>${capitalizar(g.nivel)}</td>
-            <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
-            <td class="acciones">
-              <button class="btn-sm" onclick='editarGrado(${JSON.stringify(g)})'>Editar</button>
-              <button class="btn-sm danger" onclick="eliminarGrado('${g.id}')">Desactivar</button>
-            </td>
-          </tr>`).join('');
-      } catch {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando grados.</td></tr>';
+      if (!data.ok || !data.cursos.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay cursos creados. Crea el primero escribiendo su código arriba (ej: 601).</td></tr>';
+        return;
       }
+      tbody.innerHTML = data.cursos.map(c => `
+        <tr>
+          <td><b>${c.codigo}</b></td>
+          <td>${c.capacidad_max}</td>
+          <td>${c.director_nombre || '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
+          <td>${c.activo ? 'Activo' : 'Inactivo'}</td>
+          <td>
+            <button class="btn-sm" onclick="abrirModalDirector('${c.grupo_id}','${c.grupo_nombre}','${c.grado_nombre}','${c.director_id || ''}')">Director</button>
+            <button class="btn-sm" onclick="eliminarCurso('${c.grupo_id}')">Eliminar</button>
+          </td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando cursos.</td></tr>';
+    }
+  }
+
+function llenarSelectsCursos() {
+    const opciones = cursosCache.map(c => `<option value="${c.grupo_id}">${c.codigo}</option>`).join('');
+    const filtroM  = document.getElementById('filtroCursoMaterias');
+    const filtroH  = document.getElementById('filtroCursoHorario');
+    if (filtroM) filtroM.innerHTML = '<option value="">Todos los cursos</option>' + opciones;
+    if (filtroH) filtroH.innerHTML = '<option value="">Elige un curso</option>' + opciones;
+  }
+
+  async function crearCurso() {
+    const input  = document.getElementById('inputCodigoCurso');
+    const msg    = document.getElementById('msgCurso');
+    const codigo = input.value.trim();
+
+    if (!codigo) return mostrarMsg('msgCurso', 'Escribe el código del curso (ej: 601).', 'error');
+
+    try {
+      const res  = await fetch(`${API}/api/academico/cursos`, {
+        method:'POST', headers, body: JSON.stringify({ codigo })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgCurso', data.mensaje, 'error');
+
+      mostrarMsg('msgCurso', `Curso ${data.codigo} creado.`, 'exito');
+      input.value = '';
+      await cargarCursos();
+      await cargarGrados(); // por si se creó un grado nuevo, refresca el caché usado en Materias/Grupos
+    } catch {
+      mostrarMsg('msgCurso', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function eliminarCurso(id) {
+    if (!confirm('¿Desactivar este curso?')) return;
+    await fetch(`${API}/api/academico/cursos/${id}`, { method:'DELETE', headers });
+    cargarCursos();
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  PERIODOS ACADÉMICOS
+  // ════════════════════════════════════════════════════════
+  let periodosCache = [];
+
+  function fechaCorta(f) {
+    // el backend puede devolver Date o 'YYYY-MM-DD'; normaliza a YYYY-MM-DD
+    if (!f) return '';
+    return typeof f === 'string' ? f.slice(0, 10) : new Date(f).toISOString().slice(0, 10);
+  }
+
+  async function cargarPeriodos() {
+    const tbody = document.getElementById('tbodyPeriodos');
+    const anio  = document.getElementById('filtroAnioPeriodos').value;
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Cargando...</td></tr>';
+    try {
+      const url = anio ? `${API}/api/academico/periodos?anio_lectivo=${anio}` : `${API}/api/academico/periodos`;
+      const res  = await fetch(url, { headers });
+      const data = await res.json();
+      periodosCache = data.periodos || [];
+
+      // refresca el filtro de años sin perder la selección actual
+      const anios = [...new Set(periodosCache.map(p => p.anio_lectivo))].sort((a, b) => b - a);
+      const selAnio = document.getElementById('filtroAnioPeriodos');
+      selAnio.innerHTML = '<option value="">Todos los años</option>' +
+        anios.map(a => `<option value="${a}">${a}</option>`).join('');
+      selAnio.value = anio || '';
+
+      if (!data.ok || !periodosCache.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay periodos creados. Crea el primero con "+ Nuevo periodo".</td></tr>';
+        return;
+      }
+      tbody.innerHTML = periodosCache.map(p => `
+        <tr>
+          <td>${p.anio_lectivo}</td>
+          <td>${p.numero_periodo}</td>
+          <td><strong>${p.nombre}</strong></td>
+          <td>${fechaCorta(p.fecha_inicio)}</td>
+          <td>${fechaCorta(p.fecha_fin)}</td>
+          <td><span class="badge ${p.activo ? 'activo' : 'inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td class="acciones">
+            ${p.activo ? '' : `<button class="btn-sm" onclick="activarPeriodo('${p.id}')">Activar</button>`}
+            <button class="btn-sm" onclick='editarPeriodo(${JSON.stringify(p)})'>Editar</button>
+            <button class="btn-sm danger" onclick="eliminarPeriodo('${p.id}')">Eliminar</button>
+          </td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Error cargando periodos.</td></tr>';
+    }
+  }
+
+  function abrirModalPeriodo() {
+    document.getElementById('tituloModalPeriodo').textContent = 'Nuevo periodo';
+    document.getElementById('periodoId').value = '';
+    document.getElementById('periodoNombre').value = '';
+    document.getElementById('periodoAnio').value = new Date().getFullYear();
+    document.getElementById('periodoNumero').value = periodosCache.length
+      ? Math.max(...periodosCache.map(p => p.numero_periodo)) + 1 : 1;
+    document.getElementById('periodoFechaInicio').value = '';
+    document.getElementById('periodoFechaFin').value = '';
+    ocultarMsg('msgPeriodo');
+    document.getElementById('overlayPeriodo').classList.add('visible');
+  }
+
+  function editarPeriodo(p) {
+    document.getElementById('tituloModalPeriodo').textContent = 'Editar periodo';
+    document.getElementById('periodoId').value = p.id;
+    document.getElementById('periodoNombre').value = p.nombre;
+    document.getElementById('periodoAnio').value = p.anio_lectivo;
+    document.getElementById('periodoNumero').value = p.numero_periodo;
+    document.getElementById('periodoFechaInicio').value = fechaCorta(p.fecha_inicio);
+    document.getElementById('periodoFechaFin').value = fechaCorta(p.fecha_fin);
+    ocultarMsg('msgPeriodo');
+    document.getElementById('overlayPeriodo').classList.add('visible');
+  }
+
+  async function guardarPeriodo() {
+    const id             = document.getElementById('periodoId').value;
+    const nombre         = document.getElementById('periodoNombre').value.trim();
+    const anio_lectivo   = document.getElementById('periodoAnio').value;
+    const numero_periodo = document.getElementById('periodoNumero').value;
+    const fecha_inicio   = document.getElementById('periodoFechaInicio').value;
+    const fecha_fin      = document.getElementById('periodoFechaFin').value;
+
+    if (!nombre || !anio_lectivo || !numero_periodo || !fecha_inicio || !fecha_fin) {
+      return mostrarMsg('msgPeriodo', 'Completa todos los campos obligatorios.', 'error');
     }
 
-    function llenarSelectsGrados() {
-      const opciones = gradosCache.map(g => `<option value="${g.id}">${g.nombre} (${capitalizar(g.nivel)})</option>`).join('');
+    const body = {
+      nombre, fecha_inicio, fecha_fin,
+      anio_lectivo: Number(anio_lectivo),
+      numero_periodo: Number(numero_periodo),
+    };
 
-      const selGrupo   = document.getElementById('grupoGradoId');
-      const selMateria = document.getElementById('materiaGradoId');
-      const filtroG    = document.getElementById('filtroGradoGrupos');
-      const filtroM    = document.getElementById('filtroGradoMaterias');
+    try {
+      const url    = id ? `${API}/api/academico/periodos/${id}` : `${API}/api/academico/periodos`;
+      const method = id ? 'PUT' : 'POST';
+      const res  = await fetch(url, { method, headers, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgPeriodo', data.mensaje, 'error');
 
-      selGrupo.innerHTML   = opciones || '<option value="">No hay grados</option>';
-      selMateria.innerHTML = opciones || '<option value="">No hay grados</option>';
+      cerrarModal('overlayPeriodo');
+      await cargarPeriodos();
+      ocultarMsg('msgPeriodosLista'); // el traslape ahora BLOQUEA el guardado (400) y se muestra en msgPeriodo
+    } catch { mostrarMsg('msgPeriodo', 'Error de conexión.', 'error'); }
+  }
 
-      const filtroOpciones = '<option value="">Todos los grados</option>' + opciones;
-      filtroG.innerHTML = filtroOpciones;
-      filtroM.innerHTML = filtroOpciones;
+  async function activarPeriodo(id) {
+    try {
+      const res  = await fetch(`${API}/api/academico/periodos/${id}/activar`, { method:'PUT', headers });
+      const data = await res.json();
+      if (!data.ok) { mostrarMsg('msgPeriodosLista', data.mensaje, 'error'); return; }
+      cargarPeriodos();
+    } catch { mostrarMsg('msgPeriodosLista', 'Error de conexión.', 'error'); }
+  }
+
+  async function eliminarPeriodo(id) {
+    if (!confirm('¿Eliminar este periodo? Solo se puede borrar si no tiene notas, tareas ni horarios asociados.')) return;
+    try {
+      const res  = await fetch(`${API}/api/academico/periodos/${id}`, { method:'DELETE', headers });
+      const data = await res.json();
+      if (!data.ok) { mostrarMsg('msgPeriodosLista', data.mensaje, 'error'); return; }
+      ocultarMsg('msgPeriodosLista');
+      cargarPeriodos();
+    } catch { mostrarMsg('msgPeriodosLista', 'Error de conexión.', 'error'); }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  GRADOS
+  // ════════════════════════════════════════════════════════
+  async function cargarGrados() {
+    const tbody = document.getElementById('tbodyGrados');
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
+    try {
+      const res  = await fetch(`${API}/api/academico/grados`, { headers });
+      const data = await res.json();
+      gradosCache = data.grados || [];
+      llenarSelectsGrados();
+
+      if (!data.ok || !data.grados.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay grados creados. Crea el primero con "+ Nuevo grado".</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.grados.map(g => `
+        <tr>
+          <td>${g.orden}</td>
+          <td><strong>${g.nombre}</strong></td>
+          <td>${capitalizar(g.nivel)}</td>
+          <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td class="acciones">
+            <button class="btn-sm" onclick='editarGrado(${JSON.stringify(g)})'>Editar</button>
+            <button class="btn-sm danger" onclick="eliminarGrado('${g.id}')">Desactivar</button>
+          </td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando grados.</td></tr>';
     }
+  }
 
-    function abrirModalGrado() {
-      document.getElementById('tituloModalGrado').textContent = 'Nuevo grado';
-      document.getElementById('gradoId').value = '';
-      document.getElementById('gradoNombre').value = '';
-      document.getElementById('gradoNivel').value = 'primaria';
-      document.getElementById('gradoOrden').value = '';
-      ocultarMsg('msgGrado');
-      document.getElementById('overlayGrado').classList.add('visible');
-    }
+  function llenarSelectsGrados() {
+    const opciones = gradosCache.map(g => `<option value="${g.id}">${g.nombre} (${capitalizar(g.nivel)})</option>`).join('');
 
-    function editarGrado(g) {
-      document.getElementById('tituloModalGrado').textContent = 'Editar grado';
-      document.getElementById('gradoId').value = g.id;
-      document.getElementById('gradoNombre').value = g.nombre;
-      document.getElementById('gradoNivel').value = g.nivel;
-      document.getElementById('gradoOrden').value = g.orden;
-      ocultarMsg('msgGrado');
-      document.getElementById('overlayGrado').classList.add('visible');
-    }
+    const selGrupo   = document.getElementById('grupoGradoId');
+    const filtroG    = document.getElementById('filtroGradoGrupos');
 
-    async function guardarGrado() {
-      const id     = document.getElementById('gradoId').value;
-      const nombre = document.getElementById('gradoNombre').value.trim();
-      const nivel  = document.getElementById('gradoNivel').value;
-      const orden  = document.getElementById('gradoOrden').value;
+    selGrupo.innerHTML   = opciones || '<option value="">No hay grados</option>';
+    filtroG.innerHTML = '<option value="">Todos los grados</option>' + opciones;
+  }
 
-      if (!nombre || orden === '') return mostrarMsg('msgGrado', 'Completa nombre y orden.', 'error');
+  function abrirModalGrado() {
+    document.getElementById('tituloModalGrado').textContent = 'Nuevo grado';
+    document.getElementById('gradoId').value = '';
+    document.getElementById('gradoNombre').value = '';
+    document.getElementById('gradoNivel').value = 'primaria';
+    document.getElementById('gradoOrden').value = '';
+    ocultarMsg('msgGrado');
+    document.getElementById('overlayGrado').classList.add('visible');
+  }
 
-      try {
-        const url    = id ? `${API}/api/academico/grados/${id}` : `${API}/api/academico/grados`;
-        const method = id ? 'PUT' : 'POST';
-        const res  = await fetch(url, { method, headers, body: JSON.stringify({ nombre, nivel, orden: Number(orden) }) });
-        const data = await res.json();
-        if (!data.ok) return mostrarMsg('msgGrado', data.mensaje, 'error');
-        cerrarModal('overlayGrado');
-        cargarGrados();
-      } catch { mostrarMsg('msgGrado', 'Error de conexión.', 'error'); }
-    }
+  function editarGrado(g) {
+    document.getElementById('tituloModalGrado').textContent = 'Editar grado';
+    document.getElementById('gradoId').value = g.id;
+    document.getElementById('gradoNombre').value = g.nombre;
+    document.getElementById('gradoNivel').value = g.nivel;
+    document.getElementById('gradoOrden').value = g.orden;
+    ocultarMsg('msgGrado');
+    document.getElementById('overlayGrado').classList.add('visible');
+  }
 
-    async function eliminarGrado(id) {
-      if (!confirm('¿Desactivar este grado? Podrás reactivarlo después editándolo.')) return;
-      await fetch(`${API}/api/academico/grados/${id}`, { method:'DELETE', headers });
+  async function guardarGrado() {
+    const id     = document.getElementById('gradoId').value;
+    const nombre = document.getElementById('gradoNombre').value.trim();
+    const nivel  = document.getElementById('gradoNivel').value;
+    const orden  = document.getElementById('gradoOrden').value;
+
+    if (!nombre || orden === '') return mostrarMsg('msgGrado', 'Completa nombre y orden.', 'error');
+
+    try {
+      const url    = id ? `${API}/api/academico/grados/${id}` : `${API}/api/academico/grados`;
+      const method = id ? 'PUT' : 'POST';
+      const res  = await fetch(url, { method, headers, body: JSON.stringify({ nombre, nivel, orden: Number(orden) }) });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgGrado', data.mensaje, 'error');
+      cerrarModal('overlayGrado');
       cargarGrados();
-    }
+    } catch { mostrarMsg('msgGrado', 'Error de conexión.', 'error'); }
+  }
 
-    // ════════════════════════════════════════════════════════
-    //  GRUPOS
-    // ════════════════════════════════════════════════════════
-    async function cargarGrupos() {
-      const tbody = document.getElementById('tbodyGrupos');
-      const gradoId = document.getElementById('filtroGradoGrupos').value;
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
-      try {
-        const url = gradoId ? `${API}/api/academico/grupos?grado_id=${gradoId}` : `${API}/api/academico/grupos`;
-        const res  = await fetch(url, { headers });
-        const data = await res.json();
-        if (!data.ok || !data.grupos.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay grupos. Crea uno con "+ Nuevo grupo" (primero necesitas al menos un grado).</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.grupos.map(g => `
-          <tr>
-            <td>${g.grado_nombre}</td>
-            <td><strong>${g.nombre}</strong></td>
-            <td>${g.capacidad_max}</td>
-            <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
-            <td class="acciones">
-              <button class="btn-sm danger" onclick="eliminarGrupo('${g.id}')">Desactivar</button>
-            </td>
-          </tr>`).join('');
-      } catch {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando grupos.</td></tr>';
+  async function eliminarGrado(id) {
+    if (!confirm('¿Desactivar este grado? Podrás reactivarlo después editándolo.')) return;
+    await fetch(`${API}/api/academico/grados/${id}`, { method:'DELETE', headers });
+    cargarGrados();
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  GRUPOS
+  // ════════════════════════════════════════════════════════
+  async function cargarGrupos() {
+    const tbody = document.getElementById('tbodyGrupos');
+    const gradoId = document.getElementById('filtroGradoGrupos').value;
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Cargando...</td></tr>';
+    try {
+      const url = gradoId ? `${API}/api/academico/grupos?grado_id=${gradoId}` : `${API}/api/academico/grupos`;
+      const res  = await fetch(url, { headers });
+      const data = await res.json();
+      if (!data.ok || !data.grupos.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay grupos. Crea uno con "+ Nuevo grupo" (primero necesitas al menos un grado).</td></tr>';
+        return;
       }
+      tbody.innerHTML = data.grupos.map(g => `
+        <tr>
+          <td>${g.grado_nombre}</td>
+          <td><strong>${g.nombre}</strong></td>
+          <td>${g.capacidad_max}</td>
+          <td>${g.director_nombre ? g.director_nombre : '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
+          <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td class="acciones">
+            <button class="btn-sm" onclick="abrirModalDirector('${g.id}','${g.nombre.replace(/'/g,"\\'")}', '${g.grado_nombre.replace(/'/g,"\\'")}','${g.director_id || ''}')">Director</button>
+            <button class="btn-sm danger" onclick="eliminarGrupo('${g.id}')">Desactivar</button>
+          </td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Error cargando grupos.</td></tr>';
     }
+  }
 
-    function abrirModalGrupo() {
-      if (!gradosCache.length) return alert('Primero crea al menos un grado.');
-      document.getElementById('grupoNombre').value = '';
-      document.getElementById('grupoCapacidad').value = '35';
-      ocultarMsg('msgGrupo');
-      document.getElementById('overlayGrupo').classList.add('visible');
-    }
+  function abrirModalGrupo() {
+    if (!gradosCache.length) return alert('Primero crea al menos un grado.');
+    document.getElementById('grupoNombre').value = '';
+    document.getElementById('grupoCapacidad').value = '35';
+    ocultarMsg('msgGrupo');
+    document.getElementById('overlayGrupo').classList.add('visible');
+  }
 
-    async function guardarGrupo() {
-      const grado_id = document.getElementById('grupoGradoId').value;
-      const nombre   = document.getElementById('grupoNombre').value.trim();
-      const capacidad_max = document.getElementById('grupoCapacidad').value;
+  async function guardarGrupo() {
+    const grado_id = document.getElementById('grupoGradoId').value;
+    const nombre   = document.getElementById('grupoNombre').value.trim();
+    const capacidad_max = document.getElementById('grupoCapacidad').value;
 
-      if (!grado_id || !nombre) return mostrarMsg('msgGrupo', 'Completa grado y nombre.', 'error');
+    if (!grado_id || !nombre) return mostrarMsg('msgGrupo', 'Completa grado y nombre.', 'error');
 
-      try {
-        const res  = await fetch(`${API}/api/academico/grupos`, {
-          method:'POST', headers,
-          body: JSON.stringify({ grado_id, nombre, capacidad_max: Number(capacidad_max) || 35 })
-        });
-        const data = await res.json();
-        if (!data.ok) return mostrarMsg('msgGrupo', data.mensaje, 'error');
-        cerrarModal('overlayGrupo');
-        cargarGrupos();
-      } catch { mostrarMsg('msgGrupo', 'Error de conexión.', 'error'); }
-    }
-
-    async function eliminarGrupo(id) {
-      if (!confirm('¿Desactivar este grupo?')) return;
-      await fetch(`${API}/api/academico/grupos/${id}`, { method:'DELETE', headers });
+    try {
+      const res  = await fetch(`${API}/api/academico/grupos`, {
+        method:'POST', headers,
+        body: JSON.stringify({ grado_id, nombre, capacidad_max: Number(capacidad_max) || 35 })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgGrupo', data.mensaje, 'error');
+      cerrarModal('overlayGrupo');
       cargarGrupos();
+    } catch { mostrarMsg('msgGrupo', 'Error de conexión.', 'error'); }
+  }
+
+  async function eliminarGrupo(id) {
+    if (!confirm('¿Desactivar este grupo?')) return;
+    await fetch(`${API}/api/academico/grupos/${id}`, { method:'DELETE', headers });
+    cargarGrupos();
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  DIRECTOR DE CURSO
+  // ════════════════════════════════════════════════════════
+  let docentesCache  = [];
+  let grupoDirectorId = null;
+
+  async function cargarDocentesParaSelect() {
+    if (docentesCache.length) return docentesCache;
+    try {
+      const res  = await fetch(`${API}/api/docentes`, { headers });
+      const data = await res.json();
+      docentesCache = data.ok ? data.docentes : [];
+    } catch { docentesCache = []; }
+    return docentesCache;
+  }
+
+  async function abrirModalDirector(grupoId, nombreGrupo, nombreGrado, directorIdActual) {
+    grupoDirectorId = grupoId;
+    ocultarMsg('msgDirector');
+    document.getElementById('cursoDirectorNombre').textContent = `Curso: ${nombreGrado} ${nombreGrupo}`;
+
+    const docentes = await cargarDocentesParaSelect();
+    const select = document.getElementById('selectDirector');
+    select.innerHTML = '<option value="">Sin director asignado</option>' +
+      docentes.map(d => `<option value="${d.id}" ${d.id === directorIdActual ? 'selected' : ''}>${d.nombres} ${d.apellidos}</option>`).join('');
+
+    if (!docentes.length) {
+      mostrarMsg('msgDirector', 'Todavía no tienes docentes en tu institución. Agrégalos primero desde "Docentes".', 'error');
     }
 
-    // ════════════════════════════════════════════════════════
-    //  MATERIAS
-    // ════════════════════════════════════════════════════════
-    async function cargarAreas() {
-      try {
-        const res  = await fetch(`${API}/api/academico/areas`, { headers });
-        const data = await res.json();
-        areasCache = data.areas || [];
-        document.getElementById('materiaAreaId').innerHTML = areasCache
-          .map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
-      } catch {}
+    document.getElementById('overlayDirector').classList.add('visible');
+  }
+
+  async function guardarDirector() {
+    const docenteId = document.getElementById('selectDirector').value || null;
+    try {
+      const res  = await fetch(`${API}/api/academico/grupos/${grupoDirectorId}/director`, {
+        method: 'PUT', headers, body: JSON.stringify({ docente_id: docenteId })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgDirector', data.mensaje, 'error');
+      cerrarModal('overlayDirector');
+      // Se refrescan las dos tablas: "Cursos" (pestaña activa por defecto)
+      // y "Grupos (avanzado)", porque el modal de director se puede abrir
+      // desde cualquiera de las dos y antes solo se refrescaba una.
+      cargarCursos();
+      cargarGrupos();
+    } catch { mostrarMsg('msgDirector', 'Error de conexión.', 'error'); }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  MATERIAS (por curso, con co-docencia)
+  // ════════════════════════════════════════════════════════
+  async function cargarAreas() {
+    try {
+      const res  = await fetch(`${API}/api/academico/areas`, { headers });
+      const data = await res.json();
+      areasCache = data.areas || [];
+      llenarSelectArea();
+    } catch {}
+  }
+
+  function llenarSelectArea() {
+    document.getElementById('materiaAreaId').innerHTML = areasCache
+      .map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+  }
+
+  async function cargarMaterias() {
+    const tbody = document.getElementById('tbodyMaterias');
+    const grupoId = document.getElementById('filtroCursoMaterias').value;
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Cargando...</td></tr>';
+    try {
+      const url = grupoId ? `${API}/api/academico/materias?grupo_id=${grupoId}` : `${API}/api/academico/materias`;
+      const res  = await fetch(url, { headers });
+      const data = await res.json();
+if (!data.ok || !data.materias.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay materias. Crea una con "+ Nueva materia" — será general y la asignas después a los cursos y profesores.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.materias.map(m => {
+        const etiquetaCurso = m.grupo_id ? `${m.grado_nombre}${m.grupo_nombre}` : '<span style="color:var(--text-3)">(General)</span>';
+        const etiquetaModal = m.grupo_id ? `${m.grado_nombre}${m.grupo_nombre}` : 'General';
+        return `
+        <tr>
+          <td><span class="color-dot" style="background:${m.color_hex}"></span>${m.area_nombre}</td>
+          <td><strong>${m.nombre}</strong></td>
+          <td>${etiquetaCurso}</td>
+          <td>${m.docentes_nombres || '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
+          <td>${m.horas_semanales ? m.horas_semanales.substring(0, 5) + ' h' : '<span style="color:var(--text-3)">—</span>'}</td>
+          <td><span class="badge ${m.activa ? 'activo' : 'inactivo'}">${m.activa ? 'Activa' : 'Inactiva'}</span></td>
+          <td class="acciones">
+            <button class="btn-sm" onclick="abrirModalProfesoresMateria('${m.id}','${(m.nombre + ' — ' + etiquetaModal).replace(/'/g,"\\'")}','${m.grupo_id || ''}')">Profesores</button>
+            <button class="btn-sm danger" onclick="eliminarMateria('${m.id}')">Desactivar</button>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Error cargando materias.</td></tr>';
+    }
+  }
+
+async function abrirModalMateria() {
+    llenarSelectArea();
+    document.getElementById('materiaNombre').value = '';
+    document.getElementById('materiaDescripcion').value = '';
+    ocultarMsg('msgMateria');
+    document.getElementById('overlayMateria').classList.add('visible');
+  }
+
+  function llenarSelectsMateria() { /* sin grado/curso: la materia es general */ }
+
+  async function guardarMateria() {
+    const area_id     = document.getElementById('materiaAreaId').value;
+    const nombre      = document.getElementById('materiaNombre').value.trim();
+    const descripcion = document.getElementById('materiaDescripcion').value.trim();
+
+    if (!area_id || !nombre) {
+      return mostrarMsg('msgMateria', 'El área y el nombre son obligatorios.', 'error');
     }
 
-    async function cargarMaterias() {
-      const tbody = document.getElementById('tbodyMaterias');
-      const gradoId = document.getElementById('filtroGradoMaterias').value;
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">Cargando...</td></tr>';
-      try {
-        const url = gradoId ? `${API}/api/academico/materias?grado_id=${gradoId}` : `${API}/api/academico/materias`;
-        const res  = await fetch(url, { headers });
-        const data = await res.json();
-        if (!data.ok || !data.materias.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay materias. Crea una con "+ Nueva materia" (primero necesitas al menos un grado).</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.materias.map(m => `
-          <tr>
-            <td><span class="color-dot" style="background:${m.color_hex}"></span>${m.area_nombre}</td>
-            <td><strong>${m.nombre}</strong></td>
-            <td>${m.grado_nombre}</td>
-            <td>${m.intensidad_hs || '—'}</td>
-            <td><span class="badge ${m.activa ? 'activo' : 'inactivo'}">${m.activa ? 'Activa' : 'Inactiva'}</span></td>
-            <td class="acciones">
-              <button class="btn-sm danger" onclick="eliminarMateria('${m.id}')">Desactivar</button>
-            </td>
-          </tr>`).join('');
-      } catch {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Error cargando materias.</td></tr>';
+    try {
+      const res  = await fetch(`${API}/api/academico/materias`, {
+        method:'POST', headers,
+        body: JSON.stringify({ area_id, nombre, descripcion: descripcion || null })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgMateria', data.mensaje, 'error');
+      cerrarModal('overlayMateria');
+      cargarMaterias();
+    } catch { mostrarMsg('msgMateria', 'Error de conexión.', 'error'); }
+  }
+
+  async function eliminarMateria(id) {
+    if (!confirm('¿Desactivar esta materia?')) return;
+    await fetch(`${API}/api/academico/materias/${id}`, { method:'DELETE', headers });
+    cargarMaterias();
+  }
+
+  // ── Crear área nueva sin salir del formulario de materia ──
+  function abrirModalAreaNueva() {
+    document.getElementById('areaNuevaNombre').value = '';
+    document.getElementById('areaNuevaColor').value = '#4A90D9';
+    ocultarMsg('msgAreaNueva');
+    document.getElementById('overlayAreaNueva').classList.add('visible');
+  }
+
+  async function guardarAreaNueva() {
+    const nombre    = document.getElementById('areaNuevaNombre').value.trim();
+    const color_hex = document.getElementById('areaNuevaColor').value;
+    if (!nombre) return mostrarMsg('msgAreaNueva', 'El nombre es obligatorio.', 'error');
+
+    try {
+      const res  = await fetch(`${API}/api/academico/areas`, {
+        method:'POST', headers, body: JSON.stringify({ nombre, color_hex })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgAreaNueva', data.mensaje, 'error');
+
+      areasCache.push({ id: data.id, nombre: data.nombre, color_hex: data.color_hex, icono: data.icono });
+      llenarSelectArea();
+      document.getElementById('materiaAreaId').value = data.id;
+      cerrarModal('overlayAreaNueva');
+    } catch { mostrarMsg('msgAreaNueva', 'Error de conexión.', 'error'); }
+  }
+
+// ── Co-docencia: modal "Profesores de la materia" ──────────
+  let materiaProfesoresId = null;
+  let materiaProfesoresGrupo = '';
+
+  async function abrirModalProfesoresMateria(materiaId, nombreMostrar, grupoId) {
+    materiaProfesoresId = materiaId;
+    materiaProfesoresGrupo = grupoId || '';
+    document.getElementById('profesoresMateriaNombre').textContent = nombreMostrar;
+    ocultarMsg('msgProfesoresMateria');
+    await cargarDocentesParaSelect();
+    llenarCursoProfesorMateria();
+    await refrescarProfesoresMateria();
+    document.getElementById('overlayProfesoresMateria').classList.add('visible');
+  }
+
+  function llenarCursoProfesorMateria() {
+    const row = document.getElementById('cursoProfesorMateriaRow');
+    const sel = document.getElementById('selectCursoProfesorMateria');
+    if (!row || !sel) return;
+    if (materiaProfesoresGrupo) { row.style.display = 'none'; return; }
+    row.style.display = 'block';
+    const opciones = cursosCache.map(c => `<option value="${c.grupo_id}">${c.codigo}</option>`).join('');
+    sel.innerHTML = '<option value="">GENERAL (sin curso)</option>' + (opciones || '');
+  }
+
+  async function refrescarProfesoresMateria() {
+    const cont = document.getElementById('listaProfesoresMateria');
+    cont.innerHTML = 'Cargando...';
+    try {
+      const res  = await fetch(`${API}/api/academico/materias/${materiaProfesoresId}/docentes`, { headers });
+      const data = await res.json();
+      const asignados = data.ok ? data.docentes : [];
+
+cont.innerHTML = asignados.length
+        ? asignados.map(d => `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:8px">
+              <span>
+                <b>${d.nombres} ${d.apellidos}</b>
+                <span style="opacity:0.75;font-size:0.9em"> · ${d.curso || 'General'}</span>
+              </span>
+              <button class="btn-sm danger" onclick="quitarProfesorMateria('${d.id}','${d.grupo_id || ''}')">Quitar</button>
+            </div>`).join('')
+        : '<div style="color:var(--text-3)">Sin profesores asignados.</div>';
+
+      const asignadosIds = new Set(asignados.map(d => d.id));
+      const disponibles = docentesCache.filter(d => !asignadosIds.has(d.id));
+      const sel = document.getElementById('selectNuevoProfesorMateria');
+      sel.innerHTML = disponibles.length
+        ? disponibles.map(d => `<option value="${d.id}">${d.nombres} ${d.apellidos}</option>`).join('')
+        : '<option value="">No hay más docentes disponibles</option>';
+    } catch {
+      cont.innerHTML = '<div style="color:var(--text-3)">Error cargando profesores.</div>';
+    }
+  }
+
+async function agregarProfesorMateria() {
+    const docenteId = document.getElementById('selectNuevoProfesorMateria').value;
+    if (!docenteId) return;
+    const grupoSel = document.getElementById('selectCursoProfesorMateria');
+    const grupoId  = materiaProfesoresGrupo || (grupoSel ? grupoSel.value : '');
+    try {
+      const res  = await fetch(`${API}/api/academico/materias/${materiaProfesoresId}/docentes`, {
+        method:'POST', headers, body: JSON.stringify({ docente_id: docenteId, grupo_id: grupoId || null })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgProfesoresMateria', data.mensaje, 'error');
+      ocultarMsg('msgProfesoresMateria');
+      await refrescarProfesoresMateria();
+      cargarMaterias();
+    } catch { mostrarMsg('msgProfesoresMateria', 'Error de conexión.', 'error'); }
+  }
+
+async function quitarProfesorMateria(docenteId, grupoId) {
+    if (!confirm('¿Quitar este profesor de la materia?')) return;
+    const grupo = (grupoId || '').trim() ? `?grupo_id=${encodeURIComponent(grupoId)}` : '';
+    try {
+      const res  = await fetch(`${API}/api/academico/materias/${materiaProfesoresId}/docentes/${docenteId}${grupo}`, {
+        method:'DELETE', headers
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgProfesoresMateria', data.mensaje, 'error');
+      ocultarMsg('msgProfesoresMateria');
+      await refrescarProfesoresMateria();
+      cargarMaterias();
+    } catch { mostrarMsg('msgProfesoresMateria', 'Error de conexión.', 'error'); }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  function cerrarModal(id) { document.getElementById(id).classList.remove('visible'); }
+  function mostrarMsg(id, texto, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = `msg ${tipo}`;
+  }
+  function ocultarMsg(id) {
+    const el = document.getElementById(id);
+    el.className = 'msg';
+    el.textContent = '';
+  }
+  function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function cerrarSesion() {
+    const t = sessionStorage.getItem('sia_token');
+    fetch(`${API}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+    }).catch(() => {});
+    sessionStorage.removeItem('sia_token');
+    sessionStorage.removeItem('sia_usuario');
+    window.location.href = 'login.html';
+  }
+
+  // ── PERFIL ──────────────────────────────────────────────
+  function cargarPerfilSidebar() {
+    const u = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+    if (u.nombres) {
+      document.getElementById('perfilNombre').textContent = u.nombres;
+      document.getElementById('sidebarAvatar').textContent = u.nombres.charAt(0).toUpperCase();
+    }
+  }
+
+  async function abrirModalPerfil() {
+    document.getElementById('overlayPerfil').classList.add('visible');
+    try {
+      const res  = await fetch(`${API}/api/auth/perfil`, { headers });
+      const data = await res.json();
+      if (data.ok) {
+        const u = data.usuario;
+        document.getElementById('perfilModalNombre').textContent = `${u.nombres} ${u.apellidos}`;
+        document.getElementById('perfilModalEmail').textContent  = u.email;
+        document.getElementById('perfilModalRol').textContent    = u.rol;
+        document.getElementById('perfilModalAcceso').textContent =
+          u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CO') : 'Primer acceso';
+      }
+    } catch { /* silencioso: la modal ya muestra "—" por defecto */ }
+  }
+  function cerrarModalPerfil() { document.getElementById('overlayPerfil').classList.remove('visible'); }
+  document.getElementById('btnPerfil').addEventListener('click', abrirModalPerfil);
+  document.getElementById('overlayPerfil').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalPerfil();
+  });
+
+  // ── HORARIO (parrilla semanal por curso) ──────────────────
+let horarioConfig    = { inicio: '06:00', fin: '14:00' };
+  let horarioFranjas   = [];
+  let horarioMaterias  = [];
+  let horarioDiaVisible = 0; // 0 = semana completa; 1..7 = solo ese día
+  let franjasCache     = new Map(); // id -> objeto franja para editar
+  let horarioEditId    = null;
+  let horasTrabajo     = [];        // plantilla global de horas de la institución
+  let horasTrabajoEdit = null;      // id de hora en edición dentro del gestor
+
+  const esAdmin = ['admin', 'superadmin'].includes(usuario.rol);
+
+  const HORAS_HORARIO = (() => {
+    const lista = [];
+    for (let h = 0; h < 24; h++) {
+      for (const m of ['00', '30']) {
+        const s = `${String(h).padStart(2, '0')}:${m}`;
+        lista.push(s);
       }
     }
+    return lista; // 00:00, 00:30, ..., 23:30
+  })();
+  const DIAS_HORARIO = [
+    { n: 1, label: 'Lunes' }, { n: 2, label: 'Martes' }, { n: 3, label: 'Miércoles' },
+    { n: 4, label: 'Jueves' }, { n: 5, label: 'Viernes' }, { n: 6, label: 'Sábado' },
+    { n: 7, label: 'Domingo' },
+  ];
 
-    function abrirModalMateria() {
-      if (!gradosCache.length) return alert('Primero crea al menos un grado.');
-      document.getElementById('materiaNombre').value = '';
-      document.getElementById('materiaHoras').value = '';
-      document.getElementById('materiaDescripcion').value = '';
-      ocultarMsg('msgMateria');
-      document.getElementById('overlayMateria').classList.add('visible');
+  async function abrirModalConfigHorario() {
+    ocultarMsg('msgHorasTrabajo');
+    await cargarHorasTrabajo();
+    document.getElementById('overlayConfigHorario').classList.add('visible');
+  }
+  function cerrarModalConfigHorario() { document.getElementById('overlayConfigHorario').classList.remove('visible'); }
+
+  // Carga la plantilla global de horas de la institución
+  async function cargarHorasTrabajo() {
+    try {
+      const res  = await fetch(`${API}/api/academico/horario/horas`, { headers });
+      const data = await res.json();
+      if (data.ok) horasTrabajo = data.horas || [];
+    } catch { /* silencioso: la tabla seguirá vacía y se mostrará el aviso */ }
+  }
+
+  function renderHorasTrabajo() {
+    const wrap = document.getElementById('horasTrabajoWrap');
+    if (!horasTrabajo.length) {
+      wrap.innerHTML = '<p style="font-size:0.85rem;color:var(--text-2);padding:1rem 0">Todavía no has definido horas. Agrega el primer bloque de la jornada abajo.</p>';
+      return;
+    }
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead><tr>
+        <th style="text-align:left;padding:6px;color:var(--text-2)">Día</th>
+        <th style="text-align:left;padding:6px;color:var(--text-2)">Empieza</th>
+        <th style="text-align:left;padding:6px;color:var(--text-2)">Termina</th>
+        <th style="width:90px"></th>
+      </tr></thead><tbody>`;
+    for (const h of horasTrabajo) {
+      html += `<tr style="border-top:1px solid var(--line-strong, rgba(255,255,255,0.06))">
+        <td style="padding:6px">${DIAS_HORARIO.find(d => d.n === Number(h.dia_semana))?.label || h.dia_semana}</td>
+        <td style="padding:6px">${h.hora_inicio}</td>
+        <td style="padding:6px">${h.hora_fin}</td>
+        <td style="padding:6px;text-align:right;white-space:nowrap">
+          <button class="btn-sm" onclick="editarHoraTrabajo('${h.id}')">✎</button>
+          <button class="btn-sm danger" onclick="eliminarHoraTrabajo('${h.id}')">×</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    if (horasTrabajoEdit) {
+      const h = horasTrabajo.find(x => x.id === horasTrabajoEdit);
+      if (h) {
+        document.getElementById('htDia').value = String(h.dia_semana);
+        document.getElementById('htInicio').value = h.hora_inicio;
+        document.getElementById('htFin').value = h.hora_fin;
+        document.getElementById('htGuardar').textContent = 'Guardar cambio';
+      }
+    }
+  }
+
+  function editarHoraTrabajo(id) {
+    horasTrabajoEdit = id;
+    ocultarMsg('msgHorasTrabajo');
+    renderHorasTrabajo();
+    const h = horasTrabajo.find(x => x.id === id);
+    if (h) {
+      document.getElementById('htDia').value = String(h.dia_semana);
+      document.getElementById('htInicio').value = h.hora_inicio;
+      document.getElementById('htFin').value = h.hora_fin;
+      document.getElementById('htGuardar').textContent = 'Guardar cambio';
+    }
+  }
+
+  async function guardarHoraTrabajo() {
+    const body = {
+      dia_semana: Number(document.getElementById('htDia').value),
+      hora_inicio: document.getElementById('htInicio').value,
+      hora_fin: document.getElementById('htFin').value,
+    };
+    if (!body.hora_inicio || !body.hora_fin) return mostrarMsg('msgHorasTrabajo', 'Escoge una hora de inicio y de fin.', 'error');
+    if (body.hora_inicio >= body.hora_fin) return mostrarMsg('msgHorasTrabajo', 'La hora de fin debe ser mayor a la de inicio.', 'error');
+    try {
+      const esEdicion = !!horasTrabajoEdit;
+      const url = esEdicion ? `${API}/api/academico/horario/horas/${horasTrabajoEdit}` : `${API}/api/academico/horario/horas`;
+      const res  = await fetch(url, { method: esEdicion ? 'PUT' : 'POST', headers, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgHorasTrabajo', data.mensaje, 'error');
+      horasTrabajoEdit = null;
+      document.getElementById('htGuardar').textContent = '+ Agregar hora';
+      mostrarMsg('msgHorasTrabajo', data.mensaje, 'exito');
+      await cargarHorasTrabajo();
+      renderHorasTrabajo();
+      ocultarMsg('msgHorario');
+      if (document.getElementById('filtroCursoHorario').value) renderHorario();
+    } catch {
+      mostrarMsg('msgHorasTrabajo', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function eliminarHoraTrabajo(id) {
+    if (!confirm('¿Quitar esta hora de la plantilla de la institución?')) return;
+    try {
+      const res  = await fetch(`${API}/api/academico/horario/horas/${id}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgHorasTrabajo', data.mensaje, 'error');
+      if (horasTrabajoEdit === id) { horasTrabajoEdit = null; document.getElementById('htGuardar').textContent = '+ Agregar hora'; }
+      mostrarMsg('msgHorasTrabajo', data.mensaje, 'exito');
+      await cargarHorasTrabajo();
+      renderHorasTrabajo();
+      if (document.getElementById('filtroCursoHorario').value) renderHorario();
+    } catch {
+      mostrarMsg('msgHorasTrabajo', 'Error de conexión.', 'error');
+    }
+  }
+
+// Rango de horas de la parrilla: barre en pasos de 30 minutos todo el
+  // rango cubierto por la plantilla de la institución (o el rango por
+  // defecto si aún no hay plantilla) y añade la hora de inicio exacta de
+  // cada franja para que ninguna clase quede oculta.
+  function horasVisibles() {
+    const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const pad  = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    let inicio, fin;
+    if (horasTrabajo.length) {
+      inicio = Math.min(...horasTrabajo.map(t => mins(String(t.hora_inicio).slice(0, 5))));
+      fin    = Math.max(...horasTrabajo.map(t => mins(String(t.hora_fin).slice(0, 5))));
+    } else {
+      inicio = mins(horarioConfig.inicio);
+      fin    = mins(horarioConfig.fin);
+    }
+    if (horarioFranjas.length) {
+      inicio = Math.min(inicio, ...horarioFranjas.map(f => mins(String(f.hora_inicio).slice(0, 5))));
+      fin    = Math.max(fin,    ...horarioFranjas.map(f => mins(String(f.hora_fin).slice(0, 5))));
+    }
+    if (isNaN(inicio) || isNaN(fin) || inicio > fin) return [];
+    const set = new Set();
+    for (let m = Math.floor(inicio / 30) * 30; m <= fin; m += 30) set.add(pad(m));
+    horasTrabajo.forEach(t => { set.add(String(t.hora_inicio).slice(0, 5)); set.add(String(t.hora_fin).slice(0, 5)); });
+    horarioFranjas.forEach(f => set.add(String(f.hora_inicio).slice(0, 5)));
+    return [...set].filter(h => mins(h) >= inicio && mins(h) <= fin).sort();
+  }
+
+  async function cargarHorario() {
+    const grupoId = document.getElementById('filtroCursoHorario').value;
+    const wrap = document.getElementById('horarioWrap');
+    if (!grupoId) { wrap.innerHTML = '<p class="empty" style="padding:2rem;text-align:center;color:var(--text-3)">Elige un curso para ver y editar su horario.</p>'; return; }
+    ocultarMsg('msgHorario');
+    try {
+      const [resF, resM] = await Promise.all([
+        fetch(`${API}/api/academico/horario?grupo_id=${grupoId}`, { headers }),
+        fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoId}`, { headers }),
+      ]);
+      const dataF = await resF.json();
+      const dataM = await resM.json();
+      if (!dataF.ok) return mostrarMsg('msgHorario', dataF.mensaje, 'error');
+      horarioFranjas = dataF.franjas || [];
+      franjasCache   = new Map(horarioFranjas.map(f => [f.id, f]));
+      horarioMaterias = (dataM.ok ? dataM.materias : []) || [];
+      renderHorario();
+    } catch {
+      mostrarMsg('msgHorario', 'Error de conexión.', 'error');
+    }
+}
+
+function renderHorario() {
+    const wrap = document.getElementById('horarioWrap');
+    const horas = horasVisibles();
+    const cursoSel = document.getElementById('filtroCursoHorario');
+    const curso = cursosCache.find(c => c.grupo_id === cursoSel.value);
+    if (!horas.length) {
+      wrap.innerHTML = '<p class="empty" style="padding:1.5rem;text-align:center;color:var(--text-3)">Configura un rango de horas válido.</p>';
+      return;
+    }
+    if (!horarioFranjas.length && !horarioMaterias.length) {
+      wrap.innerHTML = '<p class="empty" style="padding:1.5rem;text-align:center;color:var(--text-3)">Este curso no tiene horario todavía. Agrega la primera materia o crea materias para este curso.</p>';
+      return;
     }
 
-    async function guardarMateria() {
-      const grado_id    = document.getElementById('materiaGradoId').value;
-      const area_id     = document.getElementById('materiaAreaId').value;
-      const nombre      = document.getElementById('materiaNombre').value.trim();
-      const horas       = document.getElementById('materiaHoras').value;
-      const descripcion = document.getElementById('materiaDescripcion').value.trim();
+    // Navegación por días: semana completa o un solo día.
+    const diasVisibles = horarioDiaVisible
+      ? DIAS_HORARIO.filter(d => d.n === horarioDiaVisible)
+      : DIAS_HORARIO;
 
-      if (!grado_id || !area_id || !nombre) return mostrarMsg('msgMateria', 'Completa grado, área y nombre.', 'error');
+    let html = `<div style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                  <span><b>${curso ? curso.codigo : (cursoSel.value ? 'Curso' : '')}</b> · Horario ${horarioConfig.inicio} a ${horarioConfig.fin}</span>
+                  <span style="display:flex;gap:6px;align-items:center">
+                    <button class="btn-sm" onclick="abrirModalFranja()">+ Materia</button>
+                    ${esAdmin ? `<button class="btn-sm" onclick="abrirModalConfigHorario()">Horas</button>` : ''}
+                  </span>
+                </div>`;
 
-      try {
-        const res  = await fetch(`${API}/api/academico/materias`, {
-          method:'POST', headers,
-          body: JSON.stringify({ grado_id, area_id, nombre, intensidad_hs: Number(horas) || null, descripcion: descripcion || null })
+    html += `<div class="dia-nav" style="margin-bottom:0.6rem;justify-content:space-between">
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="dia-chip${horarioDiaVisible === 0 ? ' sel' : ''}" onclick="selDiaHorario(0)">Semana completa</button>
+                ${DIAS_HORARIO.map(d => `<button class="dia-chip${horarioDiaVisible === d.n ? ' sel' : ''}" onclick="selDiaHorario(${d.n})">${d.label}</button>`).join('')}
+              </div>
+            </div>`;
+
+    html += `<div class="horario-tabla" style="grid-template-columns:70px repeat(${diasVisibles.length},1fr);grid-template-rows:auto repeat(${horas.length},minmax(46px,auto))">
+                <div class="horario-head" style="grid-column:1;grid-row:1">Hora</div>`;
+    diasVisibles.forEach((d, k) => { html += `<div class="horario-head" style="grid-column:${k + 2};grid-row:1">${d.label}</div>`; });
+
+    // Etiquetas de hora: una por fila, siempre visibles.
+    horas.forEach((h, i) => { html += `<div class="horario-hora" style="grid-column:1;grid-row:${i + 2}">${h}</div>`; });
+
+    // Franjas: se agrupan por solapamiento (encadenado) y se dibujan en
+    // "carriles" lado a lado, para que una franja que coincide con otra no
+    // tape su texto ni cambie su fondo. Clic en una franja la edita.
+    diasVisibles.forEach((d, k) => {
+      const col = k + 2;
+      const diaFranjas = horarioFranjas
+        .filter(f => Number(f.dia_semana) === d.n)
+        .map(f => ({ f, rg: rangoFranja(f, horas) }))
+        .filter(x => x.rg)
+        .sort((a, b) => a.rg.row - b.rg.row || (a.rg.row + a.rg.rows) - (b.rg.row + b.rg.rows));
+
+      const grupos = [];
+      for (const x of diaFranjas) {
+        const filaFin = x.rg.row + x.rg.rows;
+        const g = grupos.find(gr => x.rg.row < gr.fin);
+        if (g) { g.miembros.push(x); g.fin = Math.max(g.fin, filaFin); }
+        else grupos.push({ inicio: x.rg.row, fin: filaFin, miembros: [x] });
+      }
+
+      const cubiertas = new Set();
+      for (const gr of grupos) {
+        const laneFin = [];
+        gr.miembros.forEach(x => {
+          let lane = laneFin.findIndex(l => l <= x.rg.row);
+          if (lane === -1) { lane = laneFin.length; laneFin.push(x.rg.row + x.rg.rows); }
+          else laneFin[lane] = x.rg.row + x.rg.rows;
+          x.lane = lane;
         });
-        const data = await res.json();
-        if (!data.ok) return mostrarMsg('msgMateria', data.mensaje, 'error');
-        cerrarModal('overlayMateria');
-        cargarMaterias();
-      } catch { mostrarMsg('msgMateria', 'Error de conexión.', 'error'); }
-    }
+        gr.lanes = Math.max(1, laneFin.length);
+        for (let i = gr.inicio; i < gr.fin; i++) cubiertas.add(i);
 
-    async function eliminarMateria(id) {
-      if (!confirm('¿Desactivar esta materia?')) return;
-      await fetch(`${API}/api/academico/materias/${id}`, { method:'DELETE', headers });
-      cargarMaterias();
-    }
+        const span = gr.fin - gr.inicio;
+        html += `<div class="horario-region" style="grid-column:${col};grid-row:${gr.inicio + 2} / span ${span}">`;
+        gr.miembros.forEach(x => {
+          const f = x.f, rg = x.rg;
+          const fin = String(f.hora_fin).slice(0, 5);
+          const ini = String(f.hora_inicio).slice(0, 5);
+          const top  = (rg.row - gr.inicio) / span * 100;
+          const alto = rg.rows / span * 100;
+          const izq  = x.lane / gr.lanes * 100;
+          const ancho = 100 / gr.lanes;
+          html += `<div class="horario-celda ocup lanes-franja" style="--fc:${f.color_hex || '#4A90D9'};top:${top}%;height:${alto}%;left:${izq}%;width:${ancho}%"
+                     title="${f.materia_nombre} (${ini}–${fin})${f.aula ? ' · ' + f.aula : ''}${f.docente_nombre ? ' · Profesor: ' + f.docente_nombre : ''}\nClic para editar"
+                     onclick="abrirModalFranja('${f.id}')">
+                     <b>${f.materia_nombre}</b>
+                     <span>${ini}–${fin}</span>
+                     <span class="horario-acc">
+                       <button class="btn-sm" onclick="event.stopPropagation();abrirModalFranja('${f.id}')">✎</button>
+                       <button class="btn-sm danger" onclick="event.stopPropagation();eliminarFranja('${f.id}')">×</button>
+                     </span>
+                   </div>`;
+        });
+        html += `</div>`;
+      }
 
-    // ── Helpers ─────────────────────────────────────────────
-    function cerrarModal(id) { document.getElementById(id).classList.remove('visible'); }
-    function mostrarMsg(id, texto, tipo) {
-      const el = document.getElementById(id);
-      el.textContent = texto;
-      el.className = `msg ${tipo}`;
-    }
-    function ocultarMsg(id) {
-      const el = document.getElementById(id);
-      el.className = 'msg';
-      el.textContent = '';
-    }
-    function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+      for (let i = 0; i < horas.length; i++) {
+        if (cubiertas.has(i)) continue;
+        html += `<div class="horario-celda libre" style="grid-column:${col};grid-row:${i + 2}" title="Clic para agregar materia a las ${horas[i]}" onclick="abrirModalFranja(null,'${d.n}','${horas[i]}')">+</div>`;
+      }
+    });
+    wrap.innerHTML = html;
+  }
 
-    function cerrarSesion() {
-      localStorage.removeItem('sia_token');
-      localStorage.removeItem('sia_usuario');
-      window.location.href = 'login.html';
+  // Rango de filas que ocupa una franja: desde el índice de su hora de
+  // inicio hasta el primer slot que alcanza (o supera) su hora de fin.
+  // Así una franja 06:15–07:30 cubre las filas 06:15, 06:30 y 07:00
+  // (termina justo donde empieza la fila de las 07:30).
+  function rangoFranja(f, horas) {
+    const ini = String(f.hora_inicio).slice(0, 5);
+    const fin = String(f.hora_fin).slice(0, 5);
+    const start = horas.indexOf(ini);
+    if (start < 0) return null;
+    let end = start;
+    for (let k = start; k < horas.length; k++) {
+      if (horas[k] >= fin) { end = k; break; }
     }
+    if (end === start) end = start + 1;
+    return { row: start, rows: end - start };
+  }
 
-    // ── Init ──────────────────────────────────────────────────
-    (async function init() {
-      await cargarGrados();
-      await cargarAreas();
-      await cargarGrupos();
-      await cargarMaterias();
-    })();
-  </script>
+  function selDiaHorario(n) {
+    horarioDiaVisible = n;
+    renderHorario();
+  }
+
+  async function abrirModalFranja(editId, preDia, preHora) {
+    const grupoId = document.getElementById('filtroCursoHorario').value;
+    if (!grupoId) return alert('Elige primero un curso.');
+    if (!horarioMaterias.length) {
+      const res  = await fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoId}`, { headers });
+      const data = await res.json();
+      if (data.ok) horarioMaterias = data.materias || [];
+    }
+    if (!horarioMaterias.length) return alert('Este curso no tiene materias. Crea una en la pestaña Materias.');
+
+    if (!horasTrabajo.length) await cargarHorasTrabajo();
+
+horarioEditId = editId || null;
+    const selM = document.getElementById('franjaMateriaId');
+    selM.innerHTML = horarioMaterias.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+    selM.onchange = llenarDocentesFranja;
+    llenarDocentesFranja();
+
+    document.getElementById('franjaAula').value = '';
+    // Modo admin: inputs de hora libres. Modo director: solo horas de la plantilla.
+    document.getElementById('franjaHoraInicio').style.display  = esAdmin ? '' : 'none';
+    document.getElementById('franjaHoraFin').style.display     = esAdmin ? '' : 'none';
+    document.getElementById('franjaHoraInicioSel').style.display = esAdmin ? 'none' : '';
+    document.getElementById('franjaHoraFinSel').style.display    = esAdmin ? 'none' : '';
+    document.getElementById('franjaAvisoPlantilla').style.display = esAdmin ? 'none' : '';
+
+    const setSelectHora = (dia, selInicio, selFin) => _poblarSelectsHoraPlantilla(dia, selInicio, selFin);
+
+if (editId) {
+      const f = franjasCache.get(editId);
+      if (f) {
+        document.getElementById('tituloFranja').textContent = 'Editar franja del horario';
+        selM.value = f.materia_id;
+        llenarDocentesFranja();
+        const selD = document.getElementById('franjaDocenteId');
+        if (selD) selD.value = f.docente_id || selD.value;
+        document.getElementById('franjaDia').value = String(f.dia_semana);
+        const hi = String(f.hora_inicio).slice(0, 5), hf = String(f.hora_fin).slice(0, 5);
+        document.getElementById('franjaHoraInicio').value = hi;
+        document.getElementById('franjaHoraFin').value    = hf;
+        document.getElementById('franjaAula').value = f.aula || '';
+        setSelectHora(String(f.dia_semana), hi, hf);
+      }
+    } else {
+      document.getElementById('tituloFranja').textContent = 'Agregar materia al horario';
+      const dia = preDia ? String(preDia) : '1';
+      document.getElementById('franjaDia').value = dia;
+      document.getElementById('franjaHoraInicio').value = preHora || (horasTrabajo[0] ? horasTrabajo[0].hora_inicio : horarioConfig.inicio);
+      document.getElementById('franjaHoraFin').value = '07:00';
+      setSelectHora(dia, preHora || null, null);
+    }
+    document.getElementById('overlayFranja').classList.add('visible');
+  }
+  function cerrarModalFranja() { document.getElementById('overlayFranja').classList.remove('visible'); }
+
+  // Puebla el select de profesor con los docentes asignados a la materia
+  // seleccionada en el modal de franja.
+  function llenarDocentesFranja() {
+    const selD = document.getElementById('franjaDocenteId');
+    const selM = document.getElementById('franjaMateriaId');
+    if (!selD) return;
+    const materia = horarioMaterias.find(x => x.id === selM.value) || null;
+    const docentes = (materia && materia.docentes) || [];
+    selD.innerHTML = docentes.length
+      ? docentes.map(d => `<option value="${d.docente_id}">${d.docente_nombre}</option>`).join('')
+      : '<option value="">Sin profesor asignado</option>';
+  }
+
+  // Puebla los selects de hora con las horas de la plantilla del día (modo director)
+  function _poblarSelectsHoraPlantilla(dia, selInicio, selFin) {
+    const horasDia = horasTrabajo.filter(t => Number(t.dia_semana) === Number(dia));
+    const sI = document.getElementById('franjaHoraInicioSel');
+    const sF = document.getElementById('franjaHoraFinSel');
+    if (!sI) return;
+    if (!horasDia.length) {
+      sI.innerHTML = `<option value="">Este día no tiene horas definidas</option>`;
+      if (sF) sF.innerHTML = '';
+      return;
+    }
+    sI.innerHTML = horasDia.map(t => `<option value="${t.hora_inicio}">${t.hora_inicio} – ${t.hora_fin}</option>`).join('');
+    if (selInicio) sI.value = selInicio;
+    const valIn = sI.value;
+    const hv = horasDia.find(t => t.hora_inicio === valIn);
+    if (sF) {
+      sF.innerHTML = hv ? `<option value="${hv.hora_fin}">${hv.hora_fin}</option>` : '';
+      sF.value = (hv && selFin && hv.hora_fin === selFin) ? selFin : (hv ? hv.hora_fin : '');
+      if (sF.options.length && !sF.value) sF.value = sF.options[0].value;
+    }
+  }
+
+  function _franjaHoraInicio() {
+    return esAdmin
+      ? document.getElementById('franjaHoraInicio').value
+      : document.getElementById('franjaHoraInicioSel').value;
+  }
+  function _franjaHoraFin() {
+    return esAdmin
+      ? document.getElementById('franjaHoraFin').value
+      : document.getElementById('franjaHoraFinSel').value;
+  }
+
+async function guardarFranja() {
+    const grupoId = document.getElementById('filtroCursoHorario').value;
+    if (!grupoId) return cerrarModalFranja();
+    const selD = document.getElementById('franjaDocenteId');
+    const body = {
+      grupo_id: grupoId,
+      materia_id: document.getElementById('franjaMateriaId').value,
+      docente_id: selD ? (selD.value || null) : undefined,
+      dia_semana: Number(document.getElementById('franjaDia').value),
+      hora_inicio: _franjaHoraInicio(),
+      hora_fin: _franjaHoraFin(),
+      aula: document.getElementById('franjaAula').value.trim() || null,
+    };
+    if (!body.hora_inicio || !body.hora_fin) return mostrarMsg('msgHorario', 'Escoge una hora de la plantilla para este día.', 'error');
+    try {
+      const url = horarioEditId ? `${API}/api/academico/horario/${horarioEditId}` : `${API}/api/academico/horario`;
+      const res  = await fetch(url, {
+        method: horarioEditId ? 'PUT' : 'POST',
+        headers,
+        body: JSON.stringify(horarioEditId
+          ? { materia_id: body.materia_id, docente_id: body.docente_id || undefined, dia_semana: body.dia_semana, hora_inicio: body.hora_inicio, hora_fin: body.hora_fin, aula: body.aula }
+          : body),
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgHorario', data.mensaje, 'error');
+      cerrarModalFranja();
+      mostrarMsg('msgHorario', data.mensaje, 'exito');
+      await cargarHorario();
+    } catch {
+      mostrarMsg('msgHorario', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function eliminarFranja(id) {
+    if (!confirm('¿Quitar esta materia del horario?')) return;
+    try {
+      const res  = await fetch(`${API}/api/academico/horario/${id}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgHorario', data.mensaje, 'error');
+      mostrarMsg('msgHorario', data.mensaje, 'exito');
+      await cargarHorario();
+    } catch {
+      mostrarMsg('msgHorario', 'Error de conexión.', 'error');
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────
+  (async function init() {
+    cargarPerfilSidebar();
+    await cargarGrados();
+    await cargarAreas();
+    await cargarGrupos();
+    await cargarCursos();
+    await cargarMaterias();
+    await cargarPeriodos();
+    cargarFondosPersonalizados();
+    if (!esAdmin) {
+      const btnHoras = document.getElementById('btnConfigHoras');
+      if (btnHoras) btnHoras.style.display = 'none';
+    }
+    await cargarHorasTrabajo();
+    // Modo director: al cambiar el día o la hora de inicio, se refresca la
+    // plantilla de horas de ese día (la hora de fin se autocompleta).
+    if (!esAdmin) {
+      const selIni = document.getElementById('franjaHoraInicioSel');
+      selIni.addEventListener('change', () => {
+        _poblarSelectsHoraPlantilla(document.getElementById('franjaDia').value, selIni.value);
+      });
+      document.getElementById('franjaDia').addEventListener('change', () => {
+        const cur = selIni.value;
+        _poblarSelectsHoraPlantilla(document.getElementById('franjaDia').value, cur || null);
+      });
+    }
+  })();</script>
+<script src="chat-drawer-inyector.js"></script>
+<script src="sia-identidad.js"></script>
 </body>
 </html>

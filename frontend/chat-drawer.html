@@ -1,0 +1,35 @@
+<button type="button" id="siaChatFab" class="sia-chat-fab" title="Mensajería" aria-label="Mensajería">💬<span id="siaChatFabBadge" class="sia-chat-badge">0</span></button>
+<div id="siaChatFondo"></div>
+<aside id="siaChatDrawer">
+  <header class="sia-chat-head">
+    <div class="sia-chat-head-titulo">
+      <strong>Mensajería</strong>
+      <span id="siaChatHeadSub">Chat interno</span>
+    </div>
+    <div class="sia-chat-head-actions">
+      <button type="button" id="siaChatToggle" class="sia-chat-btn" style="display:none" title="Controlar si cualquier persona de la institución puede escribirle al administrador">Abierto</button>
+      <button type="button" id="siaChatClose" class="sia-chat-btn" title="Cerrar">Cerrar</button>
+    </div>
+  </header>
+  <div class="sia-chat-body">
+    <section class="sia-chat-panel" id="siaChatLista">
+      <div class="sia-chat-buscar">
+        <input type="search" id="siaChatSearch" placeholder="Buscar…" autocomplete="off" />
+      </div>
+      <div id="siaChatConversaciones" class="sia-chat-convs"></div>
+    </section>
+    <section class="sia-chat-panel" id="siaChatConversacion" style="display:none">
+      <div class="sia-chat-chat-head">
+        <button type="button" id="siaChatVolver" class="sia-chat-btn">←</button>
+        <div class="sia-chat-chat-titulo" id="siaChatChatNombre">—</div>
+        <button type="button" id="siaChatBloquear" class="sia-chat-btn">Bloquear</button>
+      </div>
+      <div id="siaChatMensajes" class="sia-chat-msgs"></div>
+      <div id="siaChatBloqueadoBanner" class="sia-chat-bloqueado" style="display:none">Este chat está bloqueado.</div>
+      <form id="siaChatForm" class="sia-chat-form">
+        <textarea id="siaChatTexto" rows="1" placeholder="Escribe un mensaje…"></textarea>
+        <button type="submit" id="siaChatEnviar" class="sia-chat-btn sia-chat-enviar">Enviar</button>
+      </form>
+    </section>
+  </div>
+</aside>

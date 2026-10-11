@@ -1,0 +1,102 @@
+
+> sia-backend-mysql@2.0.0 dev
+> nodemon src/app.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/app.js`[39m
+C:\Users\arfis\OneDrive\Documentos\Default Project\proyecto_SIA\src\routes\reportes.routes.js:18
+router.put('/certificados/firma',              soloRoles('admin', 'superadmin'), ctrl.actualizarFirma);
+       ^
+
+ReferenceError: soloRoles is not defined
+    at Object.<anonymous> (C:\Users\arfis\OneDrive\Documentos\Default Project\proyecto_SIA\src\routes\reportes.routes.js:18:8)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (C:\Users\arfis\OneDrive\Documentos\Default Project\proyecto_SIA\src\app.js:99:32)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+
+Node.js v24.14.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:10660) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:10652) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:11724) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:4352) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:11716) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+(node:12132) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+🚀 SIA corriendo en http://localhost:3000
+   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:3000
+   (ver README para cómo encontrar esa IP)
+
+✅ Conectado a MySQL — sia_db
+📧 Servicio de correo listo (credenciales verificadas).

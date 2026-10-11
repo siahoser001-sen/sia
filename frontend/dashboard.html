@@ -4,213 +4,1002 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SIA — Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script>
+  try {
+    var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+    var atrs   = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+    for (var k in claves) {
+      var v = localStorage.getItem(claves[k]);
+      if (v) document.documentElement.setAttribute(atrs[k], v);
+    }
+  } catch(e) {}
+  </script>
   <style>
-    :root { --negro:#0a0a0f; --tinta:#12121a; --carbon:#1e1e2e; --linea:#2a2a3e; --acento:#4f8ef7; --acento2:#7c6af7; --blanco:#f0f0f8; --gris:#8888aa; --error:#f7614f; --exito:#4fca8e; --warn:#f7c44f; }
-    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'DM Sans',sans-serif; background:var(--negro); color:var(--blanco); min-height:100vh; }
+  html[data-ui-scale="2"]{zoom:1.15}
+  html[data-ui-scale="3"]{zoom:1.3}
+  html[data-ui-contrast="1"]{
+    --text-1:#ffffff;
+    --text-2:rgba(255,255,255,0.85);
+    --text-3:rgba(255,255,255,0.65);
+    --glass-bg:rgba(14,22,56,0.88);
+    --glass-bg-hover:rgba(14,22,56,0.96);
+    --glass-bg-strong:rgba(8,14,42,0.97);
+    --glass-border:rgba(255,255,255,0.35);
+    --glass-border-hi:rgba(255,255,255,0.55);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.45);
+    --sidebar-bg:rgba(5,10,32,0.94);
+    --blur:blur(0);
+    --blur-strong:blur(0);
+  }
+  html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,0.90),rgba(10,5,30,0.88),rgba(2,14,40,0.90))}
+  html[data-ui-contrast="1"] .btn-ghost{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10)}
+  html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none !important;transition:none !important}
+  html[data-ui-density="1"] .main{padding-top:0.6rem;gap:0.7rem}
+  html[data-ui-density="1"] .topbar{padding-top:0.5rem;padding-bottom:0.5rem}
+  html[data-ui-density="1"] .sidebar{padding-top:0.8rem;padding-bottom:0.8rem}
+  html[data-ui-density="1"] th,html[data-ui-density="1"] td{padding-top:0.2rem !important;padding-bottom:0.2rem !important}
+  html[data-ui-density="1"] .modal{padding:1.25rem !important}
+  html[data-ui-density="1"] .card-header{margin-bottom:0.5rem}
+  html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+  html[data-ui-accent="verde"] .btn-primary{box-shadow:0 4px 16px rgba(16,185,129,0.35)}
+  html[data-ui-accent="verde"] .nav-item.activo{background:rgba(16,185,129,0.20);border-color:rgba(16,185,129,0.35)}
+  html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+  html[data-ui-accent="ambar"] .btn-primary{box-shadow:0 4px 16px rgba(245,158,11,0.35)}
+  html[data-ui-accent="ambar"] .nav-item.activo{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.35)}
+  html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+  html[data-ui-accent="rosa"] .btn-primary{box-shadow:0 4px 16px rgba(236,72,153,0.35)}
+  html[data-ui-accent="rosa"] .nav-item.activo{background:rgba(236,72,153,0.20);border-color:rgba(236,72,153,0.35)}
+  html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+  html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+  </style>
+  <style>html.shell .sidebar{display:none}html.shell .topbar{display:flex;background:transparent;border:0;box-shadow:none;padding:0 0 0.6rem;justify-content:flex-end;align-items:center}html.shell .topbar>:first-child{display:none}html.shell .main{margin-left:0;padding:1rem;min-height:100vh}html.shell .btn[title="Ajustes y personalización"]{display:none}html.shell #btnFondo{display:none}html.shell .btn[title="Notificaciones"]{display:none}html.shell .btn[onclick="cerrarSesion()"]{display:none}html.shell .sia-fondo{display:none}</style>
+  <script>if(/[?&]shell=1/.test(location.search))document.documentElement.className+=' shell';</script>
+<style>
+  /* SIA · Ajustes y personalización (overlay en todas las páginas) */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(5,10,30,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem}
+  .overlay.visible{display:flex}
+  .modal{width:100%;max-width:520px;padding:2rem;border-radius:var(--r-xl)}
+  .modal h3{font-family:var(--font-d);font-size:1.25rem;font-weight:700;margin-bottom:0.4rem}
+  .modal p{font-size:0.84rem;color:var(--text-2);margin-bottom:1rem;line-height:1.5}
+  .modal-btns{display:flex;gap:0.6rem;margin-top:1rem}
+  .modal-btns .btn{flex:1;justify-content:center}
+  #overlayAjustes{z-index:320;overflow-y:auto;align-items:flex-start}
+  #overlayAjustes .modal{max-width:780px;max-height:calc(100vh - 2rem);margin:auto 0;overflow-y:auto;padding:1.6rem}
+  .aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-top:0.25rem}
+  .aj-bloque{border:1px solid var(--glass-border);border-radius:var(--r-md);padding:0.9rem;background:rgba(255,255,255,0.04)}
+  .aj-bloque .aj-titulo{font-family:var(--font-d);font-size:0.92rem;font-weight:800;color:var(--text-1);margin-bottom:2px}
+  .aj-bloque .aj-sub{font-size:0.70rem;color:var(--text-3);margin-bottom:0.75rem;line-height:1.4}
+  .tam-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+  .tam-btn{display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:0.8rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-2);font-family:var(--font-b);transition:all 150ms}
+  .tam-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .tam-btn.seleccionada{border-color:var(--blue);color:var(--text-1);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .tam-btn .tam-sigla{font-family:var(--font-d);font-weight:800;color:var(--text-1)}
+  .tam-btn.seleccionada .tam-sigla{color:var(--blue-light)}
+  .tam-btn[data-z="1"] .tam-sigla{font-size:14px}
+  .tam-btn[data-z="2"] .tam-sigla{font-size:19px}
+  .tam-btn[data-z="3"] .tam-sigla{font-size:24px}
+  .tam-btn .tam-texto{font-size:0.68rem;font-weight:600}
+  .opc-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem}
+  .opc-btn{display:flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.65rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-1);font-family:var(--font-b);font-size:0.8rem;transition:all 150ms}
+  .opc-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .opc-btn.seleccionada{border-color:var(--blue);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .opc-btn.ancho{width:100%}
+  .opc-btn .swatch{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,0.35);flex-shrink:0}
+  .fila-fondo{display:flex;align-items:center;justify-content:space-between;gap:0.8rem}
+  .fondo-mini{width:76px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--glass-border);background-size:cover;background-position:center}
+  .aj-minifondo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0.7rem}
+  .aj-minifondo .aj-mf{aspect-ratio:16/9;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;background-size:cover;background-position:center;transition:all 150ms}
+  .aj-minifondo .aj-mf.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.25)}
+  @media (max-width:760px){.aj-grid{grid-template-columns:1fr}}
+  </style>
+  <script>
+  /* SIA · Ajustes y personalización en todas las páginas (overlay) */
+  (function () {
+    var FONDOS_AJ = [
+      { id: 'f01', nombre: 'Aurora boreal', src: 'static/fondos/fondo-01.jpg' },
+      { id: 'f02', nombre: 'Montañas',      src: 'static/fondos/fondo-02.jpg' },
+      { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
+      { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
+      { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+    ];
+    function inyectarAjustes() {
+      if (document.getElementById('overlayAjustes')) return;
+      var o = document.createElement('div');
+      o.className = 'overlay';
+      o.id = 'overlayAjustes';
+var miniFondos = '';
+      for (var i = 0; i < FONDOS_AJ.length; i++) {
+        var f = FONDOS_AJ[i];
+        miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
+      }
+      miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      o.innerHTML =
+        '<div class="glass glass-strong modal">' +
+        '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
+        '<p style="margin-bottom:0.9rem">Cambia el tamaño, el color, las esquinas, el fondo y la accesibilidad. Todo queda guardado en este dispositivo.</p>' +
+        '<div class="aj-grid">' +
+        '<div class="aj-bloque"><div class="aj-titulo">Tamaño de la interfaz</div><div class="aj-sub">Aumenta todos los elementos y letras.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-z="1" onclick="ajEscala(1)"><span class="tam-sigla">A</span><span class="tam-texto">Normal</span></button>' +
+        '<button type="button" class="tam-btn" data-z="2" onclick="ajEscala(2)"><span class="tam-sigla">A</span><span class="tam-texto">Grande</span></button>' +
+        '<button type="button" class="tam-btn" data-z="3" onclick="ajEscala(3)"><span class="tam-sigla">A</span><span class="tam-texto">Extra grande</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Color de acento</div><div class="aj-sub">Botones, enlaces y elementos destacados.</div><div class="opc-opts">' +
+        '<button type="button" class="opc-btn" data-accent="" onclick="ajAcento(\'\')"><span class="swatch" style="background:linear-gradient(135deg,#3B82F6,#8B5CF6)"></span><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="verde" onclick="ajAcento(\'verde\')"><span class="swatch" style="background:linear-gradient(135deg,#10B981,#14B8A6)"></span><span class="tam-texto">Verde</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="ambar" onclick="ajAcento(\'ambar\')"><span class="swatch" style="background:linear-gradient(135deg,#F59E0B,#F97316)"></span><span class="tam-texto">Ámbar</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="rosa" onclick="ajAcento(\'rosa\')"><span class="swatch" style="background:linear-gradient(135deg,#EC4899,#A855F7)"></span><span class="tam-texto">Rosa</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Forma de las esquinas</div><div class="aj-sub">Qué tan redondeadas se ven tarjetas y ventanas.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-ajr="0" onclick="ajRedondez(\'0\')"><span class="tam-texto">Rectas</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="1" onclick="ajRedondez(\'1\')"><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="2" onclick="ajRedondez(\'2\')"><span class="tam-texto">Redondeado</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Alto contraste</div><div class="aj-sub">Fondos más opacos y textos más nítidos. También reduce el consumo de batería.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajContraste" onclick="ajToggle(\'contraste\')"><span class="tam-texto" id="ajTxtContraste">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Reducir movimiento</div><div class="aj-sub">Desactiva animaciones y transiciones.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajMovimiento" onclick="ajToggle(\'movimiento\')"><span class="tam-texto" id="ajTxtMovimiento">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Densidad compacta</div><div class="aj-sub">Reduce los espacios para ver más contenido.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
+        '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
+        '</div>' +
+        '<div class="modal-btns"><button type="button" class="btn btn-ghost" onclick="cerrarAjustes()">Cerrar</button></div>' +
+        '</div>';
+      document.body.appendChild(o);
+      o.addEventListener('click', function (e) { if (e.target === o) cerrarAjustes(); });
+    }
+    function aplicarAtributo(a, v) { if (v) document.documentElement.setAttribute(a, v); else document.documentElement.removeAttribute(a); }
+    function pintarEscala(e) {
+      var esc = localStorage.getItem('sia_ui_scale') || '1';
+      e.querySelectorAll('.tam-btn[data-z]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.z === esc); });
+    }
+    function pintarAcento(e) {
+      var ac = localStorage.getItem('sia_acento') || '';
+      e.querySelectorAll('.opc-btn[data-accent]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.accent === ac); });
+    }
+    function pintarRedondez(e) {
+      var rd = localStorage.getItem('sia_redondez') || '1';
+      e.querySelectorAll('.tam-btn[data-ajr]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.ajr === rd); });
+    }
+    var PREFS = {
+      contraste:  { key: 'sia_alto_contraste', attr: 'data-ui-contrast',  btn: 'ajContraste',  txt: 'ajTxtContraste'  },
+      movimiento: { key: 'sia_movimiento',      attr: 'data-ui-motion',   btn: 'ajMovimiento', txt: 'ajTxtMovimiento' },
+      densidad:   { key: 'sia_densidad',        attr: 'data-ui-density',  btn: 'ajDensidad',   txt: 'ajTxtDensidad'   }
+    };
+    function pintarToggle(n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      var b = document.getElementById(p.btn), t = document.getElementById(p.txt);
+      if (b) b.classList.toggle('seleccionada', on);
+      if (t) t.textContent = on ? 'Activado ✓' : 'Desactivado';
+    }
+    function pintarFondo() {
+      var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var mini = document.getElementById('ajFondoMini');
+      if (mini) {
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+      }
+      var nombre = document.getElementById('ajFondoNombre');
+      if (nombre) {
+        var nf = null;
+        for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
+        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+      }
+      var el = document.getElementById('overlayAjustes');
+      if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
+    }
+    function ajPintarTodo() {
+      var e = document.getElementById('overlayAjustes'); if (!e) return;
+      pintarEscala(e); pintarAcento(e); pintarRedondez(e);
+      ['contraste', 'movimiento', 'densidad'].forEach(pintarToggle);
+      pintarFondo();
+    }
+    window.abrirAjustes = function () {
+      inyectarAjustes();
+      ajPintarTodo();
+      document.getElementById('overlayAjustes').classList.add('visible');
+    };
+    window.cerrarAjustes = function () {
+      var o = document.getElementById('overlayAjustes');
+      if (o) o.classList.remove('visible');
+    };
+    window.ajEscala = function (z) {
+      if (z === 1) { localStorage.removeItem('sia_ui_scale'); aplicarAtributo('data-ui-scale', ''); }
+      else { localStorage.setItem('sia_ui_scale', String(z)); document.documentElement.setAttribute('data-ui-scale', String(z)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarEscala(e);
+    };
+    window.ajToggle = function (n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      if (on) { localStorage.removeItem(p.key); aplicarAtributo(p.attr, ''); }
+      else { localStorage.setItem(p.key, '1'); document.documentElement.setAttribute(p.attr, '1'); }
+      pintarToggle(n);
+    };
+    window.ajAcento = function (v) {
+      if (v) { localStorage.setItem('sia_acento', v); document.documentElement.setAttribute('data-ui-accent', v); }
+      else { localStorage.removeItem('sia_acento'); aplicarAtributo('data-ui-accent', ''); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarAcento(e);
+    };
+    window.ajRedondez = function (v) {
+      if (v === '1') { localStorage.removeItem('sia_redondez'); aplicarAtributo('data-ui-radius', ''); }
+      else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
+    };
+window.ajSelFondo = function (id, src) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSubirFondo = function () {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+      inp.onchange = function () {
+        var file = inp.files && inp.files[0];
+        if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function () {
+          var sf = document.getElementById('siaFondo');
+          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          localStorage.setItem('sia_fondo', 'custom');
+          localStorage.setItem('sia_fondo_src', rd.result);
+          pintarFondo();
+        };
+        rd.readAsDataURL(file);
+      };
+      inp.click();
+    };
+    window.ajRestablecer = function () {
+      if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      window.location.reload();
+    };
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+  })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --glass-bg:        rgba(255,255,255,0.11);
+      --glass-bg-hover:  rgba(255,255,255,0.17);
+      --glass-bg-strong: rgba(255,255,255,0.20);
+      --glass-border:    rgba(255,255,255,0.22);
+      --glass-border-hi: rgba(255,255,255,0.40);
+      --glass-shadow:    0 8px 32px rgba(0,0,0,0.28);
+      --glass-shadow-lg: 0 20px 60px rgba(0,0,0,0.38);
+      --blur:            blur(20px);
+      --blur-strong:     blur(28px);
+      --sidebar-bg:      rgba(8,14,40,0.55);
 
-    .sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--tinta); border-right:1px solid var(--linea); display:flex; flex-direction:column; padding:1.5rem; }
-    .sidebar-logo { font-family:'DM Serif Display',serif; font-size:1.8rem; background:linear-gradient(135deg,var(--acento),var(--acento2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.2rem; }
-    .sidebar-nombre { font-size:0.82rem; font-weight:500; color:var(--blanco); }
-    .sidebar-rol { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gris); margin-bottom:2rem; }
-    .nav-item { display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.88rem; color:var(--gris); cursor:pointer; transition:background 0.15s, color 0.15s; margin-bottom:0.2rem; text-decoration:none; }
-    .nav-item:hover { background:var(--carbon); color:var(--blanco); }
-    .nav-item.activo { background:var(--carbon); color:var(--blanco); }
-    .sidebar-bottom { margin-top:auto; }
-    .btn-cerrar { width:100%; padding:0.6rem; background:none; border:1px solid var(--linea); border-radius:8px; color:var(--gris); font-size:0.82rem; cursor:pointer; transition:border-color 0.2s, color 0.2s; }
-    .btn-cerrar:hover { border-color:var(--error); color:var(--error); }
+      --blue:       #3B82F6;
+      --blue-light: #93C5FD;
+      --purple:     #8B5CF6;
+      --green:      #10B981;
+      --green-light:#6EE7B7;
+      --amber:      #F59E0B;
+      --amber-light:#FCD34D;
+      --red:        #EF4444;
+      --red-light:  #FCA5A5;
 
-    .main { margin-left:220px; padding:2.5rem; }
-    .bienvenida { margin-bottom:2.5rem; animation:bajar 0.5s ease both; }
-    .bienvenida-hora { font-size:0.78rem; color:var(--gris); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.4rem; }
-    .bienvenida h1 { font-family:'DM Serif Display',serif; font-size:2.4rem; font-weight:400; }
-    .bienvenida h1 span { color:var(--acento); font-style:italic; }
-    .bienvenida-inst { font-size:0.85rem; color:var(--gris); margin-top:0.3rem; }
+      --text-1: rgba(255,255,255,0.96);
+      --text-2: rgba(255,255,255,0.68);
+      --text-3: rgba(255,255,255,0.42);
 
-    /* Notificaciones */
-    .notif-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
-    .notif-header h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; font-weight:400; }
-    .notif-header a { font-size:0.8rem; color:var(--acento); text-decoration:none; }
+      --font-d: 'Nunito', sans-serif;
+      --font-b: 'Inter', sans-serif;
 
-    .notif-lista { display:flex; flex-direction:column; gap:0.75rem; margin-bottom:2.5rem; animation:bajar 0.7s ease both; }
-    .notif-card { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:1rem 1.25rem; display:flex; align-items:flex-start; gap:1rem; }
-    .notif-card.no-leida { border-color:var(--acento); background:#4f8ef708; }
-    .notif-icono { font-size:1.4rem; flex-shrink:0; margin-top:0.1rem; }
-    .notif-titulo { font-size:0.9rem; font-weight:600; margin-bottom:0.2rem; }
-    .notif-msg { font-size:0.82rem; color:var(--gris); line-height:1.5; }
-    .notif-fecha { font-size:0.72rem; color:var(--gris); margin-top:0.4rem; }
-    .notif-empty { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:2rem; text-align:center; color:var(--gris); font-size:0.88rem; }
+      --r-sm: 8px;
+      --r-md: 14px;
+      --r-lg: 20px;
+      --r-xl: 28px;
+      --r-full: 9999px;
+    }
 
-    /* Accesos rápidos */
-    .accesos-titulo { font-family:'DM Serif Display',serif; font-size:1.3rem; font-weight:400; margin-bottom:1rem; }
-    .accesos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem; animation:bajar 0.9s ease both; }
-    .acceso-card { background:var(--tinta); border:1px solid var(--linea); border-radius:12px; padding:1.25rem; cursor:pointer; transition:border-color 0.2s, transform 0.2s; text-decoration:none; display:block; }
-    .acceso-card:hover { border-color:var(--acento); transform:translateY(-2px); }
-    .acceso-icono { font-size:1.8rem; margin-bottom:0.6rem; }
-    .acceso-nombre { font-size:0.88rem; font-weight:600; margin-bottom:0.2rem; }
-    .acceso-desc { font-size:0.75rem; color:var(--gris); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: var(--font-b);
+      color: var(--text-1);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
 
-    @keyframes bajar { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .sia-fondo {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('static/fondos/fondo-02.jpg');
+      background-size: cover;
+      background-position: center;
+      transition: background-image 600ms ease;
+    }
+    .sia-fondo::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg,
+        rgba(8,16,50,0.62) 0%,
+        rgba(25,8,60,0.50) 50%,
+        rgba(5,28,72,0.58) 100%
+      );
+    }
+
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 230px; z-index: 100;
+      display: flex; flex-direction: column;
+      padding: 1.5rem 1rem;
+      background: var(--sidebar-bg);
+      backdrop-filter: var(--blur-strong);
+      -webkit-backdrop-filter: var(--blur-strong);
+      border-right: 1px solid var(--glass-border);
+    }
+
+    .sidebar-logo { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.5rem 0; margin-bottom: 0.6rem; }
+    .sidebar-logo img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(147,197,253,0.5)); }
+    .logo-fallback {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg,var(--blue),var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 800; font-size: 17px; color: white;
+    }
+    .logo-txt { line-height: 1; }
+    .logo-txt .sigla {
+      font-family: var(--font-d); font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), #C4B5FD);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; letter-spacing: -0.5px;
+    }
+    .logo-txt .rol { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); margin-top: 1px; }
+    .sidebar-inst {
+      font-size: 0.72rem; font-weight: 700; color: var(--blue-light);
+      padding: 0 0.6rem; margin-bottom: 1.4rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .nav-section { font-size: 0.60rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); padding: 1rem 0.6rem 0.4rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.6rem 0.75rem; border-radius: var(--r-md);
+      font-size: 0.84rem; font-weight: 500; color: var(--text-2);
+      cursor: pointer; text-decoration: none;
+      transition: background 150ms, color 150ms;
+      position: relative; white-space: nowrap; overflow: hidden;
+    }
+    .nav-item:hover { background: var(--glass-bg); color: var(--text-1); }
+    .nav-item.activo { background: rgba(59,130,246,0.22); color: var(--blue-light); border: 1px solid rgba(59,130,246,0.30); }
+    .nav-item.activo::before {
+      content: ''; position: absolute; left: -16px; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 55%; background: var(--blue); border-radius: 0 2px 2px 0;
+    }
+
+    .sidebar-profile {
+      margin-top: auto; border-top: 1px solid var(--glass-border); padding-top: 1rem;
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.75rem 0.5rem; border-radius: var(--r-md); cursor: pointer;
+      transition: background 150ms;
+    }
+    .sidebar-profile:hover { background: var(--glass-bg); }
+    .avatar-sm {
+      width: 34px; height: 34px; border-radius: var(--r-full);
+      border: 2px solid var(--glass-border);
+      background: rgba(59,130,246,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 700; font-size: 13px;
+      color: var(--blue-light); flex-shrink: 0; overflow: hidden;
+    }
+    .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info { overflow: hidden; }
+    .profile-name { font-size: 0.82rem; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .profile-role { font-size: 0.68rem; color: var(--text-3); margin-top: 1px; }
+
+    .main { position: relative; z-index: 1; margin-left: 230px; min-height: 100vh; padding: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .glass {
+      background: var(--glass-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border); border-radius: var(--r-lg); box-shadow: var(--glass-shadow);
+    }
+    .glass-strong { background: var(--glass-bg-strong); backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong); }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+    .topbar-hora { font-size: 0.72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .topbar-titulo { font-family: var(--font-d); font-size: 1.5rem; font-weight: 800; }
+    .topbar-titulo span { color: var(--blue-light); }
+    .topbar-sub { font-size: 0.80rem; color: var(--text-2); margin-top: 4px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0.55rem 1rem; border-radius: var(--r-md); font-family: var(--font-d);
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; text-decoration: none;
+      white-space: nowrap; transition: all 150ms;
+    }
+    .btn-ghost {
+      background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-1);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+    }
+    .btn-ghost:hover { background: var(--glass-bg-hover); border-color: var(--glass-border-hi); }
+
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem 0; }
+    .card-titulo { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-1); }
+
+    .notif-lista { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 1.5rem 1.5rem; }
+    .notif-card { display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.85rem 1rem; border-radius: var(--r-md); background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); }
+    .notif-card.no-leida { border-color: rgba(59,130,246,0.45); background: rgba(59,130,246,0.08); }
+    .notif-icono { font-size: 1.25rem; flex-shrink: 0; margin-top: 1px; }
+    .notif-titulo { font-size: 0.86rem; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
+    .notif-msg { font-size: 0.80rem; color: var(--text-2); line-height: 1.4; }
+    .notif-fecha { font-size: 0.70rem; color: var(--text-3); margin-top: 4px; }
+    .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 0.84rem; }
+
+    .accesos { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 1rem; }
+    .acceso-card { display: block; text-decoration: none; padding: 1.25rem; cursor: pointer; transition: transform 150ms, border-color 150ms; }
+    .acceso-card:hover { transform: translateY(-3px); border-color: var(--glass-border-hi); }
+    .acceso-icono { font-size: 1.7rem; margin-bottom: 0.6rem; }
+    .acceso-nombre { font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin-bottom: 3px; font-family: var(--font-d); }
+    .acceso-desc { font-size: 0.76rem; color: var(--text-2); }
+
+    .overlay {
+      position: fixed; inset: 0; z-index: 200; background: rgba(5,10,30,0.65);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: none; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto;
+    }
+    .overlay.visible { display: flex; }
+    .modal { width: 100%; max-width: 460px; padding: 2rem; border-radius: var(--r-xl); }
+    .modal h3 { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .modal p { font-size: 0.84rem; color: var(--text-2); margin-bottom: 1rem; line-height: 1.5; }
+    .modal-btns { display: flex; gap: 0.6rem; margin-top: 1rem; }
+    .modal-btns .btn { flex: 1; justify-content: center; }
+    .stat-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    .ani { animation: fadeUp 350ms ease both; }
+
+    @media (max-width: 760px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 1rem; }
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: white; box-shadow: 0 4px 16px rgba(59,130,246,0.35);
+    }
+    .banner-codigo { padding: 1.25rem 1.4rem; }
+    .banner-codigo .card-titulo { margin-bottom: 3px; }
+    .banner-codigo .card-sub { margin-bottom: 0.9rem; }
+    .banner-codigo form { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .banner-codigo input {
+      flex: 1; min-width: 180px; padding: 0.65rem 1rem;
+      background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border);
+      border-radius: var(--r-md); color: var(--text-1); font-family: var(--font-b);
+      font-size: 0.86rem; outline: none; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .banner-codigo input:focus { border-color: rgba(59,130,246,0.6); }
+    .banner-msg { font-size: 0.8rem; margin-top: 0.6rem; display: none; }
+    .banner-msg.error { color: var(--red-light); }
+    .banner-msg.ok { color: var(--green-light); }
+    .banner-msg.visible { display: block; }
+    .badge-warn { background: rgba(245,158,11,0.18); color: var(--amber-light); border: 1px solid rgba(245,158,11,0.30); padding: 3px 10px; border-radius: 9999px; font-size: 0.66rem; font-weight: 700; }
+    .badge-exito { background: rgba(16,185,129,0.18); color: var(--green-light); border: 1px solid rgba(16,185,129,0.30); padding: 3px 10px; border-radius: 9999px; font-size: 0.66rem; font-weight: 700; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="sidebar-logo">SIA</div>
-    <div class="sidebar-nombre" id="sidebarNombre">—</div>
-    <div class="sidebar-rol"   id="sidebarRol">—</div>
-    <nav id="sidebarNav"></nav>
-    <div class="sidebar-bottom">
-      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
-    </div>
-  </aside>
 
-  <main class="main">
-    <div class="bienvenida">
-      <div class="bienvenida-hora" id="saludo">—</div>
-      <h1>Hola, <span id="nombreUsuario">—</span></h1>
-      <div class="bienvenida-inst" id="instUsuario"></div>
-    </div>
+<div class="sia-fondo" id="siaFondo"></div>
 
-    <div class="notif-header">
-      <h2>Notificaciones recientes</h2>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+<img src="static/logo/SIA_LOGO.svg?v=2" id="logoInstImg" alt="SIA"
+         onerror="this.style.display='none'; document.getElementById('logoFb').style.display='flex'" />
+    <div class="logo-fallback" id="logoFb" style="display:none">S</div>
+    <input type="file" id="inputLogoInst" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="logo-txt">
+      <div class="sigla">SIA</div>
+      <div class="rol" id="sidebarRolTxt">—</div>
+    </div>
+  </div>
+  <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
+
+  <nav class="sidebar-nav" id="sidebarNav">
+    <div class="nav-section">Principal</div>
+  </nav>
+
+  <div class="sidebar-profile" id="btnPerfil">
+    <div class="avatar-sm" id="sidebarAvatar">A</div>
+    <div class="profile-info">
+      <div class="profile-name" id="perfilNombre">—</div>
+      <div class="profile-role">Ver perfil</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="glass topbar ani">
+    <div>
+      <div class="topbar-hora" id="saludo">—</div>
+      <div class="topbar-titulo">Hola, <span id="nombreUsuario">—</span></div>
+      <div class="topbar-sub" id="instUsuario"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem">
+      <button type="button" class="btn btn-ghost" title="Ajustes y personalización" onclick="abrirAjustes()" style="width:36px;height:36px;padding:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="btn btn-ghost" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+</div>
+
+  <div id="vistaLocal">
+
+  <!-- Estado del curso (solo estudiantes) -->
+  <div class="glass ani banner-codigo" id="cardCursoEstudiante" style="display:none"></div>
+
+  <!-- Mis tareas (solo estudiantes) -->
+  <div class="glass ani" id="cardMisTareas" style="display:none;animation-delay:40ms">
+    <div class="card-header">
+      <div class="card-titulo">Mis tareas</div>
+      <div class="card-sub">Tareas asignadas en tu curso. Márcalas como entregadas.</div>
+    </div>
+    <div id="listaTareasEstudiante">
+      <div class="empty">Cargando...</div>
+    </div>
+  </div>
+
+  <div class="glass ani" style="animation-delay:80ms">
+<div class="card-header">
+      <div>
+        <div class="card-titulo">Notificaciones recientes</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="abrirMensajeria()">Mensajería</button>
     </div>
     <div class="notif-lista" id="notifLista">
-      <div class="notif-empty">Cargando notificaciones...</div>
+      <div class="empty">Cargando notificaciones...</div>
     </div>
+  </div>
 
-    <div class="accesos-titulo">Accesos rápidos</div>
+<div class="ani" style="animation-delay:140ms">
+    <div class="card-titulo" style="margin-bottom:0.85rem">Accesos rápidos</div>
     <div class="accesos" id="accesos"></div>
-  </main>
+  </div>
+  </div><!-- /vistaLocal -->
 
-  <script>
-    const API     = 'http://localhost:3000';
-    const token   = localStorage.getItem('sia_token');
-    const usuario = JSON.parse(localStorage.getItem('sia_usuario') || '{}');
-    if (!token) window.location.href = 'login.html';
+  <div id="spaHost" style="display:none;flex:1">
+    <iframe id="spaFrame" title="Sección" allow="camera; microphone; display-capture; clipboard-write; fullscreen" style="display:block;width:100%;height:calc(100vh - 160px);border:0;background:transparent"></iframe>
+  </div>
+</main>
 
-    // Saludo según hora
-    const hora = new Date().getHours();
-    const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
-    document.getElementById('saludo').textContent = saludo;
-    document.getElementById('nombreUsuario').textContent = usuario.nombres || '—';
-    document.getElementById('sidebarNombre').textContent = `${usuario.nombres || ''} ${usuario.apellidos || ''}`;
-    document.getElementById('sidebarRol').textContent = usuario.rol || '—';
+<div class="overlay" id="overlayPerfil">
+  <div class="glass glass-strong modal">
+    <h3>Mi perfil</h3>
+    <p>Datos de tu cuenta en SIA.</p>
+    <div style="display:flex;flex-direction:column;gap:0.85rem;margin-bottom:1.25rem">
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Nombre completo</div>
+        <div id="perfilModalNombre" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Correo</div>
+        <div id="perfilModalEmail" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Rol</div>
+        <div id="perfilModalRol" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom:3px">Último acceso</div>
+        <div id="perfilModalAcceso" style="font-size:0.9rem;color:var(--text-1)">—</div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="cerrarModalPerfil()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+<script>
+  const API     = window.location.origin;
+  const token   = sessionStorage.getItem('sia_token');
+  const usuario = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  if (!token) window.location.href = 'login.html';
+
+  /* SPA: navegación por secciones sin recargar el panel */
+  var TIT_SPA = {
+    'mis-clases.html':        'Mis clases',
+    'llamadas-docente.html':  'Videollamadas',
+    'llamadas-estudiante.html':'Mis videollamadas',
+    'academico.html':         'Gestión académica',
+    'estudiantes.html':       'Estudiantes',
+    'acudientes.html':        'Acudientes',
+    'comunicados.html':       'Comunicados',
+    'calendario.html':        'Calendario',
+  };
+  var spaHost  = document.getElementById('spaHost');
+  var spaFrame = document.getElementById('spaFrame');
+  function buenSaludo() {
+    var h = new Date().getHours();
+    return h < 12 ? 'Buenos días' : h < 18 ? 'Buenas tardes' : 'Buenas noches';
+  }
+  function pintarTopbarLab(lab, sub) {
+    document.getElementById('saludo').textContent = lab;
+    document.getElementById('nombreUsuario').textContent = sub || '';
+    var it = document.getElementById('instUsuario'); if (it) it.textContent = '';
+  }
+  function verInicio() {
+    spaHost.style.display = 'none'; spaFrame.src = 'about:blank';
+    document.getElementById('vistaLocal').style.display = '';
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (n) {
+      n.classList.toggle('activo', (n.getAttribute('href') || '') === 'dashboard.html');
+    });
+    pintarTopbarLab(buenSaludo(), usuario.nombres || '—');
     if (usuario.institucion_nombre) {
-      document.getElementById('instUsuario').textContent = usuario.institucion_nombre;
+      var ins = document.getElementById('instUsuario'); if (ins) ins.textContent = usuario.institucion_nombre;
     }
+    window.scrollTo(0, 0);
+  }
+  function irASeccion(href) {
+    var pag = (href || '').replace(/^\.\//, '');
+    if (!TIT_SPA[pag]) return;
+    document.getElementById('vistaLocal').style.display = 'none';
+    spaHost.style.display = 'flex';
+    spaFrame.src = pag + '?shell=1';
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (n) { n.classList.remove('activo'); });
+    pintarTopbarLab(TIT_SPA[pag], '');
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('.nav-item, .acceso-card, #accesos a, .sidebar-nav a');
+    if (!a || !a.getAttribute) return;
+    var href = a.getAttribute('href') || '';
+    if (!href || href === '#') return;
+    if (href === 'dashboard.html') { e.preventDefault(); verInicio(); return; }
+    if (TIT_SPA[href]) { e.preventDefault(); irASeccion(href); }
+  });
 
-    // Navegación y accesos según rol
-    const navPorRol = {
-      superadmin: [
-        { icon:'🏫', label:'Instituciones', href:'panel-superadmin.html' },
-        { icon:'📊', label:'Dashboard',     href:'dashboard.html', activo:true },
-      ],
-      admin: [
-        { icon:'👨‍🏫', label:'Docentes',   href:'panel-admin.html' },
-        { icon:'🎓', label:'Académico',   href:'academico.html' },
-        { icon:'📊', label:'Dashboard',     href:'dashboard.html', activo:true },
-      ],
-      docente: [
-        { icon:'📝', label:'Mis clases',   href:'#' },
-        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
-      ],
-      estudiante: [
-        { icon:'📖', label:'Mis materias', href:'#' },
-        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
-      ],
-      acudiente: [
-        { icon:'👦', label:'Mi acudido',   href:'#' },
-        { icon:'📊', label:'Dashboard',    href:'dashboard.html', activo:true },
-      ],
-    };
+  function aplicarFondo() {
+    const guardado = localStorage.getItem('sia_fondo_src');
+    if (guardado) document.getElementById('siaFondo').style.backgroundImage = `url('${guardado}')`;
+  }
+  aplicarFondo();
 
-    const accesosPorRol = {
-      superadmin: [
-        { icon:'🏫', nombre:'Instituciones', desc:'Aprobar solicitudes', href:'panel-superadmin.html' },
-      ],
-      admin: [
-        { icon:'👨‍🏫', nombre:'Docentes', desc:'Gestionar solicitudes', href:'panel-admin.html' },
-        { icon:'🎓', nombre:'Gestión académica', desc:'Grados, grupos y materias', href:'academico.html' },
-        { icon:'📢', nombre:'Comunicados', desc:'Publicar avisos', href:'#' },
-      ],
-      docente: [
-        { icon:'📝', nombre:'Notas', desc:'Registrar calificaciones', href:'#' },
-        { icon:'✅', nombre:'Asistencia', desc:'Pasar lista', href:'#' },
-        { icon:'📂', nombre:'Tareas', desc:'Asignar actividades', href:'#' },
-      ],
-      estudiante: [
-        { icon:'📊', nombre:'Mis notas', desc:'Ver calificaciones', href:'#' },
-        { icon:'📅', nombre:'Asistencia', desc:'Ver mi asistencia', href:'#' },
-        { icon:'📂', nombre:'Tareas', desc:'Ver entregas', href:'#' },
-      ],
-      acudiente: [
-        { icon:'📊', nombre:'Notas', desc:'Ver calificaciones', href:'#' },
-      ],
-    };
+  const hora = new Date().getHours();
+  document.getElementById('saludo').textContent = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('nombreUsuario').textContent = usuario.nombres || '—';
+  document.getElementById('perfilNombre').textContent  = usuario.nombres || 'Usuario';
+  document.getElementById('sidebarAvatar').textContent = (usuario.nombres || 'A').charAt(0).toUpperCase();
+  document.getElementById('sidebarRolTxt').textContent = usuario.rol || '—';
+  if (usuario.institucion_nombre) {
+    document.getElementById('sidebarInst').textContent = usuario.institucion_nombre;
+    document.getElementById('instUsuario').textContent = usuario.institucion_nombre;
+  }
 
-    const rol = usuario.rol || 'estudiante';
+  const navPorRol = {
+    superadmin: [ { icon:'🏫', label:'Instituciones', href:'panel-superadmin.html' } ],
+    admin: [
+      { icon:'👨‍🏫', label:'Docentes',        href:'panel-admin.html' },
+      { icon:'🎓',   label:'Gestión académica', href:'academico.html' },
+      { icon:'👥',   label:'Estudiantes',       href:'estudiantes.html' },
+      { icon:'👨‍👩‍👧', label:'Acudientes',        href:'acudientes.html' },
+      { icon:'📢',   label:'Comunicados',       href:'comunicados.html' },
+      { icon:'📅',   label:'Calendario',        href:'calendario.html' },
+    ],
+    docente: [
+      { icon:'📝', label:'Mis clases',   href:'mis-clases.html' },
+      { icon:'📹', label:'Videollamadas', href:'llamadas-docente.html' },
+      { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
+      { icon:'📅', label:'Calendario',   href:'calendario.html' },
+    ],
+    estudiante: [
+      { icon:'📖', label:'Mis materias', href:'#' },
+      { icon:'📹', label:'Mis videollamadas', href:'llamadas-estudiante.html' },
+      { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
+      { icon:'📅', label:'Calendario',   href:'calendario.html' },
+    ],
+acudiente: [
+      { icon:'👦', label:'Mi acudido',  href:'reporte-estudiante.html' },
+      { icon:'📢', label:'Comunicados', href:'comunicados.html' },
+      { icon:'📅', label:'Calendario',  href:'calendario.html' },
+    ],
+  };
 
-    // Render navegación
-    const nav = document.getElementById('sidebarNav');
-    (navPorRol[rol] || []).forEach(item => {
-      const a = document.createElement('a');
-      a.className = 'nav-item' + (item.activo ? ' activo' : '');
-      a.href = item.href;
-      a.textContent = `${item.icon} ${item.label}`;
-      nav.appendChild(a);
-    });
+  const accesosPorRol = {
+    superadmin: [
+      { icon:'🏫', nombre:'Instituciones', desc:'Aprobar solicitudes', href:'panel-superadmin.html' },
+    ],
+    admin: [
+      { icon:'👨‍🏫', nombre:'Docentes',         desc:'Gestionar solicitudes', href:'panel-admin.html' },
+      { icon:'🎓',   nombre:'Gestión académica', desc:'Cursos y materias',     href:'academico.html' },
+      { icon:'👥',   nombre:'Estudiantes',       desc:'Matrícula y cursos',     href:'estudiantes.html' },
+      { icon:'👨‍👩‍👧', nombre:'Acudientes',        desc:'Padres y vinculación',  href:'acudientes.html' },
+      { icon:'📢',   nombre:'Comunicados',       desc:'Publicar avisos',       href:'comunicados.html' },
+      { icon:'📅',   nombre:'Calendario',        desc:'Eventos y cierres',     href:'calendario.html' },
+    ],
+    docente: [
+      { icon:'📝', nombre:'Mis clases',  desc:'Notas y asistencia',  href:'mis-clases.html' },
+      { icon:'📹', nombre:'Videollamadas', desc:'Clases en línea', href:'llamadas-docente.html' },
+      { icon:'📂', nombre:'Tareas',      desc:'Asignar actividades', href:'#' },
+      { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio',  href:'comunicados.html' },
+      { icon:'📅', nombre:'Calendario',  desc:'Eventos de tus cursos', href:'calendario.html' },
+    ],
+estudiante: [
+      { icon:'📊', nombre:'Mis notas',   desc:'Ver calificaciones', href:'reporte-estudiante.html' },
+      { icon:'📅', nombre:'Asistencia',  desc:'Ver mi asistencia',  href:'#' },
+      { icon:'📂', nombre:'Tareas',      desc:'Ver entregas',       href:'#' },
+      { icon:'📹', nombre:'Mis videollamadas', desc:'Únete a tus clases', href:'llamadas-estudiante.html' },
+      { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio', href:'comunicados.html' },
+      { icon:'🗓️', nombre:'Calendario',  desc:'Eventos de tu curso', href:'calendario.html' },
+    ],
+acudiente: [
+      { icon:'📊', nombre:'Notas',       desc:'Ver calificaciones', href:'reporte-estudiante.html' },
+      { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio', href:'comunicados.html' },
+      { icon:'🗓️', nombre:'Calendario',  desc:'Eventos del curso',  href:'calendario.html' },
+    ],
+  };
 
-    // Render accesos rápidos
-    const accesosEl = document.getElementById('accesos');
-    (accesosPorRol[rol] || []).forEach(item => {
-      accesosEl.innerHTML += `
-        <a class="acceso-card" href="${item.href}">
-          <div class="acceso-icono">${item.icon}</div>
-          <div class="acceso-nombre">${item.nombre}</div>
-          <div class="acceso-desc">${item.desc}</div>
-        </a>`;
-    });
+  const rol = usuario.rol || 'estudiante';
 
-    // Cargar notificaciones
-    async function cargarNotificaciones() {
-      const lista = document.getElementById('notifLista');
-      try {
-        const res  = await fetch(`${API}/api/notificaciones`, {
-          headers: { Authorization:`Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!data.ok || !data.notificaciones?.length) {
-          lista.innerHTML = '<div class="notif-empty">No tienes notificaciones nuevas.</div>';
-          return;
-        }
-        const iconos = {
-          solicitud_institucion: '🏫', solicitud_docente: '👨‍🏫',
-          aprobacion: '✅', rechazo: '❌', comunicado: '📢',
-          nota_publicada: '📊', tarea_asignada: '📂', entrega_calificada: '📝',
-        };
-        lista.innerHTML = data.notificaciones.slice(0, 5).map(n => `
-          <div class="notif-card ${n.leida ? '' : 'no-leida'}">
-            <div class="notif-icono">${iconos[n.tipo] || '🔔'}</div>
-            <div>
-              <div class="notif-titulo">${n.titulo}</div>
-              <div class="notif-msg">${n.mensaje}</div>
-              <div class="notif-fecha">${new Date(n.created_at).toLocaleString('es-CO')}</div>
-            </div>
-          </div>`).join('');
-      } catch {
-        lista.innerHTML = '<div class="notif-empty">No se pudieron cargar las notificaciones.</div>';
+  const nav = document.getElementById('sidebarNav');
+  (navPorRol[rol] || []).forEach(item => {
+    const a = document.createElement('a');
+    a.className = 'nav-item';
+    a.href = item.href;
+    a.innerHTML = `<span style="width:16px;text-align:center">${item.icon}</span><span>${item.label}</span>`;
+    nav.appendChild(a);
+  });
+  const navDash = document.createElement('a');
+  navDash.className = 'nav-item activo';
+  navDash.href = 'dashboard.html';
+  navDash.innerHTML = `<span style="width:16px;text-align:center">📊</span><span>Dashboard</span>`;
+  nav.appendChild(navDash);
+
+  const accesosEl = document.getElementById('accesos');
+  (accesosPorRol[rol] || []).forEach(item => {
+    accesosEl.innerHTML += `
+      <a class="acceso-card glass" href="${item.href}">
+        <div class="acceso-icono">${item.icon}</div>
+        <div class="acceso-nombre">${item.nombre}</div>
+        <div class="acceso-desc">${item.desc}</div>
+      </a>`;
+  });
+
+  async function cargarNotificaciones() {
+    const lista = document.getElementById('notifLista');
+    try {
+      const res  = await fetch(`${API}/api/notificaciones`, { headers });
+      const data = await res.json();
+      if (!data.ok || !data.notificaciones?.length) {
+        lista.innerHTML = '<div class="empty">No tienes notificaciones nuevas.</div>';
+        return;
       }
+      const iconos = {
+        solicitud_institucion: '🏫', solicitud_docente: '👨‍🏫',
+        aprobacion: '✅', rechazo: '❌', comunicado: '📢',
+        nota_publicada: '📊', tarea_asignada: '📂', entrega_calificada: '📝',
+      };
+      lista.innerHTML = data.notificaciones.slice(0, 5).map(n => `
+        <div class="notif-card ${n.leida ? '' : 'no-leida'}">
+          <div class="notif-icono">${iconos[n.tipo] || '🔔'}</div>
+          <div>
+            <div class="notif-titulo">${n.titulo}</div>
+            <div class="notif-msg">${n.mensaje}</div>
+            <div class="notif-fecha">${new Date(n.created_at).toLocaleString('es-CO')}</div>
+          </div>
+        </div>`).join('');
+    } catch {
+      lista.innerHTML = '<div class="empty">No se pudieron cargar las notificaciones.</div>';
     }
+  }
 
-    function cerrarSesion() {
-      localStorage.removeItem('sia_token');
-      localStorage.removeItem('sia_usuario');
-      window.location.href = 'login.html';
+  async function abrirModalPerfil() {
+    document.getElementById('overlayPerfil').classList.add('visible');
+    try {
+      const res  = await fetch(`${API}/api/auth/perfil`, { headers });
+      const data = await res.json();
+      if (data.ok) {
+        const u = data.usuario;
+        document.getElementById('perfilModalNombre').textContent = `${u.nombres} ${u.apellidos}`;
+        document.getElementById('perfilModalEmail').textContent  = u.email;
+        document.getElementById('perfilModalRol').textContent    = u.rol;
+        document.getElementById('perfilModalAcceso').textContent =
+          u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CO') : 'Primer acceso';
+      }
+    } catch { /* silencioso: la modal ya muestra "—" por defecto */ }
+  }
+  function cerrarModalPerfil() { document.getElementById('overlayPerfil').classList.remove('visible'); }
+  document.getElementById('btnPerfil').addEventListener('click', abrirModalPerfil);
+  document.getElementById('overlayPerfil').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalPerfil();
+  });
+
+function cerrarSesion() {
+    const t = sessionStorage.getItem('sia_token');
+    fetch(`${API}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+    }).catch(() => {});
+    sessionStorage.removeItem('sia_token');
+    sessionStorage.removeItem('sia_usuario');
+    window.location.href = 'login.html';
+  }
+
+  function abrirMensajeria() {
+    if (window.SIA_CHAT) { SIA_CHAT.abrir(); return; }
+    alert('El centro de mensajería se está cargando. Intenta de nuevo en un momento.');
+  }
+
+  /* ══════════════════════════════════
+     CURSO DEL ESTUDIANTE (unirse / revalidar)
+  ══════════════════════════════════ */
+  async function cargarCursoEstudiante() {
+    if (usuario.rol !== 'estudiante') return;
+    const card = document.getElementById('cardCursoEstudiante');
+    try {
+      const res  = await fetch(`${API}/api/matriculas/estudiante/${usuario.id}`, { headers });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      if (!data.matricula) {
+        card.style.display = '';
+        card.innerHTML = `
+          <div class="card-titulo">Únete a tu curso</div>
+          <div class="card-sub">Todavía no tienes un curso activo. Pídele el código a tu director de curso.</div>
+          <form id="formUnirseClase">
+            <input type="text" id="codigoUnirse" placeholder="Código de clase" maxlength="8" required />
+            <button type="submit" class="btn btn-primary" id="btnUnirseClase">Unirme</button>
+          </form>
+          <div class="banner-msg error" id="msgUnirseClase"></div>`;
+        document.getElementById('formUnirseClase').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const msg = document.getElementById('msgUnirseClase');
+          msg.classList.remove('visible');
+          const codigo = document.getElementById('codigoUnirse').value.trim();
+          if (!codigo) return;
+          const btn = document.getElementById('btnUnirseClase');
+          btn.disabled = true;
+          try {
+            const r = await fetch(`${API}/api/matriculas/unirse-clase`, {
+              method: 'POST', headers, body: JSON.stringify({ codigo })
+            });
+            const d = await r.json();
+            if (!d.ok) {
+              msg.textContent = d.mensaje || 'No se pudo unir al curso.';
+              msg.classList.add('visible');
+              btn.disabled = false;
+              return;
+            }
+            cargarCursoEstudiante();
+          } catch {
+            msg.textContent = 'Error de conexión. Intenta de nuevo.';
+            msg.classList.add('visible');
+            btn.disabled = false;
+          }
+        });
+        return;
+      }
+
+      const mt = data.matricula;
+      if (mt.requiere_revalidacion) {
+        card.style.display = '';
+        card.innerHTML = `
+          <div class="card-titulo">Tu curso: ${mt.grado} ${mt.grupo}</div>
+          <div class="card-sub">⚠️ El código de clase se ha renovado, por favor digita el nuevo código.</div>
+          <form id="formRevalidar">
+            <input type="text" id="codigoRevalidar" placeholder="Nuevo código de clase" maxlength="8" required />
+            <button type="submit" class="btn btn-primary" id="btnRevalidar">Confirmar</button>
+          </form>
+          <div class="banner-msg error" id="msgRevalidar"></div>`;
+        document.getElementById('formRevalidar').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const msg = document.getElementById('msgRevalidar');
+          msg.classList.remove('visible');
+          const codigo = document.getElementById('codigoRevalidar').value.trim();
+          if (!codigo) return;
+          const btn = document.getElementById('btnRevalidar');
+          btn.disabled = true;
+          try {
+            const r = await fetch(`${API}/api/matriculas/${mt.matricula_id}/revalidar`, {
+              method: 'POST', headers, body: JSON.stringify({ codigo })
+            });
+            const d = await r.json();
+            if (!d.ok) {
+              msg.textContent = d.mensaje || 'El código no coincide.';
+              msg.classList.add('visible');
+              btn.disabled = false;
+              return;
+            }
+            cargarCursoEstudiante();
+          } catch {
+            msg.textContent = 'Error de conexión. Intenta de nuevo.';
+            msg.classList.add('visible');
+            btn.disabled = false;
+          }
+        });
+        return;
+      }
+
+      // Todo en orden: no hace falta mostrar nada.
+      card.style.display = 'none';
+    } catch (err) {
+      console.error('Error cargando el curso del estudiante:', err);
     }
+  }
 
-    cargarNotificaciones();
-  </script>
+  async function cargarMisTareas() {
+    if (usuario.rol !== 'estudiante') return;
+    const card = document.getElementById('cardMisTareas');
+    card.style.display = '';
+    const cont = document.getElementById('listaTareasEstudiante');
+    cont.innerHTML = '<div class="empty">Cargando...</div>';
+    try {
+      const res  = await fetch(`${API}/api/tareas/estudiante`, { headers });
+      const data = await res.json();
+      if (!data.ok || !data.tareas?.length) {
+        cont.innerHTML = '<div class="empty">No tienes tareas asignadas todavía.</div>';
+        return;
+      }
+      cont.innerHTML = data.tareas.map(t => {
+        const yaCalificada = t.estado === 'calificada';
+        const boton = yaCalificada
+          ? `<span class="badge-exito">${t.calificacion != null ? `Nota: ${t.calificacion} / ${t.valor_max}` : 'Calificada'}</span>`
+          : `<button class="btn btn-primary" onclick="entregarTarea('${t.id}')">${t.estado === 'entregada' || t.estado === 'tarde' ? 'Reentregar' : 'Entregar'}</button>`;
+        return `
+        <div class="notif-card">
+          <div class="notif-icono">📂</div>
+          <div style="flex:1">
+            <div class="notif-titulo">${t.materia} — ${t.titulo}</div>
+            <div class="notif-msg">Entregar: ${t.fecha_entrega} · Valor máx: ${t.valor_max} · Estado: ${t.estado || 'pendiente'}</div>
+            ${t.descripcion ? `<div class="notif-msg">${t.descripcion}</div>` : ''}
+            ${t.feedback_doc ? `<div class="notif-msg" style="color:var(--blue-light)">Feedback: ${t.feedback_doc}</div>` : ''}
+          </div>
+          <div>${boton}</div>
+        </div>
+      `;
+      }).join('');
+    } catch (err) {
+      cont.innerHTML = '<div class="empty">No se pudieron cargar tus tareas.</div>';
+      console.error(err);
+    }
+  }
+
+  async function entregarTarea(tareaId) {
+    try {
+      const res  = await fetch(`${API}/api/tareas/${tareaId}/entrega`, {
+        method: 'POST', headers, body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!data.ok) { alert(data.mensaje || 'No se pudo entregar.'); return; }
+      alert(`Tarea entregada (${data.estado}).`);
+      cargarMisTareas();
+    } catch (err) {
+      alert('Error de conexión. Intenta de nuevo.');
+      console.error(err);
+    }
+  }
+
+  /* ══════════════════════════════════
+     TIEMPO REAL (punto 4): las tarjetas se
+     actualizan solas vía socket, sin recargar.
+  ══════════════════════════════════ */
+  if (typeof io === 'function') {
+    const socket = io(API, { auth: { token } });
+    socket.on('notificaciones:update', () => cargarNotificaciones());
+    socket.on('tareas:update',         () => cargarMisTareas());
+  }
+
+  cargarCursoEstudiante();
+  cargarMisTareas();
+  cargarNotificaciones();
+</script>
+<script src="chat-drawer-inyector.js"></script>
+<script src="sia-identidad.js"></script>
 </body>
 </html>

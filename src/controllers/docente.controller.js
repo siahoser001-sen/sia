@@ -2,190 +2,97 @@ const pool    = require('../config/db');
 const bcrypt  = require('bcrypt');
 const { randomUUID } = require('crypto');
 const email   = require('../services/email.service');
+const { generarPassword } = require('../utils/contrasena.util');
 const { crearNotificacion } = require('../services/notificacion.service');
 
-// ── POST /api/docentes/solicitar (público) ────────────────────
-exports.solicitarRegistro = async (req, res) => {
-  const { institucion_id, nombres, apellidos, tipo_documento,
-          numero_documento, email_doc, telefono, password } = req.body;
+// ── POST /api/docentes/agregar (admin) ─────────────────────────
+// Crea la cuenta del docente de una vez (sin link de activación):
+// el sistema genera la contraseña y se la envía por correo junto
+// con el email para que el docente pueda iniciar sesión directo.
+exports.agregarDocente = async (req, res) => {
+  const { nombres, apellidos, tipo_documento, numero_documento, email: correo, telefono } = req.body;
+  const institucionId = req.usuario.institucion_id;
 
-  if (!institucion_id || !nombres || !apellidos || !email_doc || !password || !numero_documento) {
-    return res.status(400).json({ ok: false, mensaje: 'Faltan campos obligatorios.' });
+  if (!nombres || !apellidos || !numero_documento || !correo) {
+    return res.status(400).json({ ok: false, mensaje: 'Nombres, apellidos, documento y correo son obligatorios.' });
   }
+  if (!/^\S+@\S+\.\S+$/.test(correo)) {
+    return res.status(400).json({ ok: false, mensaje: 'Escribe un correo válido.' });
+  }
+  const correoNormalizado = correo.trim().toLowerCase();
 
   try {
-    const [inst] = await pool.query(
-      `SELECT id, nombre, email_institucional FROM instituciones
-       WHERE id = ? AND activa = TRUE`,
-      [institucion_id]
-    );
-    if (!inst.length) {
-      return res.status(404).json({ ok: false, mensaje: 'Institución no encontrada.' });
-    }
-
     const [existe] = await pool.query(
-      `SELECT id FROM solicitudes_docentes
-       WHERE institucion_id = ? AND email = ? LIMIT 1`,
-      [institucion_id, email_doc]
+      `SELECT id FROM usuarios WHERE (institucion_id = ? AND email = ?) OR (tipo_documento = ? AND numero_documento = ?) LIMIT 1`,
+      [institucionId, correoNormalizado, tipo_documento || 'CC', numero_documento]
     );
     if (existe.length) {
-      return res.status(409).json({ ok: false, mensaje: 'Ya existe una solicitud tuya para esta institución.' });
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe una cuenta con ese correo o documento.' });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
-    const id = randomUUID();
-
-    await pool.query(
-      `INSERT INTO solicitudes_docentes
-         (id, institucion_id, nombres, apellidos, tipo_documento,
-          numero_documento, email, telefono, password_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, institucion_id, nombres, apellidos, tipo_documento || 'CC',
-       numero_documento, email_doc, telefono, password_hash]
-    );
-
-    const [admins] = await pool.query(
-      `SELECT id, email FROM usuarios
-       WHERE institucion_id = ? AND rol = 'admin' AND activo = TRUE LIMIT 1`,
-      [institucion_id]
-    );
-
-    if (admins.length) {
-      await email.enviarCorreo(
-        email.correoNuevaSolicitudDocente({
-          admin_email:    admins[0].email,
-          docente_nombre: `${nombres} ${apellidos}`,
-          docente_email:  email_doc,
-        })
-      );
-      await crearNotificacion({
-        destinatario: admins[0].id,
-        tipo:         'solicitud_docente',
-        titulo:       `Nuevo docente: ${nombres} ${apellidos}`,
-        mensaje:      `${nombres} ${apellidos} solicita ser docente en tu institución.`,
-        ref_id:       id,
-        ref_tabla:    'solicitudes_docentes',
-      });
-    }
-
-    return res.status(201).json({ ok: true, mensaje: 'Solicitud enviada. El administrador la revisará.' });
-
-  } catch (err) {
-    console.error('solicitarRegistro docente error:', err.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
-  }
-};
-
-// ── POST /api/docentes/:solicitudId/aprobar (admin) ───────────
-exports.aprobarDocente = async (req, res) => {
-  const { solicitudId } = req.params;
-  const adminId         = req.usuario.id;
-  const adminInstId     = req.usuario.institucion_id;
-
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    const [rows] = await conn.query(
-      `SELECT * FROM solicitudes_docentes
-       WHERE id = ? AND institucion_id = ? AND estado = 'pendiente'`,
-      [solicitudId, adminInstId]
-    );
-    if (!rows.length) {
-      await conn.rollback();
-      return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada o ya revisada.' });
-    }
-    const s = rows[0];
+    const passwordGenerada = generarPassword(10);
+    const password_hash = await bcrypt.hash(passwordGenerada, 10);
     const docenteId = randomUUID();
 
-    await conn.query(
+    await pool.query(
       `INSERT INTO usuarios
          (id, institucion_id, rol, nombres, apellidos, tipo_documento,
-          numero_documento, email, password_hash, activo)
-       VALUES (?, ?, 'docente', ?, ?, ?, ?, ?, ?, TRUE)`,
-      [docenteId, s.institucion_id, s.nombres, s.apellidos,
-       s.tipo_documento, s.numero_documento, s.email, s.password_hash]
+          numero_documento, email, telefono, password_hash, activo)
+       VALUES (?, ?, 'docente', ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+      [docenteId, institucionId, nombres.trim(), apellidos.trim(), tipo_documento || 'CC',
+       numero_documento, correoNormalizado, telefono || null, password_hash]
     );
 
-    await conn.query(
-      `UPDATE solicitudes_docentes
-       SET estado = 'aprobada', revisado_por = ?, revisado_at = NOW()
-       WHERE id = ?`,
-      [adminId, solicitudId]
-    );
-
-    await conn.commit();
-
-    const [inst] = await pool.query(
-      `SELECT nombre FROM instituciones WHERE id = ?`, [adminInstId]
-    );
+    const [inst] = await pool.query(`SELECT nombre FROM instituciones WHERE id = ?`, [institucionId]);
 
     await email.enviarCorreo(
-      email.correoDocenteAprobado({
-        docente_email:      s.email,
-        docente_nombre:     `${s.nombres} ${s.apellidos}`,
-        nombre_institucion: inst[0]?.nombre || 'la institución',
+      email.correoCredencialesDocente({
+        email:              correoNormalizado,
+        password:           passwordGenerada,
+        nombre_institucion: inst[0]?.nombre || 'tu institución',
       })
     );
+
+    // Aviso interno al docente de su nueva cuenta (punto 6).
     await crearNotificacion({
       destinatario: docenteId,
-      tipo:         'aprobacion',
-      titulo:       '¡Tu registro como docente fue aprobado!',
-      mensaje:      `Ya puedes iniciar sesión en ${inst[0]?.nombre || 'el SIA'}.`,
-      ref_id:       solicitudId,
-      ref_tabla:    'solicitudes_docentes',
+      tipo:         'solicitud_docente',
+      titulo:       'Tu cuenta de docente está lista',
+      mensaje:      `Tu cuenta de docente en #nombreinstitucion fue creada por el administrador.`,
+      ref_id:       docenteId,
+      ref_tabla:    'usuarios',
+      institucion_nombre: inst[0]?.nombre || null,
     });
 
-    return res.json({ ok: true, mensaje: 'Docente aprobado y cuenta creada.' });
-
+    return res.status(201).json({
+      ok: true,
+      mensaje: 'Docente creado. Se le envió el correo con su contraseña.',
+      id: docenteId,
+    });
   } catch (err) {
-    await conn.rollback();
-    console.error('aprobarDocente error:', err.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno. Cambios revertidos.' });
-  } finally {
-    conn.release();
-  }
-};
-
-// ── POST /api/docentes/:solicitudId/rechazar (admin) ──────────
-exports.rechazarDocente = async (req, res) => {
-  const { solicitudId } = req.params;
-  const { motivo }      = req.body;
-
-  try {
-    const [result] = await pool.query(
-      `UPDATE solicitudes_docentes
-       SET estado = 'rechazada', motivo_rechazo = ?,
-           revisado_por = ?, revisado_at = NOW()
-       WHERE id = ? AND institucion_id = ? AND estado = 'pendiente'`,
-      [motivo || null, req.usuario.id, solicitudId, req.usuario.institucion_id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada.' });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe una cuenta con ese correo o documento.' });
     }
-
-    return res.json({ ok: true, mensaje: 'Solicitud rechazada.' });
-
-  } catch (err) {
-    console.error('rechazarDocente error:', err.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+    console.error('agregarDocente error:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
   }
 };
 
-// ── GET /api/docentes/solicitudes (admin) ─────────────────────
-exports.listarSolicitudes = async (req, res) => {
-  const estado = req.query.estado || 'pendiente';
+// ── GET /api/docentes (admin) ──────────────────────────────────
+// Lista los docentes activos de la institución. Se usa, entre
+// otras cosas, para el selector de "director de curso".
+exports.listarDocentes = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, nombres, apellidos, email, numero_documento, estado, created_at
-       FROM solicitudes_docentes
-       WHERE institucion_id = ? AND estado = ?
-       ORDER BY created_at DESC`,
-      [req.usuario.institucion_id, estado]
+      `SELECT id, nombres, apellidos, email, foto_url
+       FROM usuarios
+       WHERE institucion_id = ? AND rol = 'docente' AND activo = TRUE
+       ORDER BY nombres ASC, apellidos ASC`,
+      [req.usuario.institucion_id]
     );
-    return res.json({ ok: true, total: rows.length, solicitudes: rows });
+    return res.json({ ok: true, total: rows.length, docentes: rows });
   } catch (err) {
+    console.error('listarDocentes error:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };

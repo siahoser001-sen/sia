@@ -10,6 +10,12 @@ CREATE DATABASE IF NOT EXISTS sia_db
 
 USE sia_db;
 
+-- Fuerza la codificación de ESTA sesión de importación a utf8mb4,
+-- sin importar cómo esté configurado phpMyAdmin/MySQL Workbench/CLI
+-- de quien lo importa. Esto es lo que evita que "Andrés" quede
+-- guardado como "AndrÃ©s" si el importador no declara la codificación.
+SET NAMES utf8mb4;
+
 -- ── Áreas del conocimiento (globales) ────────────────────────
 CREATE TABLE areas (
     id          CHAR(36)     PRIMARY KEY DEFAULT (UUID()),
@@ -146,8 +152,10 @@ CREATE TABLE usuarios (
 );
 
 -- Usuario superadmin inicial
--- Contraseña: Admin2025! (el hash se genera desde Node.js al insertar)
--- Este INSERT usa texto plano temporalmente — cámbialo desde el sistema
+-- Contraseña: Admin2025!
+-- Hash verificado el 2026-07-25 con bcrypt.compare('Admin2025!', hash) => true
+-- (el hash anterior en este archivo NO correspondía a esta contraseña,
+--  por eso el login siempre fallaba con "Correo o contraseña incorrectos")
 INSERT INTO usuarios (id, rol, nombres, apellidos, tipo_documento, numero_documento, email, password_hash, activo)
 VALUES (
     UUID(),
@@ -155,7 +163,7 @@ VALUES (
     'Oscar Andrés', 'Navarro Ochoa',
     'CC', '1000000001',
     'admin@sia.edu.co',
-    '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- hash de 'Admin2025!'
+    '$2b$10$PJmOVs.qfVp926QlFd0hCekp5otU6qOjX11q1OKYVMNfqK.Z7WniK', -- hash real de 'Admin2025!'
     TRUE
 );
 

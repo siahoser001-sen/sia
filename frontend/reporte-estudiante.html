@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reporte estudiantil · SIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --blue:       #3B82F6;
+    --green:      #10B981;
+    --amber:      #F59E0B;
+    --red:        #EF4444;
+    --text-1: rgba(255,255,255,0.96);
+    --text-2: rgba(255,255,255,0.68);
+    --text-3: rgba(255,255,255,0.42);
+    --font-d: 'Nunito', sans-serif;
+    --font-b: 'Inter', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    font-family: var(--font-b);
+    color: var(--text-1);
+    min-height: 100vh;
+    background: radial-gradient(circle at 20% 0%, #1b2340 0%, #0b0e1f 55%, #060812 100%);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.7rem 1.2rem;
+    background: rgba(10,14,32,0.78);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    flex-wrap: wrap;
+  }
+  .topbar .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    object-fit: cover; flex: 0 0 auto;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.08);
+    cursor: pointer;
+  }
+  .topbar .iniciales {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--blue), #8B5CF6);
+    font-family: var(--font-d); font-weight: 800; font-size: 0.95rem;
+    color: #fff; flex: 0 0 auto;
+  }
+  .topbar .t1 { font-family: var(--font-d); font-weight: 800; font-size: 0.95rem; line-height: 1.15; }
+  .topbar .t2 { font-size: 0.72rem; color: var(--text-2); }
+  .topbar .spacer { flex: 1; }
+  .btn-volver {
+    font-family: var(--font-b); font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; color: #fff; background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18); border-radius: 999px;
+    padding: 0.45rem 0.95rem; transition: background .15s;
+  }
+  .btn-volver:hover { background: rgba(255,255,255,0.18); }
+
+  /* ── Contenedor ── */
+  .contenedor { max-width: 980px; margin: 0 auto; padding: 1.3rem 1rem 3rem; }
+
+  .aviso {
+    background: rgba(239,68,68,0.14);
+    border: 1px solid rgba(239,68,68,0.40);
+    color: #FECACA;
+    padding: 0.9rem 1.1rem; border-radius: 12px; font-size: 0.92rem;
+  }
+  .aviso-info {
+    background: rgba(59,130,246,0.14);
+    border: 1px solid rgba(59,130,246,0.40);
+    color: #BFDBFE;
+  }
+
+  .selector-hijo {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px; padding: 0.85rem 1rem; margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+  .selector-hijo select {
+    font-family: var(--font-b); font-size: 0.9rem;
+    padding: 0.45rem 0.7rem; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: #141a33; color: #fff; flex: 1;
+  }
+  .selector-hijo label { color: var(--text-2); white-space: nowrap; }
+
+  /* ── Pestañas ── */
+  .tabs { display: flex; gap: 0.5rem; margin: 1.1rem 0 0.9rem; flex-wrap: wrap; }
+  .tab-btn {
+    font-family: var(--font-b); font-size: 0.86rem; font-weight: 600;
+    cursor: pointer; padding: 0.55rem 1.1rem; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.07); color: var(--text-2);
+    transition: all .15s;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+  .tab-btn.activo {
+    background: linear-gradient(135deg, var(--blue), #8B5CF6);
+    border-color: transparent; color: #fff;
+  }
+
+  /* ── Barra de descarga / impresión (punto 3) ── */
+  .descargar {
+    display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px; padding: 0.7rem 1rem; margin: 1.1rem 0 0;
+  }
+  .descargar .dl-t { font-size: 0.85rem; font-weight: 700; color: var(--text-2); }
+  .dl-grupo { display: flex; align-items: center; gap: 6px; }
+  .dl-grupo .dl-nombre {
+    font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-3); min-width: 40px;
+  }
+  .dl-btn {
+    font-family: var(--font-b); font-size: 0.78rem; font-weight: 700; cursor: pointer;
+    color: #fff; background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.22); border-radius: 8px; padding: 5px 12px;
+    transition: all .15s;
+  }
+  .dl-btn:hover { background: rgba(255,255,255,0.20); border-color: rgba(255,255,255,0.40); }
+  .dl-btn.todas {
+    background: linear-gradient(135deg, var(--blue), #8B5CF6);
+    border-color: transparent;
+  }
+  .dl-btn.todas:hover { filter: brightness(1.12); background: linear-gradient(135deg, var(--blue), #8B5CF6); }
+
+  /* ── Selector de descarga (Ronda C5) ── */
+  #dlModal {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    align-items: center; justify-content: center; padding: 16px;
+    background: rgba(2, 6, 23, 0.55); backdrop-filter: blur(3px);
+  }
+  #dlModal.abierto { display: flex; }
+  #dlModal .dlm {
+    background: #fff; color: #111827; border-radius: 14px;
+    max-width: 660px; width: 100%; max-height: calc(100vh - 40px);
+    overflow-y: auto; padding: 1.3rem 1.4rem;
+  }
+  #dlModal h3 { margin: 0 0 0.3rem; font-size: 1.1rem; font-weight: 800; color: #111827; }
+  #dlModal .dlm-sub { margin: 0 0 1rem; color: #6b7280; font-size: 0.84rem; line-height: 1.5; }
+  #dlModal .dlm-grupo { margin-bottom: 0.9rem; }
+  #dlModal .dlm-t {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: #6b7280; margin-bottom: 0.3rem;
+  }
+  #dlModal label.dlm-item {
+    display: flex; align-items: center; gap: 0.5rem; font-size: 0.86rem;
+    padding: 0.14rem 0; color: #111827; cursor: pointer;
+  }
+  #dlModal label.dlm-item input { accent-color: #2563eb; width: 15px; height: 15px; }
+  #dlModal .dlm-item .dlm-sub2 { color: #9ca3af; font-size: 0.76rem; margin-left: 0.25rem; }
+  #dlModal .dlm-btns {
+    display: flex; align-items: center; gap: 0.6rem; margin-top: 1.1rem; flex-wrap: wrap;
+  }
+  #dlModal .dlm-btns button {
+    font-family: var(--font-b); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    color: #374151; background: #f3f4f6; border: 1px solid #e5e7eb;
+    border-radius: 9px; padding: 7px 14px; transition: all .15s;
+  }
+  #dlModal .dlm-btns button:hover { background: #e5e7eb; }
+  #dlModal .dlm-btns .dlm-ok {
+    background: linear-gradient(135deg, var(--blue), #8B5CF6);
+    color: #fff; border-color: transparent;
+  }
+  #dlModal .dlm-btns .dlm-ok:hover { filter: brightness(1.12); background: linear-gradient(135deg, var(--blue), #8B5CF6); }
+  #dlModal .dlm-fmt { display: flex; gap: 1rem; margin-left: auto; padding: 0 0.4rem; }
+  #dlModal .dlm-fmt label {
+    display: flex; align-items: center; gap: 0.35rem; font-size: 0.84rem; font-weight: 700; color: #374151; cursor: pointer;
+  }
+  #dlModal .dlm-fmt input { accent-color: #2563eb; }
+
+  /* Impresión: solo la hoja activa y sin la interfaz alrededor. */
+  @media print {
+    .topbar, .tabs, .descargar, .pie, .contenedor > *:not(#reporteWrap) { display: none !important; }
+    body { background: #fff !important; }
+    .contenedor { max-width: 100%; margin: 0; padding: 0; }
+    .hoja { box-shadow: none; border: none; padding: 0; margin: 0; }
+    .hoja[data-activa="false"] { display: none !important; }
+  }
+
+  /* ── Hoja (documento) ── */
+  .hoja {
+    background: #fff; color: #111827;
+    border-radius: 12px; padding: 2rem 2.2rem;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.40);
+    line-height: 1.5;
+  }
+  .hoja h2 { font-family: var(--font-d); font-weight: 800; }
+
+  .encabezado { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #1F2937; padding-bottom: 1.1rem; }
+  .encabezado .logo { width: 58px; height: 58px; border-radius: 10px; object-fit: cover; border: 1px solid #E5E7EB; }
+  .encabezado .iniciales {
+    width: 58px; height: 58px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--blue), #8B5CF6); color: #fff;
+    font-family: var(--font-d); font-weight: 800; font-size: 1.1rem;
+  }
+  .encabezado .e1 { font-family: var(--font-d); font-weight: 800; font-size: 1.05rem; color: #111827; }
+  .encabezado .e2 { font-size: 0.8rem; color: #6B7280; }
+  .encabezado .e3 { font-size: 0.85rem; color: #111827; font-weight: 600; text-align: right; }
+  .encabezado .e3 span { display: block; font-weight: 400; color: #6B7280; font-size: 0.78rem; }
+  .encabezado .centro { flex: 1; }
+
+  .ficha-estudiante { display: flex; align-items: center; gap: 1.1rem; padding: 1.2rem 0 1rem; }
+  .ficha-estudiante .foto {
+    width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+    border: 3px solid #E5E7EB; cursor: pointer; background: #F3F4F6;
+  }
+  .ficha-estudiante .foto-inicial {
+    width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--blue), #8B5CF6); color: #fff;
+    font-family: var(--font-d); font-weight: 800; font-size: 1.9rem;
+  }
+  .ficha-estudiante .fn { font-family: var(--font-d); font-weight: 800; font-size: 1.5rem; color: #111827; }
+  .ficha-estudiante .fd { font-size: 0.88rem; color: #4B5563; margin-top: 2px; }
+  .ficha-estudiante .chip {
+    display: inline-block; margin-top: 7px; font-size: 0.78rem; font-weight: 700;
+    background: #EEF2FF; color: #3730A3; border-radius: 999px; padding: 3px 11px;
+  }
+
+  .grid-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 26px; margin-bottom: 1.2rem; }
+  .celda { padding: 7px 0; border-bottom: 1px dashed #E5E7EB; }
+  .celda .lbl { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9CA3AF; }
+  .celda .val { font-size: 0.9rem; color: #111827; font-weight: 500; }
+
+  .tabla-wrap { overflow-x: auto; margin: 0.4rem 0 0.9rem; }
+  .tabla-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .tabla-wrap th {
+    text-align: left; font-weight: 700; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: #6B7280; background: #F9FAFB; padding: 8px 10px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .tabla-wrap td { padding: 8px 10px; border-bottom: 1px solid #F3F4F6; color: #111827; }
+  .tabla-wrap tr:hover td { background: #F9FAFB; }
+  .tabla-wrap .materia { font-weight: 600; }
+  .tabla-wrap .area { color: #6B7280; font-size: 0.8rem; }
+  .titulo-seccion {
+    font-family: var(--font-d); font-weight: 800; font-size: 1rem; color: #111827;
+    margin: 1.2rem 0 0.5rem; padding-bottom: 6px; border-bottom: 2px solid #E5E7EB;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .titulo-seccion .num {
+    width: 22px; height: 22px; border-radius: 6px; flex: 0 0 auto;
+    background: #1F2937; color: #fff; font-size: 0.75rem;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px 14px; }
+  .stat .num { font-family: var(--font-d); font-weight: 800; font-size: 1.35rem; color: #111827; }
+  .stat .lbl { font-size: 0.72rem; color: #6B7280; font-weight: 600; margin-top: 2px; }
+
+  .dato-fila { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; font-size: 0.9rem; }
+  .dato-fila .k { color: #6B7280; min-width: 130px; font-weight: 600; }
+
+  /* ── Formularios del documento (páginas 2 y 3) ── */
+  .form-hoja { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 1rem 1.1rem; margin: 0.9rem 0; }
+  .form-hoja h3 { font-family: var(--font-d); font-weight: 800; font-size: 0.95rem; color: #111827; margin-bottom: 10px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .campo label { display: block; font-size: 0.74rem; font-weight: 700; color: #4B5563; margin-bottom: 4px; }
+  .campo input, .campo select, .campo textarea {
+    width: 100%; font-family: var(--font-b); font-size: 0.88rem;
+    border: 1px solid #D1D5DB; border-radius: 8px; padding: 8px 10px; color: #111827;
+    background: #fff;
+  }
+  .campo textarea { resize: vertical; min-height: 64px; }
+  .campo input:focus, .campo select:focus, .campo textarea:focus {
+    outline: 2px solid #93C5FD; border-color: var(--blue);
+  }
+  .btn-primary {
+    font-family: var(--font-b); font-size: 0.86rem; font-weight: 700;
+    cursor: pointer; color: #fff; border: none; border-radius: 8px;
+    background: linear-gradient(135deg, var(--blue), #2563EB); padding: 9px 18px;
+    margin-top: 10px;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+
+  .lista { display: flex; flex-direction: column; gap: 10px; margin-top: 0.4rem; }
+  .item {
+    border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px 14px; background: #fff;
+  }
+  .item .cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .item .motivo { font-family: var(--font-d); font-weight: 800; font-size: 0.94rem; color: #111827; }
+  .item .fecha { font-size: 0.74rem; color: #6B7280; }
+  .item .cuerpo { font-size: 0.87rem; color: #374151; margin-top: 6px; white-space: pre-wrap; }
+  .item .cuerpo b { color: #111827; }
+  .item .meta { font-size: 0.75rem; color: #9CA3AF; margin-top: 8px; }
+  .item .acciones { margin-top: 8px; display: flex; gap: 8px; }
+  .badge { 
+    font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    border-radius: 999px; padding: 3px 10px;
+  }
+  .badge-pendiente { background: #FEF3C7; color: #92400E; }
+  .badge-cumplido { background: #D1FAE5; color: #065F46; }
+  .badge-lbl { background: #E5E7EB; color: #374151; }
+  .btn-xs {
+    font-family: var(--font-b); font-size: 0.75rem; font-weight: 700; cursor: pointer;
+    border-radius: 7px; padding: 5px 12px; border: 1px solid transparent;
+  }
+  .btn-xs-cumplir { background: #D1FAE5; color: #065F46; }
+  .btn-xs-cumplir:hover { background: #A7F3D0; }
+  .btn-xs-danger { background: #FEE2E2; color: #991B1B; }
+  .btn-xs-danger:hover { background: #FECACA; }
+
+  /* ── Punto 4: páginas personalizadas (mini-maquetador) ── */
+  .paginas { display: flex; flex-direction: column; gap: 16px; margin-top: 0.4rem; }
+  .pagina-card { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; padding: 14px 16px; }
+  .pagina-card .pag-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px dashed #E5E7EB; padding-bottom: 10px; margin-bottom: 12px; }
+  .pagina-card .pag-cab .pag-nombre {
+    flex: 1; min-width: 180px; font-family: var(--font-d); font-weight: 800; font-size: 1rem;
+    color: #111827; border: 1px solid #D1D5DB; border-radius: 8px; padding: 6px 10px;
+  }
+  .pagina-card .pag-cab .pag-cab-acciones { display: flex; gap: 6px; }
+  .dock { position: relative; padding: 6px 2px; }
+  .bloque { position: relative; border: 1px dashed transparent; border-radius: 6px; }
+  .bloque:hover, .bloque.editando { border-color: #93C5FD; }
+  .bloque-cmp { padding: 3px; }
+  .bloque-herramientas {
+    position: absolute; top: -10px; right: 4px; z-index: 5; display: none; gap: 3px;
+    background: #1F2937; border-radius: 7px; padding: 3px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+  }
+  .bloque:hover .bloque-herramientas, .bloque.editando .bloque-herramientas { display: flex; }
+  .herramienta {
+    font-family: var(--font-b); font-size: 0.72rem; font-weight: 700; cursor: pointer;
+    color: #E5E7EB; background: transparent; border: none; border-radius: 5px; padding: 3px 8px;
+  }
+  .herramienta:hover { background: rgba(255,255,255,0.15); }
+  .herramienta.rojo:hover { background: #EF4444; color: #fff; }
+  .bloque-editor {
+    border: 1px solid #E5E7EB; border-radius: 8px; background: #F9FAFB; padding: 12px; margin-top: 8px;
+  }
+  .bloque-editor h4 { font-family: var(--font-d); font-size: 0.85rem; color: #111827; margin-bottom: 8px; }
+  .bloque-editor .editor-fila { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .bloque-editor .campo { flex: 1; min-width: 130px; }
+  .bloque-editor .campo.small { flex: 0 0 auto; min-width: 0; }
+  .bloque-editor .campo input[type="color"] { height: 38px; padding: 2px; cursor: pointer; }
+  .tabla-celdas { margin-top: 8px; border-collapse: collapse; width: 100%; }
+  .tabla-celdas td { border: 1px solid #E5E7EB; padding: 3px; }
+  .tabla-celdas input[type="text"] {
+    width: 100%; font-family: var(--font-b); font-size: 0.78rem;
+    border: 1px solid #E5E7EB; border-radius: 5px; padding: 5px 7px; color: #111827; background: #fff;
+  }
+  .tabla-celdas select {
+    font-family: var(--font-b); font-size: 0.72rem; border: 1px solid #E5E7EB; border-radius: 5px;
+    padding: 4px 4px; color: #111827; background: #fff; margin-top: 2px; width: 100%;
+  }
+  .pag-footer { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px dashed #E5E7EB; padding-top: 10px; margin-top: 12px; }
+  .pag-footer .etq { font-size: 0.78rem; font-weight: 700; color: #6B7280; }
+  .btn-bloque {
+    font-family: var(--font-b); font-size: 0.78rem; font-weight: 700; cursor: pointer;
+    color: #374151; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 7px; padding: 6px 12px;
+  }
+  .btn-bloque:hover { background: #E5E7EB; }
+  .btn-gris { background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
+  .btn-gris:hover { background: #E5E7EB; }
+  .sin-paginas { color: #9CA3AF; font-size: 0.88rem; padding: 0.6rem 0; }
+
+  .nota-gestion { font-size: 0.85rem; color: var(--text-2); background: rgba(255,255,255,0.07); border: 1px dashed rgba(255,255,255,0.22); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
+
+  .vacio { text-align: center; color: #9CA3AF; font-size: 0.88rem; padding: 1.2rem 0; }
+
+  .pie { margin-top: 1.1rem; text-align: center; font-size: 0.74rem; color: var(--text-3); }
+
+  .cargando { text-align: center; color: var(--text-2); padding: 2.5rem 0; }
+
+  @media (max-width: 640px) {
+    .grid-datos { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <img id="topLogo" class="logo" alt="logo" style="display:none" data-visor="1" />
+    <div id="topIniciales" class="iniciales">SIA</div>
+    <div>
+      <div class="t1" id="topInstNombre">Reporte estudiantil</div>
+      <div class="t2" id="topSub">Sistema de Información Académica</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-volver" id="btnVolver">← Volver</button>
+  </div>
+
+  <div class="contenedor">
+    <div id="avisoError" class="aviso" style="display:none"></div>
+
+    <div id="selectorHijo" class="selector-hijo" style="display:none">
+      <label>Estudiante:</label>
+      <select id="selHijo"></select>
+    </div>
+
+    <div id="sinDatos" class="aviso aviso-info" style="display:none">
+      Abre el reporte desde el listado de estudiantes: selecciona un estudiante y pulsa el botón <b>Reporte</b>.
+    </div>
+
+    <div id="cargando" class="cargando">Cargando reporte...</div>
+
+    <div id="reporteWrap" style="display:none">
+      <div class="descargar">
+        <span class="dl-t">Descargar o imprimir:</span>
+        <div class="dl-grupo">
+          <span class="dl-nombre">PDF</span>
+          <button class="dl-btn" onclick="descargarReporte('pdf','1')">Página 1</button>
+          <button class="dl-btn" onclick="descargarReporte('pdf','2')">Página 2</button>
+          <button class="dl-btn" onclick="descargarReporte('pdf','3')">Página 3</button>
+          <button class="dl-btn todas" onclick="abrirSelectorDescarga()">Descargar…</button>
+        </div>
+        <div class="dl-grupo">
+          <span class="dl-nombre">Word</span>
+          <button class="dl-btn" onclick="descargarReporte('word','1')">Página 1</button>
+          <button class="dl-btn" onclick="descargarReporte('word','2')">Página 2</button>
+          <button class="dl-btn" onclick="descargarReporte('word','3')">Página 3</button>
+          <button class="dl-btn todas" onclick="abrirSelectorDescarga()">Exportar…</button>
+        </div>
+        <button class="dl-btn" onclick="window.print()" title="Imprime la página que estás viendo">Imprimir</button>
+        <div class="dl-grupo" id="dlPersonalizadas" style="display:none"></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn activo" id="tabBtn1" onclick="mostrarTab(1)">Datos y resumen</button>
+        <button class="tab-btn" id="tabBtn2" onclick="mostrarTab(2)">Compromiso</button>
+        <button class="tab-btn" id="tabBtn3" onclick="mostrarTab(3)">Observaciones</button>
+        <button class="tab-btn" id="tabBtn4" onclick="mostrarTab(4)">Páginas personalizadas</button>
+        <button class="tab-btn" id="tabBtn5" onclick="mostrarTab(5)">Certificados</button>
+<div id="tabsPaginas" style="display:inline-flex"></div>
+      </div>
+
+      <!-- ―― PÁGINA 1: DATOS Y RESUMEN ―― -->
+      <div class="hoja" id="hoja1" data-activa="true">
+        <div class="encabezado">
+          <img id="h1Logo" class="logo" alt="logo" style="display:none" data-visor="1" />
+          <div id="h1Iniciales" class="iniciales">SIA</div>
+          <div class="centro">
+            <div class="e1" id="h1InstNombre">—</div>
+            <div class="e2" id="h1Dane" style="display:none"></div>
+          </div>
+          <div class="e3">
+            REPORTE ESTUDIANTIL
+            <span id="h1Fecha"></span>
+          </div>
+        </div>
+
+        <div class="ficha-estudiante">
+          <img id="h1Foto" class="foto" alt="foto" style="display:none" data-visor="1" />
+          <div id="h1FotoInicial" class="foto-inicial">?</div>
+          <div>
+            <div class="fn" id="h1EstudianteNombre">—</div>
+            <div class="fd" id="h1GradoGrupo">—</div>
+            <div><span class="chip" id="h1Periodo">—</span></div>
+          </div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">1</span> Datos del estudiante</div>
+        <div class="grid-datos">
+          <div class="celda"><div class="lbl">Documento</div><div class="val" id="dDocumento">—</div></div>
+          <div class="celda"><div class="lbl">Fecha de nacimiento</div><div class="val" id="dNacimiento">—</div></div>
+          <div class="celda"><div class="lbl">Género</div><div class="val" id="dGenero">—</div></div>
+          <div class="celda"><div class="lbl">Matrícula</div><div class="val" id="dMatricula">—</div></div>
+          <div class="celda"><div class="lbl">Director de curso</div><div class="val" id="dDirector">—</div></div>
+          <div class="celda"><div class="lbl">Teléfono</div><div class="val" id="dTelefono">—</div></div>
+          <div class="celda"><div class="lbl">Correo</div><div class="val" id="dEmail">—</div></div>
+          <div class="celda"><div class="lbl">Dirección</div><div class="val" id="dDireccion">—</div></div>
+          <div class="celda"><div class="lbl">Fecha de ingreso</div><div class="val" id="dFechaIngreso">—</div></div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">2</span> Resumen académico <span style="font-weight:600;color:#6B7280;font-size:0.8rem;font-family:var(--font-b)" id="rPeriodo">—</span></div>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr><th>Área</th><th>Materia</th><th>Promedio</th><th>Fallas</th></tr>
+            </thead>
+            <tbody id="tbodyMaterias"></tbody>
+          </table>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="num" id="rPromedio">—</div><div class="lbl">Promedio general</div></div>
+          <div class="stat"><div class="num" id="rFallas">0</div><div class="lbl">Fallas (ausencias)</div></div>
+          <div class="stat"><div class="num" id="rPresentes">0</div><div class="lbl">Presentes</div></div>
+          <div class="stat"><div class="num" id="rRetardos">0</div><div class="lbl">Retardos</div></div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">3</span> Acudiente</div>
+        <div id="bloqueAcudiente">
+          <div class="dato-fila"><span class="k">Nombre completo</span><span id="aNombre">—</span></div>
+          <div class="dato-fila"><span class="k">Parentesco</span><span id="aParentesco">—</span></div>
+          <div class="dato-fila"><span class="k">Teléfono</span><span id="aTelefono">—</span></div>
+          <div class="dato-fila"><span class="k">Correo</span><span id="aEmail">—</span></div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">4</span> Expediente</div>
+        <div class="stats" style="grid-template-columns:repeat(2,1fr)">
+          <div class="stat"><div class="num" id="cCompromisos">0</div><div class="lbl">Compromisos</div></div>
+          <div class="stat"><div class="num" id="cObservaciones">0</div><div class="lbl">Observaciones</div></div>
+        </div>
+      </div>
+
+      <!-- ―― PÁGINA 2: COMPROMISO ―― -->
+      <div class="hoja" id="hoja2" style="display:none" data-activa="false">
+        <div class="titulo-seccion"><span class="num">1</span> Registro de compromiso</div>
+        <p style="font-size:0.88rem;color:#4B5563;margin-bottom:0.6rem">
+          Registro académico o de convivencia que compromete al estudiante a mejorar
+          un desempeño o comportamiento puntual, con fecha y estado de seguimiento.
+        </p>
+
+        <div id="notaGestion2" class="nota-gestion" style="display:none">
+          Estás en modo <b>solo lectura</b>: como estudiante o acudiente puedes consultar el
+          reporte, pero solo el admin o un docente del curso puede registrar compromisos.
+        </div>
+
+        <div id="formCompromisoWrap" style="display:none">
+          <div class="form-hoja">
+            <h3>Nuevo compromiso</h3>
+            <form id="formCompromiso">
+              <div class="form-grid">
+                <div class="campo field-1">
+                  <label>Motivo *</label>
+                  <input id="cMotivo" type="text" placeholder="Ej.: Dificultades en matemáticas" required maxlength="150" />
+                </div>
+                <div class="campo field-2">
+                  <label>Fecha del compromiso</label>
+                  <input id="cFecha" type="date" />
+                </div>
+                <div class="campo field-3">
+                  <label>Fecha límite</label>
+                  <input id="cFechaLimite" type="date" />
+                </div>
+                <div class="campo full">
+                  <label>Observación</label>
+                  <textarea id="cObservacion" placeholder="Observación del docente o admin (opcional)"></textarea>
+                </div>
+                <div class="campo full">
+                  <label>Compromiso *</label>
+                  <textarea id="cCompromiso" placeholder="Descripción del compromiso acordado con el estudiante" required></textarea>
+                </div>
+              </div>
+              <button class="btn-primary" type="submit">Registrar compromiso</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">2</span> Compromisos registrados</div>
+        <div class="lista" id="listaCompromisos"></div>
+      </div>
+
+      <!-- ―― PÁGINA 3: OBSERVACIONES ―― -->
+      <div class="hoja" id="hoja3" style="display:none" data-activa="false">
+        <div class="titulo-seccion"><span class="num">1</span> Registrar observación</div>
+        <p style="font-size:0.88rem;color:#4B5563;margin-bottom:0.6rem">
+          Observaciones académicas, de comportamiento o positivas, ordenadas de la más reciente a la más antigua.
+        </p>
+
+        <div id="notaGestion3" class="nota-gestion" style="display:none">
+          Estás en modo <b>solo lectura</b>: como estudiante o acudiente solo puedes consultar las observaciones.
+        </div>
+
+        <div id="formObsWrap" style="display:none">
+          <div class="form-hoja">
+            <h3>Nueva observación</h3>
+            <form id="formObservacion">
+              <div class="form-grid">
+                <div class="campo">
+                  <label>Tipo</label>
+                  <select id="oTipo">
+                    <option value="general">General</option>
+                    <option value="academica">Académica</option>
+                    <option value="comportamiento">Comportamiento</option>
+                    <option value="positiva">Positiva</option>
+                  </select>
+                </div>
+                <div class="campo full">
+                  <label>Observación *</label>
+                  <textarea id="oTexto" placeholder="Describa la observación" required></textarea>
+                </div>
+              </div>
+              <button class="btn-primary" type="submit">Registrar observación</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="titulo-seccion"><span class="num">2</span> Observaciones del estudiante</div>
+        <div class="lista" id="listaObservaciones"></div>
+      </div>
+
+      <!-- ―― PÁGINA 4: PÁGINAS PERSONALIZADAS ―― -->
+      <div class="hoja" id="hoja4" style="display:none" data-activa="false">
+        <div class="titulo-seccion"><span class="num">★</span> Páginas personalizadas</div>
+        <p style="font-size:0.88rem;color:#4B5563;margin-bottom:0.4rem">
+          Páginas adicionales con bloques de texto y cuadros que se agregan al final
+          del reporte cuando lo descargas o imprimes.
+        </p>
+
+        <div id="notaGestion4" class="nota-gestion" style="display:none">
+          Estás en modo <b>solo lectura</b>: puedes consultar las páginas, pero solo el
+          admin o un docente del curso puede editarlas.
+        </div>
+
+        <div id="paginasWrap"></div>
+
+        <div id="btnNuevaPagina" style="display:none;margin-top:0.6rem">
+          <button class="btn-primary" onclick="nuevaPagina()">+ Nueva página personalizada</button>
+        </div>
+      </div>
+
+      <!-- ―― PÁGINA 5: CERTIFICADOS Y CONSTANCIAS (PUNTO 6) ―― -->
+      <div class="hoja" id="hoja5" style="display:none" data-activa="false">
+        <div class="titulo-seccion"><span class="num">★</span> Certificados y constancias</div>
+        <p style="font-size:0.88rem;color:#4B5563;margin-bottom:0.4rem">
+          Documentos oficiales firmados y con número de consecutivo. Cada expedición
+          queda en el historial para re-descargarla. Quien firma se configura abajo.
+        </p>
+
+        <div id="notaGestion5" class="nota-gestion" style="display:none">
+          Estás en modo <b>solo lectura</b>: puedes descargar los certificados ya
+          expedidos, pero solo el admin o un docente del curso puede generarlos.
+        </div>
+
+        <div id="certAcciones" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:0.4rem">
+            <div class="item">
+              <div class="motivo">Constancia de estudio</div>
+              <div class="cuerpo">Certifica que el estudiante cursa el grado actual en el año lectivo.</div>
+              <div class="acciones">
+                <button class="btn-xs btn-xs-cumplir" onclick="generarCertificado('estudio')">Expedir PDF</button>
+              </div>
+            </div>
+            <div class="item">
+              <div class="motivo">Certificado de notas</div>
+              <div class="cuerpo">Materias, notas y promedio del periodo académico activo.</div>
+              <div class="acciones">
+                <button class="btn-xs btn-xs-cumplir" onclick="generarCertificado('notas')">Expedir PDF</button>
+              </div>
+            </div>
+            <div class="item">
+              <div class="motivo">Paz y salvo académico</div>
+              <div class="cuerpo">Solo si no hay compromisos pendientes ni observaciones sin resolver.</div>
+              <div class="acciones">
+                <button class="btn-xs btn-xs-cumplir" onclick="generarCertificado('paz_y_salvo')">Expedir PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="formFirmaWrap" style="display:none;margin-top:0.8rem">
+          <div class="form-hoja">
+            <h3>Quién firma los certificados</h3>
+            <form id="formFirma">
+              <div class="form-grid">
+                <div class="campo field-1">
+                  <label>Nombre de quien firma *</label>
+                  <input id="firmaNombre" type="text" placeholder="Ej.: Martha Cecilia Pérez" maxlength="150" required />
+                </div>
+                <div class="campo field-2">
+                  <label>Cargo</label>
+                  <input id="firmaCargo" type="text" placeholder="Ej.: Rectora" maxlength="120" />
+                </div>
+                <div class="campo field-3">
+                  <label>Documento de identidad</label>
+                  <input id="firmaDoc" type="text" placeholder="Ej.: CC 123456789" maxlength="20" />
+                </div>
+              </div>
+              <button class="btn-primary" type="submit">Guardar firma</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="titulo-seccion" style="margin-top:1.2rem"><span class="num">↺</span> Historial de certificados</div>
+        <div id="listaCertificados"></div>
+      </div>
+      <div id="paginasSecciones"></div>
+    </div>
+
+    <div class="pie">Documento generado por SIA · <span id="pieInst">Sistema de Información Académica</span></div>
+  </div>
+
+  <!-- Ronda C5: selector de secciones para descargar -->
+  <div id="dlModal" role="dialog" aria-modal="true">
+    <div class="dlm">
+      <h3>Descargar secciones</h3>
+      <p class="dlm-sub">Marca qué páginas y registros incluir. Cada compromiso y observación se descarga en su propia hoja con su formato.</p>
+      <div id="dlOpciones"></div>
+      <div class="dlm-btns">
+        <button type="button" onclick="dlMarcarTodo(true)">Marcar todo</button>
+        <button type="button" onclick="dlMarcarTodo(false)">Desmarcar todo</button>
+        <div class="dlm-fmt">
+          <label><input type="radio" name="dlFormato" value="pdf" checked /> PDF</label>
+          <label><input type="radio" name="dlFormato" value="word" /> Word</label>
+        </div>
+        <span style="flex:1"></span>
+        <button type="button" onclick="cerrarSelectorDescarga()">Cancelar</button>
+        <button type="button" class="dlm-ok" onclick="dlDescargar()">Descargar</button>
+      </div>
+    </div>
+  </div>
+
+<script src="sia-identidad.js"></script>
+<script>
+  (function () {
+    var API = window.location.origin;
+    var token = sessionStorage.getItem('sia_token');
+    if (!token) { window.location.href = 'login.html'; return; }
+
+    var usuario = null;
+    try { usuario = JSON.parse(sessionStorage.getItem('sia_usuario') || 'null'); } catch (e) { usuario = null; }
+    var rol = (usuario && usuario.rol) ? usuario.rol : '';
+    var params = new URLSearchParams(window.location.search);
+    var estudianteIdActual = params.get('estudiante') || null;
+    var puedeGestionar = false;
+
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function fmtFecha(s) {
+      if (!s) return '—';
+      var d = new Date(s + (String(s).length === 10 ? 'T00:00:00' : ''));
+      if (isNaN(d.getTime())) return s;
+      return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    function fmtFechaH(s) {
+      if (!s) return '—';
+      var d = new Date(s);
+      if (isNaN(d.getTime())) return s;
+      return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    }
+    function api(url, opts) {
+      opts = opts || {};
+      opts.headers = opts.headers || {};
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      if (opts.body && typeof opts.body !== 'string') {
+        opts.body = JSON.stringify(opts.body);
+        opts.headers['Content-Type'] = 'application/json';
+      }
+      return fetch(API + url, opts).then(function (r) {
+        return r.json().catch(function () { return { ok: false, mensaje: 'Respuesta no válida del servidor.' }; });
+      });
+    }
+
+    function verError(mensaje, info) {
+      var el = document.getElementById('avisoError');
+      el.textContent = mensaje;
+      el.style.display = 'block';
+      if (info) { el.classList.add('aviso-info'); document.getElementById('sinDatos').style.display = 'none'; }
+      else { el.className = 'aviso'; }
+      document.getElementById('cargando').style.display = 'none';
+      document.getElementById('reporteWrap').style.display = 'none';
+    }
+
+    function mostrarAvance(txt) {
+      var el = document.getElementById('avisoError');
+      el.className = 'aviso aviso-info'; el.style.display = 'block';
+      el.textContent = txt || '';
+    }
+
+    window.mostrarTab = function (n) {
+      for (var i = 1; i <= 5; i++) {
+        var hoja = document.getElementById('hoja' + i);
+        if (hoja) {
+          hoja.style.display = i === n ? '' : 'none';
+          hoja.setAttribute('data-activa', i === n ? 'true' : 'false');
+        }
+      }
+      var haz = document.querySelectorAll('#paginasSecciones .hoja');
+      for (var j = 0; j < haz.length; j++) haz[j].style.display = 'none';
+      var contTabs = document.querySelectorAll('#tabsPaginas .tab-btn');
+      for (var t = 0; t < contTabs.length; t++) contTabs[t].classList.remove('activo');
+      var activo = [null, 'tabBtn1', 'tabBtn2', 'tabBtn3', 'tabBtn4', 'tabBtn5'][n];
+      ['tabBtn1', 'tabBtn2', 'tabBtn3', 'tabBtn4', 'tabBtn5'].forEach(function (id) {
+        document.getElementById(id).classList.toggle('activo', id === activo);
+      });
+      if (n === 1 && estudianteIdActual && !refrescandoDatos &&
+          document.getElementById('reporteWrap').style.display !== 'none') {
+        refrescarDatos();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    var refrescandoDatos = false;
+    function refrescarDatos() {
+      refrescandoDatos = true;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual)).then(function (r) {
+        refrescandoDatos = false;
+        if (!r.ok || !r.estudiante) return;
+        puedeGestionar = !!r.puede_gestionar;
+        pintarDatos(r);
+        cargarPaginas(true);
+      }).catch(function () { refrescandoDatos = false; });
+    }
+
+    // Descarga PDF/Word por página o todas (punto 3).
+    window.descargarReporte = function (formato, paginas) {
+      if (!estudianteIdActual) return;
+      var url = '/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) +
+        '/imprimir?formato=' + encodeURIComponent(formato) + '&paginas=' + encodeURIComponent(paginas);
+      fetch(API + url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (j) {
+              throw new Error(j.mensaje || 'No se pudo descargar el reporte.');
+            });
+          }
+          var cd = r.headers.get('Content-Disposition') || '';
+          var m = cd.match(/filename="([^"]+)"/);
+          var nombre = m ? m[1] : ('reporte.' + (formato === 'pdf' ? 'pdf' : 'doc'));
+          return r.blob().then(function (blob) {
+            var a = document.createElement('a');
+            var u = URL.createObjectURL(blob);
+            a.href = u;
+            a.download = nombre;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(function () { URL.revokeObjectURL(u); }, 3000);
+          });
+        })
+        .catch(function (e) { alert(e && e.message ? e.message : 'Error al descargar el reporte.'); });
+    };
+
+    // ── Ronda C5: selector de secciones para descargar ───────
+    function dlOpcionesGuion() {
+      var c = listaCompromisosCache, o = listaObservacionesCache;
+      var html = '';
+      html += '<div class="dlm-grupo"><div class="dlm-t">Páginas del reporte</div>' +
+        '<label class="dlm-item"><input type="checkbox" data-ref="1" checked /> Datos y resumen</label>' +
+        '<label class="dlm-item"><input type="checkbox" data-ref="2" checked /> Compromisos <span class="dlm-sub2">(' + c.length + ')</span></label>' +
+        '<label class="dlm-item"><input type="checkbox" data-ref="3" checked /> Observaciones <span class="dlm-sub2">(' + o.length + ')</span></label>';
+      if (paginas.length) {
+        html += paginas.filter(function (p) { return p.id; }).map(function (p) {
+          return '<label class="dlm-item"><input type="checkbox" data-ref="pg:' + p.id + '" checked /> ' + esc(p.nombre || 'Página personalizada') + '<span class="dlm-sub2">(personalizada)</span></label>';
+        }).join('');
+      }
+      html += '</div>';
+      if (c.length) {
+        html += '<div class="dlm-grupo"><div class="dlm-t">Compromisos (hoja individual)</div>' +
+          c.map(function (x) {
+            return '<label class="dlm-item"><input type="checkbox" data-ref="c:' + x.id + '" /> ' + esc(x.motivo) + '</label>';
+          }).join('') + '</div>';
+      }
+      if (o.length) {
+        html += '<div class="dlm-grupo"><div class="dlm-t">Observaciones (hoja individual)</div>' +
+          o.map(function (x) {
+            var t = { academica: 'Académica', comportamiento: 'Comportamiento', positiva: 'Positiva', general: 'General' }[x.tipo] || x.tipo;
+            return '<label class="dlm-item"><input type="checkbox" data-ref="o:' + x.id + '" /> ' + esc(t) + ' · ' + esc((x.observacion || '').slice(0, 60)) + '</label>';
+          }).join('') + '</div>';
+      }
+      return html;
+    }
+
+    window.abrirSelectorDescarga = function () {
+      var modal = document.getElementById('dlModal');
+      if (!modal || !estudianteIdActual) return;
+      document.getElementById('dlOpciones').innerHTML = dlOpcionesGuion();
+      modal.classList.add('abierto');
+    };
+
+    window.cerrarSelectorDescarga = function () {
+      document.getElementById('dlModal').classList.remove('abierto');
+    };
+
+    window.dlMarcarTodo = function (marcar) {
+      document.querySelectorAll('#dlOpciones input[type="checkbox"]').forEach(function (cb) {
+        cb.checked = !!marcar;
+      });
+    };
+
+    window.dlDescargar = function () {
+      var formato = document.querySelector('input[name="dlFormato"]:checked');
+      formato = formato && formato.value === 'word' ? 'word' : 'pdf';
+      var refs = Array.prototype.slice.call(document.querySelectorAll('#dlOpciones input[type="checkbox"]:checked'))
+        .map(function (cb) { return cb.getAttribute('data-ref'); });
+      cerrarSelectorDescarga();
+      if (!refs.length) { alert('Marca al menos una sección.'); return; }
+      descargarReporte(formato, refs.length === 1 ? refs[0] : refs.join(','));
+    };
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrarSelectorDescarga();
+    });
+
+    // ── Punto 6: certificados y constancias ────────────────
+    function descargarUrl(url, nombrePorDefecto) {
+      fetch(API + url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (j) { throw new Error(j.mensaje || 'No se pudo descargar el archivo.'); });
+          }
+          var cd = r.headers.get('Content-Disposition') || '';
+          var m = cd.match(/filename="([^"]+)"/);
+          var nombre = m ? m[1] : nombrePorDefecto;
+          return r.blob().then(function (blob) {
+            var a = document.createElement('a');
+            var u = URL.createObjectURL(blob);
+            a.href = u;
+            a.download = nombre;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(function () { URL.revokeObjectURL(u); }, 3000);
+          });
+        })
+        .catch(function (e) { alert(e && e.message ? e.message : 'Error al descargar.'); });
+    }
+
+    var ETQ_CERTIFICADO = { estudio: 'Constancia de estudio', notas: 'Certificado de notas', paz_y_salvo: 'Paz y salvo académico' };
+
+    function cargarCertificados() {
+      if (!estudianteIdActual) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/certificados').then(function (r) {
+        var cont = document.getElementById('listaCertificados');
+        if (!r.ok) {
+          cont.innerHTML = '<div class="vacio">No se pudieron cargar los certificados.</div>';
+          return;
+        }
+
+        var gestion = puedeGestionar;
+        document.getElementById('notaGestion5').style.display = gestion ? 'none' : '';
+        document.getElementById('certAcciones').style.display = gestion ? '' : 'none';
+
+        var editable = !!r.editable;
+        document.getElementById('formFirmaWrap').style.display = editable ? '' : 'none';
+        if (editable && r.firma) {
+          document.getElementById('firmaNombre').value = r.firma.nombre_firma || '';
+          document.getElementById('firmaCargo').value = r.firma.cargo_firma || '';
+          document.getElementById('firmaDoc').value = r.firma.documento_firma || '';
+        }
+
+        if (!r.certificados || !r.certificados.length) {
+          cont.innerHTML = '<div class="vacio">No hay certificados expedidos para este estudiante.</div>';
+          return;
+        }
+        cont.innerHTML = r.certificados.map(function (c) {
+          return '<div class="item">' +
+            '<div class="cab"><span class="motivo">' + esc(c.tipo_titulo) + ' · ' + esc(c.consecutivo) + '</span>' +
+            '<span class="badge badge-lbl">Año ' + c.anio_lectivo + '</span></div>' +
+            '<div class="meta">Expedido el ' + fmtFechaH(c.created_at) + ' · Generado por: ' + esc(c.generado_por) + '</div>' +
+            '<div class="acciones"><button class="btn-xs btn-xs-cumplir" onclick="descargarCertificado(\'' + c.id + '\')">Descargar PDF</button></div>' +
+          '</div>';
+        }).join('');
+      });
+    }
+
+    window.descargarCertificado = function (id) {
+      descargarUrl('/api/reportes/certificados/' + encodeURIComponent(id) + '/descargar', 'certificado.pdf');
+    };
+
+    window.generarCertificado = function (tipo) {
+      if (!estudianteIdActual || !puedeGestionar) return;
+      var btns = document.querySelectorAll('#certAcciones .btn-xs');
+      btns.forEach(function (b) { b.disabled = true; });
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/certificado/' + encodeURIComponent(tipo))
+        .then(function (r) {
+          if (!r.ok) { alert(r.mensaje || 'No se pudo generar el certificado.'); return; }
+          if (r.descarga_url) descargarUrl(r.descarga_url, 'certificado_' + tipo + '.pdf');
+          cargarCertificados();
+        })
+        .finally(function () {
+          btns.forEach(function (b) { b.disabled = false; });
+        });
+    };
+
+    document.getElementById('formFirma').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      api('/api/reportes/certificados/firma', {
+        method: 'PUT',
+        body: {
+          nombre_firma: document.getElementById('firmaNombre').value,
+          cargo_firma: document.getElementById('firmaCargo').value,
+          documento_firma: document.getElementById('firmaDoc').value,
+        },
+      }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo guardar la firma.'); return; }
+        alert('Datos de firma guardados. Úsalos en los próximos certificados.');
+      });
+    });
+
+    // ── Punto 4: páginas personalizadas (mini-maquetador) ─────
+    var paginas = [];
+    var listaCompromisosCache = [];
+    var listaObservacionesCache = [];
+    var ETQ_BLOQUE = { titulo: 'Título', parrafo: 'Párrafo', lista: 'Lista', tabla: 'Cuadro', caja: 'Caja gris', linea: 'Línea', cuadro_num: 'Cuadro numerado' };
+
+    function etiquetaBloque(t) { return ETQ_BLOQUE[t] || t; }
+
+    function bloquePorDefecto(tipo) {
+      if (tipo === 'titulo') return { tipo: 'titulo', nivel: 2, texto: 'Título de la sección', alineacion: 'left', negrita: true, cursiva: false, color: '#111827' };
+      if (tipo === 'parrafo') return { tipo: 'parrafo', texto: '', alineacion: 'left', tamano: 'normal', negrita: false, cursiva: false, color: '#111827' };
+      if (tipo === 'lista') return { tipo: 'lista', items: ['Item 1', 'Item 2', 'Item 3'], ordenada: false, alineacion: 'left', tamano: 'normal', color: '#111827' };
+      if (tipo === 'caja') return { tipo: 'caja', texto: '', alineacion: 'left', tamano: 'normal', color: '#111827', fondo: '#f3f4f6', negrita: false, cursiva: false };
+      if (tipo === 'linea') return { tipo: 'linea', color: '#9ca3af', grosor: 2 };
+      if (tipo === 'cuadro_num') return { tipo: 'cuadro_num', numero: '1', texto: '', color: '#111827' };
+      return { tipo: 'tabla', filas: 3, columnas: 3, celdas: [], fondo: '#ffffff', bordes: '#d1d5db' };
+    }
+
+    function generaCeldas(b) {
+      var n = b.filas * b.columnas;
+      while (b.celdas.length < n) b.celdas.push({ v: '', a: 'left', c: '#111827' });
+      b.celdas.length = n;
+      return b.celdas;
+    }
+
+    function renderBloqueHTML(b) {
+      var al = b.alineacion || 'left';
+      if (b.tipo === 'titulo') {
+        var n = b.nivel || 2;
+        var t1 = n === 1 ? '1.6rem' : n === 2 ? '1.2rem' : '1rem';
+        var e1 = 'text-align:' + al + ';color:' + (b.color || '#111827') + ';font-size:' + t1 + ';margin:8px 0 4px;font-family:var(--font-d);' +
+          (b.negrita ? 'font-weight:800;' : 'font-weight:700;') + (b.cursiva ? 'font-style:italic;' : '');
+        return '<div style="' + e1 + '">' + esc(b.texto || '') + '</div>';
+      }
+      if (b.tipo === 'parrafo') {
+        var t2 = b.tamano === 'pequeno' ? '0.8rem' : b.tamano === 'grande' ? '1.1rem' : '0.95rem';
+        var e2 = 'text-align:' + al + ';color:' + (b.color || '#111827') + ';font-size:' + t2 + ';margin:4px 0;white-space:pre-wrap;' +
+          (b.negrita ? 'font-weight:700;' : '') + (b.cursiva ? 'font-style:italic;' : '');
+        return '<div style="' + e2 + '">' + esc(b.texto || '') + '</div>';
+      }
+      if (b.tipo === 'lista') {
+        var t3 = b.tamano === 'pequeno' ? '0.8rem' : b.tamano === 'grande' ? '1.05rem' : '0.92rem';
+        var tag = b.ordenada ? 'ol' : 'ul';
+        var items = (b.items || []).filter(function (x) { return x !== ''; });
+        if (!items.length) return '<div style="text-align:' + al + ';color:#9CA3AF;font-size:0.85rem;font-style:italic">Lista vacía</div>';
+        var lis = '<' + tag + ' style="text-align:' + al + ';color:' + (b.color || '#111827') + ';font-size:' + t3 + ';margin:4px 0 4px 24px;padding:0;">';
+        lis += items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('');
+        return lis + '</' + tag + '>';
+      }
+      if (b.tipo === 'tabla') {
+        var celdas = generaCeldas(b);
+        var ancho = Math.floor(100 / Math.max(1, b.columnas));
+        var h = '<table style="border-collapse:collapse;width:100%;background:' + (b.fondo || '#ffffff') + ';margin:6px 0;">';
+        for (var r = 0; r < b.filas; r++) {
+          h += '<tr>';
+          for (var c = 0; c < b.columnas; c++) {
+            var cel = celdas[r * b.columnas + c];
+            h += '<td style="border:1px solid ' + (b.bordes || '#d1d5db') + ';padding:5px 7px;width:' + ancho + '%;text-align:' + (cel.a || 'left') + ';color:' + (cel.c || '#111827') + ';font-size:0.85rem;">' + esc(cel.v || '') + '</td>';
+          }
+          h += '</tr>';
+        }
+        return h + '</table>';
+      }
+      if (b.tipo === 'caja') {
+        var t4 = b.tamano === 'pequeno' ? '0.8rem' : b.tamano === 'grande' ? '1.05rem' : '0.92rem';
+        var e4 = 'background:' + (b.fondo || '#f3f4f6') + ';border-radius:6px;padding:10px 14px;text-align:' + al + ';color:' + (b.color || '#111827') + ';font-size:' + t4 + ';white-space:pre-wrap;' +
+          (b.negrita ? 'font-weight:700;' : '') + (b.cursiva ? 'font-style:italic;' : '');
+        return '<div style="' + e4 + '">' + esc(b.texto || '') + '</div>';
+      }
+      if (b.tipo === 'linea') {
+        var g = Math.min(6, Math.max(1, Number(b.grosor) || 2));
+        return '<hr style="border:none;border-top:' + g + 'px solid ' + (b.color || '#9ca3af') + ';margin:10px 0;" />';
+      }
+      if (b.tipo === 'cuadro_num') {
+        var bc = b.color || '#111827';
+        var etq = esc(b.numero || '');
+        var txr = esc(b.texto || '');
+        return '<span style="display:inline-block;background:' + bc + ';color:#fff;border-radius:6px;padding:5px 12px;font-size:0.9rem;">' +
+          (etq ? '<span style="font-weight:800;font-size:1.05rem;margin-right:6px">' + etq + '</span>' : '') + txr + '</span>';
+      }
+      return '';
+    }
+
+    function opciones(lista, actual) {
+      return lista.map(function (o) {
+        return '<option value="' + o + '"' + (o === actual ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+    }
+
+    function celdaEditorTabla(b, pi, bi) {
+      var celdas = generaCeldas(b);
+      var h = '<table class="tabla-celdas">';
+      for (var r = 0; r < b.filas; r++) {
+        h += '<tr>';
+        for (var c = 0; c < b.columnas; c++) {
+          var idx = r * b.columnas + c;
+          var cel = celdas[idx];
+          h += '<td>' +
+            '<input type="text" id="edCelda' + pi + '_' + bi + '_' + idx + '" value="' + esc(cel.v || '') + '" placeholder="Celda ' + (idx + 1) + '" />' +
+            '<select id="edCela' + pi + '_' + bi + '_' + idx + '">' + opciones(['left', 'center', 'right'], cel.a || 'left') + '</select>' +
+            '</td>';
+        }
+        h += '</tr>';
+      }
+      return h + '</table><div style="font-size:0.7rem;color:#9CA3AF;margin-top:4px">Edita el texto de cada celda; la alineación se aplica por celda.</div>';
+    }
+
+    function editorBloqueHTML(b, pi, bi) {
+      var lyl = '<label>Alineación</label><select id="bAlign">' + opciones(['left', 'center', 'right'], b.alineacion || 'left') + '</select>';
+      var cb = '<label>Color</label><input type="color" id="bColor" value="' + (b.color || '#111827') + '" style="width:46px" />';
+      var chk = function (id, v, txt) {
+        return '<div class="campo small" style="flex:0 0 auto;min-width:0"><label style="margin-bottom:0">&nbsp;</label><label class="ck"><input type="checkbox" id="' + id + '"' + (v ? ' checked' : '') + ' style="width:auto"> ' + txt + '</label></div>';
+      };
+      var h = '<div class="editor-fila">';
+      if (b.tipo === 'titulo') {
+        h += '<div class="campo small"><label>Nivel</label><select id="bNivel">' +
+          '<option value="1"' + (b.nivel === 1 ? ' selected' : '') + '>H1 (grande)</option>' +
+          '<option value="2"' + (b.nivel === 2 ? ' selected' : '') + '>H2</option>' +
+          '<option value="3"' + (b.nivel === 3 ? ' selected' : '') + '>H3 (pequeño)</option></select></div>';
+        h += '<div class="campo"><label>Texto *</label><input type="text" id="bTexto" value="' + esc(b.texto || '') + '" /></div>';
+      } else if (b.tipo === 'parrafo') {
+        h += '<div class="campo small"><label>Tamaño</label><select id="bTamano">' + opciones(['pequeno', 'normal', 'grande'], b.tamano || 'normal') + '</select></div>';
+        h += '<div class="campo"><label>Texto</label><textarea id="bTexto" rows="3">' + esc(b.texto || '') + '</textarea></div>';
+      } else if (b.tipo === 'lista') {
+        h += '<div class="campo small"><label>Tamaño</label><select id="bTamano">' + opciones(['pequeno', 'normal', 'grande'], b.tamano || 'normal') + '</select></div>';
+        h += '<div class="campo"><label>Ítems (uno por línea)</label><textarea id="bItems" rows="4">' + esc((b.items || []).join('\n')) + '</textarea></div>';
+        h += chk('bOrdenada', b.ordenada, 'Numerada');
+      } else if (b.tipo === 'caja') {
+        h += '<div class="campo small"><label>Tamaño</label><select id="bTamano">' + opciones(['pequeno', 'normal', 'grande'], b.tamano || 'normal') + '</select></div>';
+        h += '<div class="campo"><label>Texto</label><textarea id="bTexto" rows="3">' + esc(b.texto || '') + '</textarea></div>';
+        h += '<div class="campo small"><label>Fondo</label><input type="color" id="bFondo" value="' + (b.fondo || '#f3f4f6') + '" /></div>';
+      } else if (b.tipo === 'linea') {
+        h += '<div class="campo small"><label>Grosor</label><input type="number" id="bGrosor" min="1" max="6" value="' + (b.grosor || 2) + '" /></div>';
+      } else if (b.tipo === 'cuadro_num') {
+        h += '<div class="campo small"><label>Número</label><input type="text" id="bNumero" value="' + esc(b.numero || '') + '" /></div>';
+        h += '<div class="campo"><label>Texto</label><input type="text" id="bTexto" value="' + esc(b.texto || '') + '" /></div>';
+      } else {
+        h += '<div class="campo small"><label>Filas</label><input type="number" id="bFilas" min="1" max="20" value="' + b.filas + '" /></div>';
+        h += '<div class="campo small"><label>Columnas</label><input type="number" id="bColumnas" min="1" max="10" value="' + b.columnas + '" /></div>';
+        h += '<div class="campo small"><label>Fondo</label><input type="color" id="bFondo" value="' + (b.fondo || '#ffffff') + '" /></div>';
+        h += '<div class="campo small"><label>Bordes</label><input type="color" id="bBordes" value="' + (b.bordes || '#d1d5db') + '" /></div>';
+      }
+      h += '<div class="campo small">' + lyl + '</div><div class="campo small">' + cb + '</div>';
+      h += chk('bNegrita', b.negrita, 'Negrita');
+      h += chk('bCursiva', b.cursiva, 'Cursiva');
+      h += '</div>';
+      if (b.tipo === 'tabla') h += celdaEditorTabla(b, pi, bi);
+      h += '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">';
+      h += '<button type="button" class="btn-primary" style="margin-top:0" onclick="guardarBloque(' + pi + ',' + bi + ')">Aplicar</button>';
+      h += '<button type="button" class="btn-bloque btn-gris" onclick="cerrarEditorBloque(' + pi + ',' + bi + ')">Cancelar</button>';
+      h += '</div>';
+      return h;
+    }
+
+    function pintarBloque(b, pi, bi) {
+      var tools = '';
+      if (puedeGestionar) {
+        tools = '<div class="bloque-herramientas">' +
+          '<button class="herramienta" onclick="moverBloque(' + pi + ',' + bi + ',-1)" title="Subir">↑</button>' +
+          '<button class="herramienta" onclick="moverBloque(' + pi + ',' + bi + ',1)" title="Bajar">↓</button>' +
+          '<button class="herramienta" onclick="duplicarBloque(' + pi + ',' + bi + ')" title="Duplicar">⧉</button>' +
+          '<button class="herramienta" onclick="abrirEditorBloque(' + pi + ',' + bi + ')" title="Editar">✎</button>' +
+          '<button class="herramienta rojo" onclick="eliminarBloque(' + pi + ',' + bi + ')" title="Eliminar">✕</button>' +
+        '</div>';
+      }
+      var edit = b._editando ? '<div class="bloque-editor"><h4>Editando bloque (' + etiquetaBloque(b.tipo) + ')</h4>' + editorBloqueHTML(b, pi, bi) + '</div>' : '';
+      return '<div class="bloque' + (b._editando ? ' editando' : '') + '">' + tools +
+        '<div class="bloque-cmp">' + renderBloqueHTML(b) + '</div>' + edit + '</div>';
+    }
+
+    function pintarDescargasPaginas() {
+      var cont = document.getElementById('dlPersonalizadas');
+      if (!paginas.length) {
+        cont.style.display = 'none';
+        cont.innerHTML = '';
+        return;
+      }
+      var btns = paginas.map(function (p, i) {
+        if (!p.id) return '';
+        return '<button class="dl-btn" onclick="descargarReporte(\'pdf\',\'' + p.id + '\')" title="' + esc(p.nombre || 'Página') + ' (PDF)">' + esc((p.nombre || 'Página ' + (i + 1)).slice(0, 18)) + '</button>';
+      }).join('');
+      cont.style.display = 'flex';
+      cont.innerHTML = '<span class="dl-nombre">Pers.</span>' + btns;
+    }
+
+    function pintarPaginas() {
+      var wrap = document.getElementById('paginasWrap');
+      if (!paginas.length) {
+        wrap.innerHTML = '<div class="sin-paginas">No hay páginas personalizadas' + (puedeGestionar ? '. Usa el botón "Nueva página personalizada".' : '.') + '</div>';
+      } else {
+        wrap.innerHTML = paginas.map(function (p, i) {
+          var bloques = (p.contenido || []).map(function (b, bi) { return pintarBloque(b, i, bi); }).join('');
+          var cabNombre = puedeGestionar
+            ? '<input class="pag-nombre" id="pgNombre' + i + '" value="' + esc(p.nombre || '') + '" maxlength="120" onchange="cambiarNombrePagina(' + i + ', this.value)" />'
+            : '<input class="pag-nombre" value="' + esc(p.nombre || '') + '" disabled style="border:none;background:transparent;padding:0" />';
+          return '<div class="pagina-card">' +
+            '<div class="pag-cab">' + cabNombre +
+            '<span class="badge badge-lbl">Página adicional</span>' +
+            (puedeGestionar
+              ? '<div class="pag-cab-acciones">' +
+                '<button class="btn-xs btn-xs-cumplir" onclick="guardarPagina(' + i + ')">Guardar</button>' +
+                '<button class="btn-xs btn-xs-danger" onclick="eliminarPagina(' + i + ')">Eliminar</button>' +
+                '</div>'
+              : '') +
+            '</div>' +
+            '<div class="dock">' + bloques + '</div>' +
+            (puedeGestionar
+              ? '<div class="pag-footer"><span class="etq">Agregar bloque:</span>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'titulo\')">Título</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'parrafo\')">Párrafo</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'lista\')">Lista</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'tabla\')">Cuadro</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'caja\')">Caja gris</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'linea\')">Línea</button>' +
+                '<button class="btn-bloque" onclick="agregarBloque(' + i + ',\'cuadro_num\')">Cuadro numerado</button></div>'
+              : '') +
+            '</div>';
+        }).join('');
+      }
+      pintarDescargasPaginas();
+    }
+
+    window.nuevaPagina = function () {
+      var nombre = String(window.prompt('Nombre de la nueva página:', '')).trim();
+      if (!nombre) nombre = 'Página personalizada';
+      var orden = paginas.length ? Math.max.apply(null, paginas.map(function (p) { return p.orden || 0; })) + 1 : 1;
+      paginas.push({ _nueva: true, nombre: nombre, orden: orden, contenido: [bloquePorDefecto('titulo')] });
+      pintarPaginas();
+      var inp = document.getElementById('pgNombre' + (paginas.length - 1));
+      if (inp) setTimeout(function () { inp.focus(); }, 50);
+    };
+
+    window.cambiarNombrePagina = function (pi, valor) {
+      paginas[pi].nombre = valor;
+      marcarSucio(pi);
+      pintarTabsPaginas();
+      pintarSeccionesPaginas();
+    };
+
+    window.guardarPagina = function (pi) {
+      var p = paginas[pi];
+      var titulo = (p.nombre || '').trim() || 'Página personalizada';
+      var cuerpo = { titulo: titulo, contenido: p.contenido };
+      var url = '/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/paginas';
+      var metodo = 'POST';
+      if (!p._nueva) { url += '/' + encodeURIComponent(p.id); metodo = 'PUT'; }
+      api(url, { method: metodo, body: cuerpo }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo guardar la página.'); return; }
+        p._nueva = false;
+        p._sucio = false;
+        cargarPaginas(true);
+      });
+    };
+
+    window.eliminarPagina = function (pi) {
+      var p = paginas[pi];
+      if (!confirm('¿Eliminar la página "' + (p.nombre || '') + '"?')) return;
+      if (p._nueva) { paginas.splice(pi, 1); pintarPaginas(); return; }
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/paginas/' + encodeURIComponent(p.id), { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) { alert(r.mensaje || 'No se pudo eliminar la página.'); return; }
+          cargarPaginas(true);
+        });
+    };
+
+    window.agregarBloque = function (pi, tipo) {
+      paginas[pi].contenido.push(bloquePorDefecto(tipo));
+      marcarSucio(pi);
+      pintarPaginas();
+    };
+
+    window.moverBloque = function (pi, bi, d) {
+      var arr = paginas[pi].contenido;
+      var j = bi + d;
+      if (j < 0 || j >= arr.length) return;
+      var t = arr[bi]; arr[bi] = arr[j]; arr[j] = t;
+      marcarSucio(pi);
+      pintarPaginas();
+    };
+
+    window.duplicarBloque = function (pi, bi) {
+      var b = JSON.parse(JSON.stringify(paginas[pi].contenido[bi]));
+      b._editando = false;
+      paginas[pi].contenido.splice(bi + 1, 0, b);
+      marcarSucio(pi);
+      pintarPaginas();
+    };
+
+    window.eliminarBloque = function (pi, bi) {
+      if (!confirm('¿Eliminar este bloque?')) return;
+      paginas[pi].contenido.splice(bi, 1);
+      marcarSucio(pi);
+      pintarPaginas();
+    };
+
+    window.abrirEditorBloque = function (pi, bi) {
+      paginas[pi].contenido.forEach(function (b) { b._editando = false; });
+      paginas[pi].contenido[bi]._editando = true;
+      pintarPaginas();
+    };
+
+    window.cerrarEditorBloque = function (pi, bi) {
+      var b = paginas[pi].contenido[bi];
+      if (b) b._editando = false;
+      pintarPaginas();
+    };
+
+    window.guardarBloque = function (pi, bi) {
+      var b = paginas[pi].contenido[bi];
+      var g = function (id) { return document.getElementById(id); };
+      b.alineacion = g('bAlign').value;
+      b.color = g('bColor').value;
+      if (b.tipo === 'titulo') {
+        b.nivel = Number(g('bNivel').value);
+        b.texto = g('bTexto').value;
+      } else if (b.tipo === 'parrafo') {
+        b.tamano = g('bTamano').value;
+        b.texto = g('bTexto').value;
+      } else if (b.tipo === 'lista') {
+        b.tamano = g('bTamano').value;
+        b.items = g('bItems').value.split('\n').map(function (x) { return x.trim(); });
+        b.ordenada = g('bOrdenada').checked;
+      } else if (b.tipo === 'caja') {
+        b.tamano = g('bTamano').value;
+        b.texto = g('bTexto').value;
+        b.fondo = g('bFondo').value;
+      } else if (b.tipo === 'linea') {
+        b.grosor = Math.min(6, Math.max(1, Number(g('bGrosor').value) || 2));
+      } else if (b.tipo === 'cuadro_num') {
+        b.numero = g('bNumero').value;
+        b.texto = g('bTexto').value;
+      } else {
+        b.filas = Math.min(20, Math.max(1, Number(g('bFilas').value) || 1));
+        b.columnas = Math.min(10, Math.max(1, Number(g('bColumnas').value) || 1));
+        b.fondo = g('bFondo').value;
+        b.bordes = g('bBordes').value;
+        var celdas = generaCeldas(b);
+        celdas.forEach(function (cel, idx) {
+          var inV = document.getElementById('edCelda' + pi + '_' + bi + '_' + idx);
+          var inA = document.getElementById('edCela' + pi + '_' + bi + '_' + idx);
+          if (inV) cel.v = inV.value;
+          if (inA) cel.a = inA.value;
+        });
+      }
+      b.negrita = g('bNegrita').checked;
+      b.cursiva = g('bCursiva').checked;
+      b._editando = false;
+      marcarSucio(pi);
+      pintarPaginas();
+    };
+
+    function cargarPaginas(conservar) {
+      if (!estudianteIdActual) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/paginas').then(function (r) {
+        var guardadas = (r.ok && r.paginas) ? r.paginas.map(function (p) {
+          return { id: p.id, nombre: p.nombre, orden: p.orden, contenido: p.contenido || [] };
+        }) : [];
+        var locales = paginas || [];
+        if (conservar) {
+          var mantener = [];
+          guardadas.forEach(function (g) {
+            var loc = null;
+            for (var i = 0; i < locales.length; i++) {
+              if (locales[i] && locales[i].id && locales[i].id === g.id && (locales[i]._sucio || locales[i]._nueva)) { loc = locales[i]; break; }
+            }
+            mantener.push(loc || g);
+          });
+          locales.forEach(function (l) {
+            if (l && l._nueva) mantener.push(l);
+          });
+          guardadas = mantener;
+        }
+        paginas = guardadas;
+        pintarPaginas();
+        pintarTabsPaginas();
+        pintarSeccionesPaginas();
+      });
+    }
+
+    function marcarSucio(pi) {
+      if (paginas[pi]) paginas[pi]._sucio = true;
+    }
+
+    function pintarTabsPaginas() {
+      var cont = document.getElementById('tabsPaginas');
+      if (!cont) return;
+      cont.innerHTML = paginas.map(function (p, i) {
+        if (!p.id) return '';
+        var nombre = p.nombre || ('Página ' + (i + 1));
+        return '<button class="tab-btn tab-pg" id="tabPg' + i + '" onclick="mostrarPaginaPersonalizada(' + i + ')" title="' + esc(nombre) + '">' + esc(nombre.slice(0, 18)) + '</button>';
+      }).join('');
+    }
+
+    function pintarSeccionesPaginas() {
+      var cont = document.getElementById('paginasSecciones');
+      if (!cont) return;
+      cont.innerHTML = paginas.map(function (p, i) {
+        if (!p.id) return '';
+        var bloques = (p.contenido || []).map(function (b) { return renderBloqueHTML(b); }).join('');
+        return '<div class="hoja" id="hojaPg' + i + '" style="display:none">' +
+          '<div class="titulo-seccion marino"><span class="num">★</span> ' + esc(p.nombre || 'Página personalizada') + '</div>' +
+          '<div class="pag-preview">' + bloques + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    window.mostrarPaginaPersonalizada = function (i) {
+      for (var k = 1; k <= 5; k++) {
+        var h = document.getElementById('hoja' + k);
+        if (h) h.style.display = 'none';
+        var tb = document.getElementById('tabBtn' + k);
+        if (tb) tb.classList.remove('activo');
+      }
+      var haz = document.querySelectorAll('#paginasSecciones .hoja');
+      for (var j = 0; j < haz.length; j++) haz[j].style.display = 'none';
+      var contTabs = document.querySelectorAll('#tabsPaginas .tab-btn');
+      for (var t = 0; t < contTabs.length; t++) contTabs[t].classList.remove('activo');
+      var hoja = document.getElementById('hojaPg' + i);
+      if (hoja) hoja.style.display = '';
+      var btn = document.getElementById('tabPg' + i);
+      if (btn) btn.classList.add('activo');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // ── Carga del reporte (página 1) ─────────────────────────
+    function cargarReporte(id) {
+      estudianteIdActual = id;
+      document.getElementById('cargando').style.display = '';
+      document.getElementById('reporteWrap').style.display = 'none';
+      document.getElementById('avisoError').style.display = 'none';
+
+      api('/api/reportes/estudiante/' + encodeURIComponent(id)).then(function (r) {
+        document.getElementById('cargando').style.display = 'none';
+
+        if (!r.ok) {
+          verError(r.mensaje || 'No se pudo cargar el reporte.');
+          return;
+        }
+
+        puedeGestionar = !!r.puede_gestionar;
+        pintarDatos(r);
+        document.getElementById('reporteWrap').style.display = '';
+
+        cargarCompromisos();
+        cargarObservaciones();
+        cargarPaginas();
+        cargarCertificados();
+      }).catch(function () {
+        document.getElementById('cargando').style.display = 'none';
+        verError('Error de conexión al cargar el reporte.');
+      });
+    }
+
+    function pintarDatos(r) {
+      var e = r.estudiante, i = r.institucion, m = r.matricula;
+
+      document.getElementById('topInstNombre').textContent = i.nombre || 'Institución';
+      document.getElementById('topSub').textContent = 'Reporte estudiantil · ' + (i.codigo_dane ? 'DANE ' + i.codigo_dane : 'SIA');
+      document.getElementById('pieInst').textContent = i.nombre || 'SIA';
+
+      document.getElementById('h1InstNombre').textContent = i.nombre || 'Institución';
+      if (i.codigo_dane) {
+        document.getElementById('h1Dane').textContent = 'DANE: ' + i.codigo_dane;
+        document.getElementById('h1Dane').style.display = '';
+      } else {
+        document.getElementById('h1Dane').style.display = 'none';
+      }
+      document.getElementById('h1Fecha').textContent = fmtFecha(new Date().toISOString().slice(0, 10));
+
+      // cabecera topbar + membretes
+      var logoUrl = i.logo_url;
+      var topLogo = document.getElementById('topLogo'), h1Logo = document.getElementById('h1Logo');
+      document.getElementById('topIniciales').style.display = logoUrl ? 'none' : '';
+      document.getElementById('h1Iniciales').style.display = logoUrl ? 'none' : '';
+      if (logoUrl) {
+        topLogo.src = logoUrl; h1Logo.src = logoUrl;
+        topLogo.style.display = ''; h1Logo.style.display = '';
+      } else {
+        topLogo.style.display = 'none'; h1Logo.style.display = 'none';
+        var ini = (i.nombre || 'SIA').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('');
+        document.getElementById('topIniciales').textContent = ini || 'SIA';
+        document.getElementById('h1Iniciales').textContent = ini || 'SIA';
+      }
+
+      // ficha del estudiante
+      var nombreCompleto = e.nombres + ' ' + e.apellidos;
+      document.getElementById('h1EstudianteNombre').textContent = nombreCompleto;
+      var gradoGrupo = m ? (m.grado_nombre + ' · ' + m.grupo_nombre) : 'Sin matrícula activa';
+      document.getElementById('h1GradoGrupo').textContent = gradoGrupo;
+      document.getElementById('h1Periodo').textContent = 'Periodo: ' + (r.periodo.descripcion || '—');
+
+      var foto = e.foto_url;
+      var fotoEl = document.getElementById('h1Foto'), fotoInicial = document.getElementById('h1FotoInicial');
+      if (foto) {
+        fotoEl.src = foto; fotoEl.style.display = ''; fotoInicial.style.display = 'none';
+      } else {
+        fotoEl.style.display = 'none'; fotoInicial.style.display = '';
+        fotoInicial.textContent = (e.nombres || '?').charAt(0).toUpperCase();
+      }
+
+      document.getElementById('dDocumento').textContent = (e.tipo_documento ? e.tipo_documento + ' ' : '') + (e.numero_documento || '—');
+      document.getElementById('dNacimiento').textContent = fmtFecha(e.fecha_nacimiento);
+      var genero = { 'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro' }[e.genero] || e.genero || '—';
+      document.getElementById('dGenero').textContent = genero;
+      document.getElementById('dMatricula').textContent = m ? ('Año ' + m.anio_lectivo + ' · ' + (m.grado_nombre || '') + ' ' + (m.grupo_nombre || '')) : 'Sin matrícula activa';
+      var dir = r.director;
+      document.getElementById('dDirector').textContent = dir ? ((dir.nombres || '') + ' ' + (dir.apellidos || '')).trim() || '—' : (m ? 'No definido' : '—');
+      document.getElementById('dTelefono').textContent = e.telefono || '—';
+      document.getElementById('dEmail').textContent = e.email || '—';
+      document.getElementById('dDireccion').textContent = e.direccion || '—';
+      document.getElementById('dFechaIngreso').textContent = fmtFecha(m && m.fecha_ingreso);
+
+      // resumen académico
+      document.getElementById('rPeriodo').textContent = r.periodo.descripcion || '';
+      var tb = document.getElementById('tbodyMaterias');
+      if (!r.materias.length) {
+        tb.innerHTML = '<tr><td colspan="4" class="vacio">' + (m ? 'Sin materias para este curso.' : 'El estudiante no tiene matrícula activa.') + '</td></tr>';
+      } else {
+        tb.innerHTML = r.materias.map(function (x) {
+          var pro = x.promedio !== null ? x.promedio.toFixed(2) : '—';
+          return '<tr>' +
+            '<td class="area">' + esc(x.area_nombre) + '</td>' +
+            '<td class="materia">' + esc(x.materia_nombre) + '</td>' +
+            '<td><b>' + pro + '</b></td>' +
+            '<td>' + x.fallas + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+      document.getElementById('rPromedio').textContent = r.promedio_general !== null ? r.promedio_general.toFixed(2) : '—';
+      document.getElementById('rFallas').textContent = r.asistencia.faltas;
+      document.getElementById('rPresentes').textContent = r.asistencia.presentes;
+      document.getElementById('rRetardos').textContent = r.asistencia.retardos;
+
+      // acudiente
+      var ac = r.acudiente;
+      document.getElementById('aNombre').textContent = ac ? (ac.nombres + ' ' + ac.apellidos) : 'Sin acudiente vinculado';
+      document.getElementById('aParentesco').textContent = ac && ac.parentesco;
+      document.getElementById('aTelefono').textContent = (ac && ac.telefono) || '—';
+      document.getElementById('aEmail').textContent = (ac && ac.email) || '—';
+
+      // expediente
+      document.getElementById('cCompromisos').textContent = r.compromisos ? r.compromisos.total : 0;
+      document.getElementById('cObservaciones').textContent = r.observaciones_total || 0;
+
+      // formularios según permiso
+      document.getElementById('formCompromisoWrap').style.display = puedeGestionar ? '' : 'none';
+      document.getElementById('formObsWrap').style.display = puedeGestionar ? '' : 'none';
+      document.getElementById('notaGestion2').style.display = puedeGestionar ? 'none' : '';
+      document.getElementById('notaGestion3').style.display = puedeGestionar ? 'none' : '';
+      document.getElementById('notaGestion4').style.display = puedeGestionar ? 'none' : '';
+      document.getElementById('btnNuevaPagina').style.display = puedeGestionar ? '' : 'none';
+    }
+
+    // ── Página 2: compromisos ──────────────────────────────
+    function cargarCompromisos() {
+      if (!estudianteIdActual) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/compromisos').then(function (r) {
+        var cont = document.getElementById('listaCompromisos');
+        if (!r.ok) { cont.innerHTML = '<div class="vacio">No se pudieron cargar los compromisos.</div>'; return; }
+        listaCompromisosCache = r.compromisos || [];
+        if (!r.compromisos.length) { cont.innerHTML = '<div class="vacio">No hay compromisos registrados.</div>'; return; }
+        cont.innerHTML = r.compromisos.map(function (c) {
+          var badge = c.estado === 'cumplido' ? '<span class="badge badge-cumplido">Cumplido</span>' : '<span class="badge badge-pendiente">Pendiente</span>';
+          var dlBtn = '<button class="btn-xs" onclick="descargarReporte(\'pdf\',\'c:' + c.id + '\')" title="Descarga este compromiso en su hoja">Descargar</button>';
+          var cumplirBtn = (puedeGestionar && c.estado === 'pendiente')
+            ? '<button class="btn-xs btn-xs-cumplir" onclick="cumplirCompromiso(\'' + c.id + '\')">Marcar cumplido</button>'
+            : '';
+          var elimBtn = puedeGestionar
+            ? '<button class="btn-xs btn-xs-danger" onclick="eliminarCompromiso(\'' + c.id + '\')">Eliminar</button>'
+            : '';
+          return '<div class="item">' +
+            '<div class="cab"><span class="motivo">' + esc(c.motivo) + '</span>' + badge + '</div>' +
+            '<div class="cuerpo">' +
+              (c.observacion ? '<b>Observación:</b> ' + esc(c.observacion) + '<br>' : '') +
+              '<b>Compromiso:</b> ' + esc(c.compromiso) + '<br>' +
+              (c.seguimiento ? '<br><b>Seguimiento:</b> ' + esc(c.seguimiento) + '<br>' : '') +
+            '</div>' +
+            '<div class="meta">Fecha: ' + fmtFecha(c.fecha_compromiso) +
+              (c.fecha_limite ? ' · Límite: ' + fmtFecha(c.fecha_limite) : '') +
+              (c.fecha_cumplido ? ' · Cumplido: ' + fmtFecha(c.fecha_cumplido) : '') +
+              ' · Registrado por: ' + esc(c.creador_nombres + ' ' + c.creador_apellidos) +
+              ' · ' + fmtFechaH(c.created_at) + '</div>' +
+            '<div class="acciones">' + dlBtn + cumplirBtn + elimBtn + '</div>' +
+          '</div>';
+        }).join('');
+      });
+    }
+
+    window.cumplirCompromiso = function (id) {
+      var seg = prompt('Seguimiento (opcional):');
+      if (seg === null) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/compromisos/' + id, {
+        method: 'PUT',
+        body: { estado: 'cumplido', seguimiento: seg.trim() || null },
+      }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo actualizar el compromiso.'); return; }
+        cargarCompromisos();
+        cargarReporte(estudianteIdActual);
+      });
+    };
+
+    window.eliminarCompromiso = function (id) {
+      if (!confirm('¿Eliminar este compromiso?')) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/compromisos/' + id, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) { alert(r.mensaje || 'No se pudo eliminar el compromiso.'); return; }
+          cargarCompromisos();
+          cargarReporte(estudianteIdActual);
+        });
+    };
+
+    document.getElementById('formCompromiso').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var hoy = new Date().toISOString().slice(0, 10);
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/compromisos', {
+        method: 'POST',
+        body: {
+          motivo: document.getElementById('cMotivo').value,
+          observacion: document.getElementById('cObservacion').value,
+          compromiso: document.getElementById('cCompromiso').value,
+          fecha_compromiso: document.getElementById('cFecha').value || hoy,
+          fecha_limite: document.getElementById('cFechaLimite').value || null,
+        },
+      }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo registrar el compromiso.'); return; }
+        ev.target.reset();
+        document.getElementById('cFecha').value = hoy;
+        cargarCompromisos();
+        cargarReporte(estudianteIdActual);
+      });
+    });
+
+    // ── Página 3: observaciones ────────────────────────────
+    function cargarObservaciones() {
+      if (!estudianteIdActual) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/observaciones').then(function (r) {
+        var cont = document.getElementById('listaObservaciones');
+        if (!r.ok) { cont.innerHTML = '<div class="vacio">No se pudieron cargar las observaciones.</div>'; return; }
+        listaObservacionesCache = r.observaciones || [];
+        if (!r.observaciones.length) { cont.innerHTML = '<div class="vacio">No hay observaciones registradas.</div>'; return; }
+        var colores = { academica: 'badge-lbl', comportamiento: 'badge-pendiente', positiva: 'badge-cumplido', general: 'badge-lbl' };
+        var etiquetas = { academica: 'Académica', comportamiento: 'Comportamiento', positiva: 'Positiva', general: 'General' };
+        cont.innerHTML = r.observaciones.map(function (o) {
+          var badge = '<span class="badge ' + (colores[o.tipo] || 'badge-lbl') + '">' + (etiquetas[o.tipo] || o.tipo) + '</span>';
+          var dlBtn = '<button class="btn-xs" onclick="descargarReporte(\'pdf\',\'o:' + o.id + '\')" title="Descarga esta observación en su hoja">Descargar</button>';
+          var elimBtn = puedeGestionar
+            ? '<button class="btn-xs btn-xs-danger" onclick="eliminarObservacion(\'' + o.id + '\')">Eliminar</button>'
+            : '';
+          return '<div class="item">' +
+            '<div class="cab"><span class="motivo">Observación</span>' + badge + '</div>' +
+            '<div class="cuerpo">' + esc(o.observacion) + '</div>' +
+            '<div class="meta">' + fmtFechaH(o.created_at) + ' · Registrada por: ' + esc(o.creador_nombres + ' ' + o.creador_apellidos) + '</div>' +
+            '<div class="acciones">' + dlBtn + elimBtn + '</div>' +
+          '</div>';
+        }).join('');
+      });
+    }
+
+    window.eliminarObservacion = function (id) {
+      if (!confirm('¿Eliminar esta observación?')) return;
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/observaciones/' + id, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) { alert(r.mensaje || 'No se pudo eliminar la observación.'); return; }
+          cargarObservaciones();
+          cargarReporte(estudianteIdActual);
+        });
+    };
+
+    document.getElementById('formObservacion').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      api('/api/reportes/estudiante/' + encodeURIComponent(estudianteIdActual) + '/observaciones', {
+        method: 'POST',
+        body: { tipo: document.getElementById('oTipo').value, observacion: document.getElementById('oTexto').value },
+      }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo registrar la observación.'); return; }
+        ev.target.reset();
+        cargarObservaciones();
+        cargarReporte(estudianteIdActual);
+      });
+    });
+
+    document.getElementById('btnVolver').addEventListener('click', function () {
+      if (history.length > 1) history.back();
+      else window.location.href = 'dashboard.html';
+    });
+
+    // ── Arranque según rol ─────────────────────────────────
+    function iniciar() {
+      document.getElementById('cargando').style.display = 'none';
+
+      if (estudianteIdActual) {
+        cargarReporte(estudianteIdActual);
+        return;
+      }
+
+      if (rol === 'estudiante') {
+        cargarReporte(usuario.id);
+        return;
+      }
+
+      if (rol === 'acudiente') {
+        api('/api/matriculas/mis-hijos').then(function (r) {
+          var hijos = (r.ok && r.hijos) ? r.hijos : [];
+          if (!hijos.length) {
+            verError('No hay estudiantes vinculados a tu cuenta de acudiente.');
+            return;
+          }
+          var sel = document.getElementById('selHijo');
+          sel.innerHTML = hijos.map(function (h) {
+            return '<option value="' + h.estudiante_id + '">' + esc(h.nombres) + ' ' + esc(h.apellidos) +
+              (h.grado ? ' · ' + esc(h.grado) : '') + (h.grupo ? ' ' + esc(h.grupo) : '') + '</option>';
+          }).join('');
+          document.getElementById('selectorHijo').style.display = '';
+          sel.addEventListener('change', function () {
+            cargarReporte(sel.value);
+          });
+          if (hijos.length === 1) cargarReporte(hijos[0].estudiante_id);
+          else mostrarAvance('Selecciona el estudiante cuyo reporte quieres consultar.');
+        });
+        return;
+      }
+
+      // admin / superadmin / docente sin parámetro
+      document.getElementById('sinDatos').style.display = 'block';
+    }
+
+    iniciar();
+  })();
+</script>
+</body>
+</html>

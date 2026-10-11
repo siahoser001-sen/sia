@@ -19,16 +19,31 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit:    10,
   charset: 'utf8mb4',
+  enableKeepAlive: true,
 });
 
-// Verificar conexión al iniciar
-pool.getConnection()
-  .then(conn => {
-    console.log('✅ Conectado a MySQL —', process.env.DB_NAME);
-    conn.release();
-  })
-  .catch(err => {
-    console.error('❌ Error conectando a MySQL:', err.message);
-  });
+// Verificar conexión al iniciar (sin bloquear) con reintentos:
+// XAMPP/MySQL a veces ya muestran "verde" pero InnoDB sigue montando la base
+// y la primera conexión puede llegar en ese instante (á write ECONNRESET).
+const CONEXION_INTENTOS       = 8;
+const CONEXION_ESPERA_MS      = 1500;
+
+function verificarConexion(intento) {
+  pool.getConnection()
+    .then(conn => {
+      console.log('✅ Conectado a MySQL —', process.env.DB_NAME);
+      conn.release();
+    })
+    .catch(err => {
+      if (intento < CONEXION_INTENTOS) {
+        console.warn(`⏳ MySQL no respondió en el intento ${intento} (${err.message}). Reintentando en ${CONEXION_ESPERA_MS / 1000}s…`);
+        setTimeout(() => verificarConexion(intento + 1), CONEXION_ESPERA_MS);
+      } else {
+        console.error('❌ Error conectando a MySQL después de', CONEXION_INTENTOS, 'intentos:', err.message);
+      }
+    });
+}
+
+setImmediate(() => verificarConexion(1));
 
 module.exports = pool;

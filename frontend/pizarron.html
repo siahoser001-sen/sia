@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pizarrón Interactivo</title>
+    <script>
+    try {
+      var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+      var atrs   = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+      for (var k in claves) {
+        var v = localStorage.getItem(claves[k]);
+        if (v) document.documentElement.setAttribute(atrs[k], v);
+      }
+    } catch(e) {}
+    </script>
+    <style>
+    html[data-ui-scale="2"]{zoom:1.15}
+    html[data-ui-scale="3"]{zoom:1.3}
+    html[data-ui-contrast="1"]{
+      --text-1:#ffffff;
+      --text-2:rgba(255,255,255,0.85);
+      --text-3:rgba(255,255,255,0.65);
+      --glass-bg:rgba(14,22,56,0.88);
+      --glass-bg-hover:rgba(14,22,56,0.96);
+      --glass-bg-strong:rgba(8,14,42,0.97);
+      --glass-border:rgba(255,255,255,0.35);
+      --glass-border-hi:rgba(255,255,255,0.55);
+      --glass-shadow:0 8px 32px rgba(0,0,0,0.45);
+      --sidebar-bg:rgba(5,10,32,0.94);
+      --blur:blur(0);
+      --blur-strong:blur(0);
+    }
+    html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,0.90),rgba(10,5,30,0.88),rgba(2,14,40,0.90))}
+    html[data-ui-contrast="1"] .btn-ghost{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10)}
+    html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none !important;transition:none !important}
+    html[data-ui-density="1"] .main{padding-top:0.6rem;gap:0.7rem}
+    html[data-ui-density="1"] .topbar{padding-top:0.5rem;padding-bottom:0.5rem}
+    html[data-ui-density="1"] .sidebar{padding-top:0.8rem;padding-bottom:0.8rem}
+    html[data-ui-density="1"] th,html[data-ui-density="1"] td{padding-top:0.2rem !important;padding-bottom:0.2rem !important}
+    html[data-ui-density="1"] .modal{padding:1.25rem !important}
+    html[data-ui-density="1"] .card-header{margin-bottom:0.5rem}
+    html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+    html[data-ui-accent="verde"] .btn-primary{box-shadow:0 4px 16px rgba(16,185,129,0.35)}
+    html[data-ui-accent="verde"] .nav-item.activo{background:rgba(16,185,129,0.20);border-color:rgba(16,185,129,0.35)}
+    html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+    html[data-ui-accent="ambar"] .btn-primary{box-shadow:0 4px 16px rgba(245,158,11,0.35)}
+    html[data-ui-accent="ambar"] .nav-item.activo{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.35)}
+    html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+    html[data-ui-accent="rosa"] .btn-primary{box-shadow:0 4px 16px rgba(236,72,153,0.35)}
+    html[data-ui-accent="rosa"] .nav-item.activo{background:rgba(236,72,153,0.20);border-color:rgba(236,72,153,0.35)}
+    html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+    html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+    </style>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f5f7ff 0%, #e5ecff 100%);
+        color: #1f2937;
+      }
+      .app-shell { display: flex; flex-direction: column; height: 100vh; }
+      .toolbar {
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+        padding: 14px 18px; background: rgba(255,255,255,0.95); border-bottom: 1px solid #dbe3f0;
+        box-shadow: 0 6px 20px rgba(15,23,42,0.06);
+      }
+      .tool-group { display: flex; gap: 10px; align-items: center; }
+      button, input { font: inherit; }
+      button {
+        border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155;
+        padding: 8px 12px; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.08); }
+      button.active { background: #2563eb; color: white; border-color: #2563eb; }
+      .color-field, .size-field { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+      input[type="color"] { width: 42px; height: 34px; border: none; background: transparent; padding: 0; }
+      input[type="range"] { accent-color: #2563eb; }
+      .board-wrapper { flex: 1; padding: 18px; overflow: auto; background: #eef2ff; }
+      .board-surface {
+        position: relative; min-width: 1800px; min-height: 1200px; border-radius: 24px; background: white;
+        box-shadow: inset 0 0 0 1px #e2e8f0, 0 10px 40px rgba(15,23,42,0.08); overflow: hidden;
+      }
+      #boardCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+      .text-node {
+        position: absolute; max-width: 440px; padding: 2px 6px; border-radius: 6px; font-size: 24px; line-height: 1.3;
+        color: #111827; white-space: pre-wrap; user-select: none; pointer-events: none;
+      }
+      .text-input {
+        position: absolute; border: 2px solid #2563eb; border-radius: 8px; padding: 6px 8px; font-size: 24px;
+        line-height: 1.3; min-width: 220px; outline: none; z-index: 5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="toolbar">
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="pen">Lápiz</button>
+          <button class="tool-btn" data-tool="eraser">Borrador</button>
+          <button class="tool-btn" data-tool="text">Texto</button>
+        </div>
+        <div class="tool-group">
+          <label class="color-field">
+            Color
+            <input type="color" id="colorPicker" value="#1f2937" />
+          </label>
+          <label class="size-field">
+            Grosor
+            <input type="range" id="lineWidth" min="1" max="20" value="4" />
+          </label>
+        </div>
+        <div class="tool-group">
+          <button id="clearBoard">Limpiar</button>
+          <button id="saveBoard">Descargar</button>
+        </div>
+      </header>
+      <main class="board-wrapper">
+        <div class="board-surface" id="boardSurface">
+          <canvas id="boardCanvas"></canvas>
+        </div>
+      </main>
+    </div>
+    <script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+    <script src="static/js/pizarron.js"></script>
+  </body>
+</html>

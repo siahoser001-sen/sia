@@ -1,0 +1,889 @@
+/* ============================================================
+   SIA — Sistema de Información Académica
+   Design System: Glassmorphism
+   Variables, tokens y componentes base
+   ============================================================ */
+
+/* ── Importar fuentes ── */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ============================================================
+   TOKENS DE DISEÑO
+   ============================================================ */
+:root {
+  /* Tipografía */
+  --font-display: 'Nunito', sans-serif;   /* Títulos, logo, botones */
+  --font-body:    'Inter', sans-serif;    /* Textos, labels, datos */
+
+  /* Escala tipográfica */
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-md:   17px;
+  --text-lg:   20px;
+  --text-xl:   26px;
+  --text-2xl:  34px;
+  --text-3xl:  44px;
+
+  /* Paleta de color base del sistema */
+  --sia-blue:        #3B82F6;
+  --sia-blue-dark:   #1D4ED8;
+  --sia-blue-light:  #93C5FD;
+  --sia-purple:      #8B5CF6;
+  --sia-green:       #10B981;
+  --sia-amber:       #F59E0B;
+  --sia-red:         #EF4444;
+  --sia-white:       #FFFFFF;
+
+  /* Glassmorphism — contenedores */
+  --glass-bg:           rgba(255, 255, 255, 0.13);
+  --glass-bg-hover:     rgba(255, 255, 255, 0.20);
+  --glass-bg-strong:    rgba(255, 255, 255, 0.22);
+  --glass-border:       rgba(255, 255, 255, 0.28);
+  --glass-border-hover: rgba(255, 255, 255, 0.45);
+  --glass-shadow:       0 8px 32px rgba(0, 0, 0, 0.25);
+  --glass-shadow-lg:    0 20px 60px rgba(0, 0, 0, 0.35);
+  --glass-blur:         blur(18px);
+  --glass-blur-strong:  blur(28px);
+
+  /* Texto sobre fondos con imagen */
+  --text-primary:    rgba(255, 255, 255, 0.96);
+  --text-secondary:  rgba(255, 255, 255, 0.72);
+  --text-tertiary:   rgba(255, 255, 255, 0.48);
+  --text-on-glass:   rgba(255, 255, 255, 0.90);
+
+  /* Radios */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-full: 9999px;
+
+  /* Espaciado */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Transiciones */
+  --transition-fast:   150ms ease;
+  --transition-base:   250ms ease;
+  --transition-slow:   400ms ease;
+
+  /* Fondo por defecto (se sobreescribe con la elección del usuario) */
+  --sia-fondo: url('../fondos/fondo-01.jpg');
+}
+
+/* ============================================================
+   RESET Y BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   CAPA DE FONDO — imagen + overlay oscuro suave
+   ============================================================ */
+.sia-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--sia-fondo);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 600ms ease;
+}
+
+.sia-fondo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 60, 0.55) 0%,
+    rgba(30, 10, 60, 0.45) 50%,
+    rgba(10, 40, 80, 0.50) 100%
+  );
+}
+
+/* Contenido principal siempre encima del fondo */
+.sia-layout {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   COMPONENTE: GLASS CARD
+   Contenedor principal de glassmorphism
+   ============================================================ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: background var(--transition-base),
+              border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+.glass:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
+
+.glass--strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+}
+
+.glass--flat {
+  box-shadow: none;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================
+   COMPONENTE: SIDEBAR DE NAVEGACIÓN
+   ============================================================ */
+.sia-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) var(--space-4);
+  background: rgba(10, 15, 40, 0.50);
+  backdrop-filter: var(--glass-blur-strong);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  border-right: 1px solid var(--glass-border);
+  transition: width var(--transition-slow);
+  overflow: hidden;
+}
+
+/* Logo en sidebar */
+.sia-sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  margin-bottom: var(--space-8);
+}
+
+.sia-sidebar__logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(147, 197, 253, 0.5));
+}
+
+.sia-sidebar__logo-text {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.sia-sidebar__logo-sub {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* Navegación */
+.sia-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sia-nav__section {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: var(--space-4) var(--space-2) var(--space-2);
+}
+
+.sia-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  position: relative;
+  white-space: nowrap;
+}
+
+.sia-nav__item:hover {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+}
+
+.sia-nav__item.active {
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--sia-blue-light);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.sia-nav__item.active::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--sia-blue);
+  border-radius: 0 2px 2px 0;
+}
+
+.sia-nav__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+/* Perfil de usuario en sidebar */
+.sia-sidebar__profile {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.sia-sidebar__profile:hover { background: var(--glass-bg); }
+
+.sia-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--glass-border);
+  background: rgba(59, 130, 246, 0.20);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sia-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.sia-avatar--lg {
+  width: 72px;
+  height: 72px;
+  border-width: 3px;
+}
+
+.sia-avatar__placeholder {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--sia-blue-light);
+}
+
+.sia-sidebar__profile-info { overflow: hidden; }
+
+.sia-sidebar__profile-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sia-sidebar__profile-role {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+/* ============================================================
+   LAYOUT PRINCIPAL CON SIDEBAR
+   ============================================================ */
+.sia-main {
+  margin-left: 240px;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ============================================================
+   COMPONENTE: TOPBAR
+   ============================================================ */
+.sia-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+}
+
+.sia-topbar__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sia-topbar__sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sia-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ============================================================
+   COMPONENTE: STAT CARD (métricas del dashboard)
+   ============================================================ */
+.sia-stat {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sia-stat__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.sia-stat__value {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.sia-stat__delta {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--sia-green);
+}
+
+.sia-stat__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+  font-size: 20px;
+}
+
+/* ============================================================
+   COMPONENTE: GRIDS DE DASHBOARD
+   ============================================================ */
+.sia-grid-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.sia-grid-main {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-4);
+}
+
+.sia-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+/* ============================================================
+   COMPONENTE: TABLA GLASS
+   ============================================================ */
+.sia-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+}
+
+.sia-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sia-table thead tr {
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.sia-table th {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sia-table td {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-on-glass);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.sia-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.sia-table tbody tr:hover { background: rgba(255,255,255,0.06); }
+.sia-table tbody tr:last-child td { border-bottom: none; }
+
+/* ============================================================
+   COMPONENTE: BADGE / PILL
+   ============================================================ */
+.sia-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.sia-badge--blue   { background: rgba(59,130,246,0.20); color: #93C5FD; border: 1px solid rgba(59,130,246,0.30); }
+.sia-badge--green  { background: rgba(16,185,129,0.20); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.30); }
+.sia-badge--amber  { background: rgba(245,158,11,0.20); color: #FCD34D; border: 1px solid rgba(245,158,11,0.30); }
+.sia-badge--red    { background: rgba(239,68,68,0.20);  color: #FCA5A5; border: 1px solid rgba(239,68,68,0.30); }
+.sia-badge--purple { background: rgba(139,92,246,0.20); color: #C4B5FD; border: 1px solid rgba(139,92,246,0.30); }
+
+/* ============================================================
+   COMPONENTE: BOTONES
+   ============================================================ */
+.sia-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.sia-btn--primary {
+  background: linear-gradient(135deg, var(--sia-blue), var(--sia-purple));
+  color: white;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+}
+
+.sia-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.50);
+}
+
+.sia-btn--ghost {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.sia-btn--ghost:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
+
+.sia-btn--danger {
+  background: rgba(239, 68, 68, 0.20);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #FCA5A5;
+}
+
+.sia-btn--danger:hover { background: rgba(239, 68, 68, 0.30); }
+
+.sia-btn--sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+.sia-btn--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================
+   COMPONENTE: INPUT GLASS
+   ============================================================ */
+.sia-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.sia-input::placeholder { color: var(--text-tertiary); }
+
+.sia-input:focus {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(59, 130, 246, 0.60);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.sia-label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.sia-field { display: flex; flex-direction: column; gap: 0; }
+
+/* ============================================================
+   COMPONENTE: MODAL GLASS
+   ============================================================ */
+.sia-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(5, 10, 30, 0.60);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+}
+
+.sia-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.sia-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-8);
+  transform: translateY(20px) scale(0.97);
+  transition: transform var(--transition-base);
+}
+
+.sia-modal-overlay.open .sia-modal {
+  transform: translateY(0) scale(1);
+}
+
+.sia-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.sia-modal__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sia-modal__sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ============================================================
+   COMPONENTE: SELECTOR DE PERSONAJE (avatar)
+   ============================================================ */
+.sia-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.sia-avatar-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: rgba(255,255,255,0.05);
+}
+
+.sia-avatar-option:hover {
+  background: rgba(255,255,255,0.10);
+  border-color: var(--glass-border);
+  transform: translateY(-2px);
+}
+
+.sia-avatar-option.selected {
+  border-color: var(--sia-blue);
+  background: rgba(59,130,246,0.15);
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+}
+
+.sia-avatar-option img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.sia-avatar-option span {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ============================================================
+   COMPONENTE: SELECTOR DE FONDO
+   ============================================================ */
+.sia-fondo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.sia-fondo-option {
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.sia-fondo-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sia-fondo-option:hover { transform: scale(1.02); border-color: var(--glass-border); }
+
+.sia-fondo-option.selected {
+  border-color: var(--sia-blue);
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.25);
+}
+
+.sia-fondo-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 22px;
+  height: 22px;
+  background: var(--sia-blue);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  font-weight: 700;
+}
+
+.sia-fondo-option--add {
+  border: 2px dashed var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 300;
+  color: var(--text-3, #9ca3af);
+  background: transparent;
+}
+
+.sia-fondo-option--add:hover {
+  border-color: var(--sia-blue);
+  color: var(--sia-blue);
+}
+
+/* ============================================================
+   COMPONENTE: BARRA DE PROGRESO
+   ============================================================ */
+.sia-progress {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.10);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.sia-progress__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--sia-blue), var(--sia-purple));
+  transition: width 600ms ease;
+}
+
+.sia-progress--green .sia-progress__fill  { background: linear-gradient(90deg, var(--sia-green), #34D399); }
+.sia-progress--amber .sia-progress__fill  { background: linear-gradient(90deg, var(--sia-amber), #FCD34D); }
+.sia-progress--red   .sia-progress__fill  { background: linear-gradient(90deg, var(--sia-red), #F87171); }
+
+/* ============================================================
+   NOTA DE PROMEDIO — usada en tablas de materias
+   ============================================================ */
+.sia-nota {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.sia-nota--alta    { background: rgba(16,185,129,0.20); color: #6EE7B7; }
+.sia-nota--media   { background: rgba(245,158,11,0.20); color: #FCD34D; }
+.sia-nota--baja    { background: rgba(239,68,68,0.20);  color: #FCA5A5; }
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+.flex        { display: flex; }
+.flex-col    { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2       { gap: var(--space-2); }
+.gap-3       { gap: var(--space-3); }
+.gap-4       { gap: var(--space-4); }
+.gap-6       { gap: var(--space-6); }
+.p-4         { padding: var(--space-4); }
+.p-6         { padding: var(--space-6); }
+.p-8         { padding: var(--space-8); }
+.w-full      { width: 100%; }
+.text-sm     { font-size: var(--text-sm); }
+.text-xs     { font-size: var(--text-xs); }
+.font-bold   { font-weight: 700; }
+.opacity-60  { opacity: 0.6; }
+.mt-auto     { margin-top: auto; }
+.truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============================================================
+   ANIMACIONES
+   ============================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-in {
+  animation: fadeInUp 350ms ease both;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  .sia-sidebar { width: 64px; }
+  .sia-sidebar__logo-text,
+  .sia-sidebar__logo-sub,
+  .sia-nav__item span,
+  .sia-sidebar__profile-info { display: none; }
+  .sia-main { margin-left: 64px; padding: var(--space-4); }
+  .sia-grid-main { grid-template-columns: 1fr; }
+  .sia-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .sia-main { margin-left: 0; padding: var(--space-3); }
+  .sia-sidebar { display: none; }
+  .sia-grid-stats { grid-template-columns: 1fr 1fr; }
+  .sia-grid-3 { grid-template-columns: 1fr; }
+  .sia-fondo-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

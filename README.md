@@ -9,6 +9,7 @@
 
 1. [Cómo funciona el sistema](#1-cómo-funciona-el-sistema)
 2. [Cómo se redirige según el rol](#2-cómo-se-redirige-según-el-rol)
+2.1. [Cuentas de prueba precargadas](#21-cuentas-de-prueba-precargadas)
 3. [Cómo están conectadas las pantallas](#3-cómo-están-conectadas-las-pantallas)
 4. [Cómo instalar MySQL Workbench](#4-cómo-instalar-mysql-workbench)
 5. [Cómo instalar y ejecutar el proyecto](#5-cómo-instalar-y-ejecutar-el-proyecto)
@@ -23,9 +24,9 @@
 
 El SIA tiene dos partes:
 
-**Backend** — carpeta `src/`, corre con Node.js en el puerto 3000. Nunca lo ve el usuario directamente. Recibe peticiones del frontend, consulta MySQL y devuelve JSON.
+**Backend** — carpeta `src/`, corre con Node.js en el puerto 3000. Recibe peticiones del frontend, consulta MySQL y devuelve JSON.
 
-**Frontend** — carpeta `frontend/`, archivos HTML que se abren con Live Server en el puerto 5500. Se comunican con el backend usando `fetch()`.
+**Frontend** — carpeta `frontend/`, archivos HTML. El propio backend los sirve como archivos estáticos en `http://localhost:3000/frontend/...`, así que no hace falta Live Server ni el puerto 5500. Se comunican con el backend usando `fetch()`, siempre contra el mismo origen desde el que se cargaron (ver sección 9.5 para acceso desde el celular).
 
 ```
 Usuario hace clic
@@ -73,6 +74,55 @@ function redirigirPorRol(rol) {
 | `docente` | dashboard.html | Notas, asistencia, tareas |
 | `estudiante` | dashboard.html | Ver notas y tareas |
 | `acudiente` | dashboard.html | Ver info de su acudido |
+
+### 2.1 Cuentas de prueba precargadas
+
+Para **no crear roles sueltos cada vez** que se va a probar, el proyecto trae
+un set fijo de cuentas, una por rol (el `superadmin` ya existía; las demás las
+crea la migración `database/18_usuarios_prueba.sql`, que se ejecuta como las
+demás: File → Open SQL Script → Ctrl+Shift+Enter, después de las 01–17).
+
+Todas entran por `login.html` usando el **correo** o el **número de documento**
+junto con la contraseña. **La contraseña es por rol, no por persona** (los 2
+docentes, los 2 estudiantes y los 2 acudientes comparten la de su rol):
+
+| Rol | Correo | Documento | Contraseña |
+|---|---|---|---|
+| `superadmin` | `admin@sia.edu.co` | `1000000001` | `Admin2025!` |
+| `admin` | `administrador@sia.edu.co` | `1000000002` | `Admin2026!` |
+| `docente` (1) | `docente1@sia.edu.co` | `2000000001` | `Docente2026!` |
+| `docente` (2) | `docente2@sia.edu.co` | `2000000002` | `Docente2026!` |
+| `estudiante` (1) | `estudiante1@sia.edu.co` | `3000000001` | `Estudiante2026!` |
+| `estudiante` (2) | `estudiante2@sia.edu.co` | `3000000002` | `Estudiante2026!` |
+| `acudiente` (1) | `acudiente1@sia.edu.co` | `4000000001` | `Acudiente2026!` |
+| `acudiente` (2) | `acudiente2@sia.edu.co` | `4000000002` | `Acudiente2026!` |
+
+¿A qué institución pertenecen?
+- **`superadmin`** es global: no pertenece a ninguna institución (es quien
+  aprueba el registro de instituciones desde `panel-superadmin.html`).
+- **Todos los demás** viven en la *"Institución de Prueba SIA"*, creada por la
+  misma migración con id `11111111-1111-4111-8111-111111111101`. El `admin` es
+  el admin de esa institución.
+- La migración también deja listo el curso **Décimo 1001** con los **dos
+  estudiantes matriculados** (año 2026, estado `activa`), y el **vínculo
+  acudiente ↔ estudiante**: `acudiente1` → `estudiante1` (Padre) y
+  `acudiente2` → `estudiante2` (Madre). Con eso entran al dashboard sin
+  "banner para unirse a un curso" y los acudientes ya ven a su acudido.
+
+Cosas a tener en cuenta:
+- La migración es **idempotente** (`INSERT IGNORE`): se puede repetir sin
+  duplicar. Si un correo/documento ya existía (p. ej. un estudiante que se
+  registró antes con ese documento), **no se sobrescribe** — se conserva la
+  cuenta existente y esa no tendrá la contraseña de la tabla. Al final de la
+  migración hay un `SELECT` de verificación para confirmar.
+- El `superadmin` se creó en la migración **01**; la 18 lo vuelve a incluir
+  como salvaguarda pero no cambia su contraseña si ya existe.
+- Si se cambia la contraseña de alguna cuenta (por el panel, por
+  "olvidé mi contraseña" o directo en MySQL), esta tabla deja de ser válida
+  para esa cuenta. Para probar, es mejor volver a crearla o usar el botón
+  "Nueva contraseña" del admin.
+- El correo es solo para los docentes/estudiantes/acudientes de la institución
+  de prueba: para entrar al `admin` usa `administrador@sia.edu.co`.
 
 ### Cómo las pantallas protegidas verifican el acceso
 ```javascript
@@ -190,6 +240,18 @@ CREATE DATABASE IF NOT EXISTS sia_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
    - Espera a que diga "OK" abajo
 7. Repite con `database/02_sia_v2.sql`
 
+> **💡 Alternativa (recomendada): en lugar de ejecutar los SQL a mano uno a uno en
+> Workbench, puedes usar el runner desde la terminal.** Solo asegúrate de que la base
+> `sia_db` ya exista, y luego:
+> ```bash
+> npm run migrate:seed   # 1ª vez SOLO: marca 01..19 como aplicadas (las que ya corriste)
+> npm run migrate        # a partir de ahí, aplica solo las migraciones nuevas (20+)
+> ```
+> El runner usa la misma config de `.env`, lee `database/NN_*.sql` en orden, ejecuta
+> solo las pendientes y las registra en la tabla `schema_migrations`. Cuando crees un
+> cambio de esquema nuevo como `database/20_...`, basta `npm run migrate` (sin
+> `:seed`). Ver `migrate.js` para detalles.
+
 ### Paso 4 — Instalar dependencias
 Abre la terminal en VS Code (**Ctrl+ñ**), selecciona **Command Prompt**:
 ```bash
@@ -210,11 +272,20 @@ Debe aparecer:
 Clic derecho sobre `frontend/login.html` → **Open with Live Server**
 
 ### Paso 7 — Credenciales iniciales
+
+Después de ejecutar las migraciones (hasta la **18** inclusive), ya existen
+cuentas fijas para probar todos los roles. La principal:
+
 ```
 Correo:     admin@sia.edu.co
 Contraseña: Admin2025!
 Rol:        superadmin
 ```
+
+Todas las cuentas (superadmin, admin, 2 docentes, 2 estudiantes y 2
+acudientes, con sus contraseñas y documentos) están en la
+[sección 2.1](#21-cuentas-de-prueba-precargadas). Entran por `login.html`
+con el correo o el documento.
 
 ---
 
@@ -306,6 +377,44 @@ SIA/
 
 ---
 
+## 9.5 Acceso desde otros dispositivos (celular, tablet, otra PC)
+
+Desde esta actualización, el propio backend sirve el frontend (ya no hace
+falta Live Server ni el puerto 5500). El sistema completo vive en un solo
+puerto: `http://localhost:3000` (o el que pongas en `PORT`).
+
+### Pasos
+
+1. Levanta el backend normalmente: `npm start` (o `npm run dev`).
+2. Abre `http://localhost:3000` en el navegador de la misma PC — te
+   redirige automáticamente al login.
+3. Para entrar desde el **celular** o cualquier otro dispositivo, este debe
+   estar conectado al **mismo Wi-Fi / red** que el equipo donde corre el
+   servidor. Averigua la IP local del equipo servidor:
+   - **Windows**: `ipconfig` → busca "Dirección IPv4" (algo como `192.168.1.10`)
+   - **Mac/Linux**: `ifconfig` o `ip a` → busca `inet` en tu interfaz de red (wlan0/en0)
+4. En el celular, abre el navegador y entra a:
+   `http://<ESA-IP>:3000` (ejemplo: `http://192.168.1.10:3000`)
+5. Si no carga, revisa el **firewall** de Windows/Mac: la primera vez que
+   corres `node`, el sistema puede preguntar si permites conexiones
+   entrantes — di que sí (redes privadas).
+
+### Notas técnicas
+- El servidor ahora escucha en `0.0.0.0` (todas las interfaces de red),
+  no solo en `127.0.0.1`/`localhost`, que es lo que bloqueaba el acceso
+  externo antes.
+- El frontend ya no tiene la URL `http://localhost:3000` quemada en el
+  código: cada página usa `window.location.origin`, es decir, "el mismo
+  origen desde el que se cargó la página". Así, si entras desde el celular
+  vía `http://192.168.1.10:3000`, el frontend llama automáticamente a
+  `http://192.168.1.10:3000/api/...` en vez de a `localhost` (que en el
+  celular no existiría, sería el propio celular).
+- Esto sirve para la **misma red local**. Si necesitas acceso desde
+  internet (fuera de la red), hay que desplegar el backend en un hosting
+  (Railway, Render, VPS, etc.) — es un paso aparte, avísame si lo quieres.
+
+---
+
 ## 9. Solución de errores frecuentes
 
 | Error | Causa | Solución |
@@ -317,6 +426,13 @@ SIA/
 | `port 3000 already in use` | Servidor ya corriendo | Cierra la otra terminal |
 | Scripts deshabilitados | Restricción Windows | Usa Command Prompt, no PowerShell |
 | Correo no llega | EMAIL_PASS incorrecto | Genera nueva contraseña de aplicación Google |
+
+## 10. Acciones para mejorar el flujo de interacción con el sistema
+
+| Acción | Código |
+|---|---|
+| `Subir importaciones a MySQL workbench desde la consola` | `npm run migrate` |
+
 
 ---
 
@@ -332,4 +448,5 @@ git push origin feature/nombre-funcionalidad
 
 ---
 
-*SIA — Proyecto SENA Ficha 3407184 · Colombia*
+*SIA — Proyecto SENA Ficha 3407184 · Bogotá Colombia*
+*Hecho por: Oscar Andd*

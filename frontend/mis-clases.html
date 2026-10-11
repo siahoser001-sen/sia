@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA — Mis clases</title>
+  <script>
+  try {
+    var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+    var atrs   = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+    for (var k in claves) {
+      var v = localStorage.getItem(claves[k]);
+      if (v) document.documentElement.setAttribute(atrs[k], v);
+    }
+  } catch(e) {}
+  </script>
+  <style>
+  html[data-ui-scale="2"]{zoom:1.15}
+  html[data-ui-scale="3"]{zoom:1.3}
+  html[data-ui-contrast="1"]{
+    --text-1:#ffffff;
+    --text-2:rgba(255,255,255,0.85);
+    --text-3:rgba(255,255,255,0.65);
+    --glass-bg:rgba(14,22,56,0.88);
+    --glass-bg-hover:rgba(14,22,56,0.96);
+    --glass-bg-strong:rgba(8,14,42,0.97);
+    --glass-border:rgba(255,255,255,0.35);
+    --glass-border-hi:rgba(255,255,255,0.55);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.45);
+    --sidebar-bg:rgba(5,10,32,0.94);
+    --blur:blur(0);
+    --blur-strong:blur(0);
+  }
+  html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,0.90),rgba(10,5,30,0.88),rgba(2,14,40,0.90))}
+  html[data-ui-contrast="1"] .btn-ghost{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10)}
+  html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none !important;transition:none !important}
+  html[data-ui-density="1"] .main{padding-top:0.6rem;gap:0.7rem}
+  html[data-ui-density="1"] .topbar{padding-top:0.5rem;padding-bottom:0.5rem}
+  html[data-ui-density="1"] .sidebar{padding-top:0.8rem;padding-bottom:0.8rem}
+  html[data-ui-density="1"] th,html[data-ui-density="1"] td{padding-top:0.2rem !important;padding-bottom:0.2rem !important}
+  html[data-ui-density="1"] .modal{padding:1.25rem !important}
+  html[data-ui-density="1"] .card-header{margin-bottom:0.5rem}
+  html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+  html[data-ui-accent="verde"] .btn-primary{box-shadow:0 4px 16px rgba(16,185,129,0.35)}
+  html[data-ui-accent="verde"] .nav-item.activo{background:rgba(16,185,129,0.20);border-color:rgba(16,185,129,0.35)}
+  html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+  html[data-ui-accent="ambar"] .btn-primary{box-shadow:0 4px 16px rgba(245,158,11,0.35)}
+  html[data-ui-accent="ambar"] .nav-item.activo{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.35)}
+  html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+  html[data-ui-accent="rosa"] .btn-primary{box-shadow:0 4px 16px rgba(236,72,153,0.35)}
+  html[data-ui-accent="rosa"] .nav-item.activo{background:rgba(236,72,153,0.20);border-color:rgba(236,72,153,0.35)}
+  html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+  html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+  </style>
+  <style>html.shell .sidebar{display:none}html.shell .topbar{display:flex;background:transparent;border:0;box-shadow:none;padding:0 0 0.6rem;justify-content:flex-end;align-items:center}html.shell .topbar>:first-child{display:none}html.shell .main{margin-left:0;padding:1rem;min-height:100vh}html.shell .btn[title="Ajustes y personalización"]{display:none}html.shell #btnFondo{display:none}html.shell .btn[title="Notificaciones"]{display:none}html.shell .btn[onclick="cerrarSesion()"]{display:none}html.shell .sia-fondo{display:none}</style>
+  <script>if(/[?&]shell=1/.test(location.search))document.documentElement.className+=' shell';</script>
+<style>
+  /* SIA · Ajustes y personalización (overlay en todas las páginas) */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(5,10,30,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem}
+  .overlay.visible{display:flex}
+  .modal{width:100%;max-width:520px;padding:2rem;border-radius:var(--r-xl)}
+  .modal h3{font-family:var(--font-d);font-size:1.25rem;font-weight:700;margin-bottom:0.4rem}
+  .modal p{font-size:0.84rem;color:var(--text-2);margin-bottom:1rem;line-height:1.5}
+  .modal-btns{display:flex;gap:0.6rem;margin-top:1rem}
+  .modal-btns .btn{flex:1;justify-content:center}
+  #overlayAjustes{z-index:320;overflow-y:auto;align-items:flex-start}
+  #overlayAjustes .modal{max-width:780px;max-height:calc(100vh - 2rem);margin:auto 0;overflow-y:auto;padding:1.6rem}
+  .aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-top:0.25rem}
+  .aj-bloque{border:1px solid var(--glass-border);border-radius:var(--r-md);padding:0.9rem;background:rgba(255,255,255,0.04)}
+  .aj-bloque .aj-titulo{font-family:var(--font-d);font-size:0.92rem;font-weight:800;color:var(--text-1);margin-bottom:2px}
+  .aj-bloque .aj-sub{font-size:0.70rem;color:var(--text-3);margin-bottom:0.75rem;line-height:1.4}
+  .tam-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+  .tam-btn{display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:0.8rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-2);font-family:var(--font-b);transition:all 150ms}
+  .tam-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .tam-btn.seleccionada{border-color:var(--blue);color:var(--text-1);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .tam-btn .tam-sigla{font-family:var(--font-d);font-weight:800;color:var(--text-1)}
+  .tam-btn.seleccionada .tam-sigla{color:var(--blue-light)}
+  .tam-btn[data-z="1"] .tam-sigla{font-size:14px}
+  .tam-btn[data-z="2"] .tam-sigla{font-size:19px}
+  .tam-btn[data-z="3"] .tam-sigla{font-size:24px}
+  .tam-btn .tam-texto{font-size:0.68rem;font-weight:600}
+  .opc-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem}
+  .opc-btn{display:flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.65rem 0.4rem;border-radius:var(--r-md);cursor:pointer;background:rgba(255,255,255,0.06);border:2px solid var(--glass-border);color:var(--text-1);font-family:var(--font-b);font-size:0.8rem;transition:all 150ms}
+  .opc-btn:hover{background:rgba(255,255,255,0.10);border-color:var(--glass-border-hi)}
+  .opc-btn.seleccionada{border-color:var(--blue);background:rgba(59,130,246,0.16);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+  .opc-btn.ancho{width:100%}
+  .opc-btn .swatch{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,0.35);flex-shrink:0}
+  .fila-fondo{display:flex;align-items:center;justify-content:space-between;gap:0.8rem}
+  .fondo-mini{width:76px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--glass-border);background-size:cover;background-position:center}
+  .aj-minifondo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0.7rem}
+  .aj-minifondo .aj-mf{aspect-ratio:16/9;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;background-size:cover;background-position:center;transition:all 150ms}
+  .aj-minifondo .aj-mf.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.25)}
+  @media (max-width:760px){.aj-grid{grid-template-columns:1fr}}
+  </style>
+  <script>
+  /* SIA · Ajustes y personalización en todas las páginas (overlay) */
+  (function () {
+    var FONDOS_AJ = [
+      { id: 'f01', nombre: 'Aurora boreal', src: 'static/fondos/fondo-01.jpg' },
+      { id: 'f02', nombre: 'Montañas',      src: 'static/fondos/fondo-02.jpg' },
+      { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
+      { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
+      { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+    ];
+    function inyectarAjustes() {
+      if (document.getElementById('overlayAjustes')) return;
+      var o = document.createElement('div');
+      o.className = 'overlay';
+      o.id = 'overlayAjustes';
+var miniFondos = '';
+      for (var i = 0; i < FONDOS_AJ.length; i++) {
+        var f = FONDOS_AJ[i];
+        miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
+      }
+      miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      o.innerHTML =
+        '<div class="glass glass-strong modal">' +
+        '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
+        '<p style="margin-bottom:0.9rem">Cambia el tamaño, el color, las esquinas, el fondo y la accesibilidad. Todo queda guardado en este dispositivo.</p>' +
+        '<div class="aj-grid">' +
+        '<div class="aj-bloque"><div class="aj-titulo">Tamaño de la interfaz</div><div class="aj-sub">Aumenta todos los elementos y letras.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-z="1" onclick="ajEscala(1)"><span class="tam-sigla">A</span><span class="tam-texto">Normal</span></button>' +
+        '<button type="button" class="tam-btn" data-z="2" onclick="ajEscala(2)"><span class="tam-sigla">A</span><span class="tam-texto">Grande</span></button>' +
+        '<button type="button" class="tam-btn" data-z="3" onclick="ajEscala(3)"><span class="tam-sigla">A</span><span class="tam-texto">Extra grande</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Color de acento</div><div class="aj-sub">Botones, enlaces y elementos destacados.</div><div class="opc-opts">' +
+        '<button type="button" class="opc-btn" data-accent="" onclick="ajAcento(\'\')"><span class="swatch" style="background:linear-gradient(135deg,#3B82F6,#8B5CF6)"></span><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="verde" onclick="ajAcento(\'verde\')"><span class="swatch" style="background:linear-gradient(135deg,#10B981,#14B8A6)"></span><span class="tam-texto">Verde</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="ambar" onclick="ajAcento(\'ambar\')"><span class="swatch" style="background:linear-gradient(135deg,#F59E0B,#F97316)"></span><span class="tam-texto">Ámbar</span></button>' +
+        '<button type="button" class="opc-btn" data-accent="rosa" onclick="ajAcento(\'rosa\')"><span class="swatch" style="background:linear-gradient(135deg,#EC4899,#A855F7)"></span><span class="tam-texto">Rosa</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Forma de las esquinas</div><div class="aj-sub">Qué tan redondeadas se ven tarjetas y ventanas.</div><div class="tam-opts">' +
+        '<button type="button" class="tam-btn" data-ajr="0" onclick="ajRedondez(\'0\')"><span class="tam-texto">Rectas</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="1" onclick="ajRedondez(\'1\')"><span class="tam-texto">Clásico</span></button>' +
+        '<button type="button" class="tam-btn" data-ajr="2" onclick="ajRedondez(\'2\')"><span class="tam-texto">Redondeado</span></button>' +
+        '</div></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Alto contraste</div><div class="aj-sub">Fondos más opacos y textos más nítidos. También reduce el consumo de batería.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajContraste" onclick="ajToggle(\'contraste\')"><span class="tam-texto" id="ajTxtContraste">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Reducir movimiento</div><div class="aj-sub">Desactiva animaciones y transiciones.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajMovimiento" onclick="ajToggle(\'movimiento\')"><span class="tam-texto" id="ajTxtMovimiento">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Densidad compacta</div><div class="aj-sub">Reduce los espacios para ver más contenido.</div>' +
+        '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
+        '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
+        '</div>' +
+        '<div class="modal-btns"><button type="button" class="btn btn-ghost" onclick="cerrarAjustes()">Cerrar</button></div>' +
+        '</div>';
+      document.body.appendChild(o);
+      o.addEventListener('click', function (e) { if (e.target === o) cerrarAjustes(); });
+    }
+    function aplicarAtributo(a, v) { if (v) document.documentElement.setAttribute(a, v); else document.documentElement.removeAttribute(a); }
+    function pintarEscala(e) {
+      var esc = localStorage.getItem('sia_ui_scale') || '1';
+      e.querySelectorAll('.tam-btn[data-z]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.z === esc); });
+    }
+    function pintarAcento(e) {
+      var ac = localStorage.getItem('sia_acento') || '';
+      e.querySelectorAll('.opc-btn[data-accent]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.accent === ac); });
+    }
+    function pintarRedondez(e) {
+      var rd = localStorage.getItem('sia_redondez') || '1';
+      e.querySelectorAll('.tam-btn[data-ajr]').forEach(function (b) { b.classList.toggle('seleccionada', b.dataset.ajr === rd); });
+    }
+    var PREFS = {
+      contraste:  { key: 'sia_alto_contraste', attr: 'data-ui-contrast',  btn: 'ajContraste',  txt: 'ajTxtContraste'  },
+      movimiento: { key: 'sia_movimiento',      attr: 'data-ui-motion',   btn: 'ajMovimiento', txt: 'ajTxtMovimiento' },
+      densidad:   { key: 'sia_densidad',        attr: 'data-ui-density',  btn: 'ajDensidad',   txt: 'ajTxtDensidad'   }
+    };
+    function pintarToggle(n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      var b = document.getElementById(p.btn), t = document.getElementById(p.txt);
+      if (b) b.classList.toggle('seleccionada', on);
+      if (t) t.textContent = on ? 'Activado ✓' : 'Desactivado';
+    }
+    function pintarFondo() {
+      var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var mini = document.getElementById('ajFondoMini');
+      if (mini) {
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+      }
+      var nombre = document.getElementById('ajFondoNombre');
+      if (nombre) {
+        var nf = null;
+        for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
+        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+      }
+      var el = document.getElementById('overlayAjustes');
+      if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
+    }
+    function ajPintarTodo() {
+      var e = document.getElementById('overlayAjustes'); if (!e) return;
+      pintarEscala(e); pintarAcento(e); pintarRedondez(e);
+      ['contraste', 'movimiento', 'densidad'].forEach(pintarToggle);
+      pintarFondo();
+    }
+    window.abrirAjustes = function () {
+      inyectarAjustes();
+      ajPintarTodo();
+      document.getElementById('overlayAjustes').classList.add('visible');
+    };
+    window.cerrarAjustes = function () {
+      var o = document.getElementById('overlayAjustes');
+      if (o) o.classList.remove('visible');
+    };
+    window.ajEscala = function (z) {
+      if (z === 1) { localStorage.removeItem('sia_ui_scale'); aplicarAtributo('data-ui-scale', ''); }
+      else { localStorage.setItem('sia_ui_scale', String(z)); document.documentElement.setAttribute('data-ui-scale', String(z)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarEscala(e);
+    };
+    window.ajToggle = function (n) {
+      var p = PREFS[n]; if (!p) return;
+      var on = localStorage.getItem(p.key) === '1';
+      if (on) { localStorage.removeItem(p.key); aplicarAtributo(p.attr, ''); }
+      else { localStorage.setItem(p.key, '1'); document.documentElement.setAttribute(p.attr, '1'); }
+      pintarToggle(n);
+    };
+    window.ajAcento = function (v) {
+      if (v) { localStorage.setItem('sia_acento', v); document.documentElement.setAttribute('data-ui-accent', v); }
+      else { localStorage.removeItem('sia_acento'); aplicarAtributo('data-ui-accent', ''); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarAcento(e);
+    };
+    window.ajRedondez = function (v) {
+      if (v === '1') { localStorage.removeItem('sia_redondez'); aplicarAtributo('data-ui-radius', ''); }
+      else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
+      var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
+    };
+window.ajSelFondo = function (id, src) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSubirFondo = function () {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+      inp.onchange = function () {
+        var file = inp.files && inp.files[0];
+        if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function () {
+          var sf = document.getElementById('siaFondo');
+          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          localStorage.setItem('sia_fondo', 'custom');
+          localStorage.setItem('sia_fondo_src', rd.result);
+          pintarFondo();
+        };
+        rd.readAsDataURL(file);
+      };
+      inp.click();
+    };
+    window.ajRestablecer = function () {
+      if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      window.location.reload();
+    };
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+  })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --glass-bg:       rgba(255,255,255,0.11);
+      --glass-bg-hover: rgba(255,255,255,0.17);
+      --glass-border:   rgba(255,255,255,0.22);
+      --glass-shadow:   0 8px 32px rgba(0,0,0,0.28);
+      --blur:           blur(20px);
+      --sidebar-bg:     rgba(8,14,40,0.55);
+      --blue:           #3B82F6;
+      --blue-light:     #93C5FD;
+      --purple:         #8B5CF6;
+      --green:          #10B981;
+      --green-light:    #6EE7B7;
+      --red:            #EF4444;
+      --red-light:      #FCA5A5;
+      --amber:          #F59E0B;
+      --amber-light:    #FCD34D;
+      --text-1: rgba(255,255,255,0.96);
+      --text-2: rgba(255,255,255,0.68);
+      --text-3: rgba(255,255,255,0.42);
+      --font-d: 'Nunito', sans-serif;
+      --font-b: 'Inter', sans-serif;
+      --r-sm: 8px; --r-md: 14px; --r-lg: 20px; --r-full: 9999px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-b); color: var(--text-1); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    .sia-fondo {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('static/fondos/fondo-01.jpg');
+      background-size: cover; background-position: center;
+    }
+    .sia-fondo::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(8,16,50,0.62) 0%, rgba(25,8,60,0.50) 50%, rgba(5,28,72,0.58) 100%);
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 230px; z-index: 100;
+      display: flex; flex-direction: column; padding: 1.5rem 1rem;
+      background: var(--sidebar-bg);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border-right: 1px solid var(--glass-border);
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; margin-bottom: 2rem; }
+    .sidebar-logo img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(147,197,253,0.5)); }
+    .logo-fallback {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg,var(--blue),var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 800; font-size: 17px; color: white;
+    }
+    .logo-txt .sigla {
+      font-family: var(--font-d); font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), #C4B5FD);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-txt .rol { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); }
+
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .nav-section { font-size: 0.60rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-3); padding: 1rem 0.6rem 0.4rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem;
+      border-radius: var(--r-md); font-size: 0.84rem; font-weight: 500; color: var(--text-2);
+      cursor: pointer; text-decoration: none; transition: background 150ms, color 150ms;
+    }
+    .nav-item:hover { background: var(--glass-bg); color: var(--text-1); }
+    .nav-item.activo { background: rgba(59,130,246,0.22); color: var(--blue-light); border: 1px solid rgba(59,130,246,0.30); }
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-profile {
+      margin-top: auto; border-top: 1px solid var(--glass-border);
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.75rem 0.5rem; border-radius: var(--r-md); cursor: pointer; transition: background 150ms;
+    }
+    .sidebar-profile:hover { background: var(--glass-bg); }
+    .avatar-sm {
+      width: 34px; height: 34px; border-radius: var(--r-full);
+      border: 2px solid var(--glass-border); background: rgba(59,130,246,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-d); font-weight: 700; font-size: 13px; color: var(--blue-light);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-name { font-size: 0.82rem; font-weight: 600; color: var(--text-1); }
+    .profile-role { font-size: 0.68rem; color: var(--text-3); }
+
+    /* MAIN */
+    .main { position: relative; z-index: 1; margin-left: 230px; min-height: 100vh; padding: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+    /* GLASS */
+    .glass {
+      background: var(--glass-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border); border-radius: var(--r-lg); box-shadow: var(--glass-shadow);
+    }
+
+    /* TOPBAR */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; }
+    .topbar-titulo { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; }
+    .topbar-sub { font-size: 0.80rem; color: var(--text-2); margin-top: 2px; }
+
+    .card-header { padding: 1.25rem 1.4rem 0.75rem; border-bottom: 1px solid var(--glass-border); }
+    .card-titulo { font-family: var(--font-d); font-size: 1rem; font-weight: 700; }
+    .card-sub { font-size: 0.76rem; color: var(--text-2); margin-top: 2px; }
+
+    /* BOTONES */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.55rem 1rem; border-radius: var(--r-md); font-family: var(--font-d);
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; transition: all 150ms; white-space: nowrap;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--purple)); color: white; box-shadow: 0 4px 16px rgba(59,130,246,0.35); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,130,246,0.50); }
+    .btn-ghost { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-1); backdrop-filter: var(--blur); }
+    .btn-ghost:hover { background: var(--glass-bg-hover); }
+    .btn-red { background: rgba(239,68,68,0.18); border: 1px solid rgba(239,68,68,0.35); color: var(--red-light); }
+    .btn-red:hover { background: rgba(239,68,68,0.30); }
+    .btn-xs { padding: 0.28rem 0.60rem; font-size: 0.70rem; border-radius: 8px; }
+
+    .tabla-wrap { overflow-x: auto; padding: 0 0 0.75rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 0.65rem 1.4rem;
+      font-size: 0.64rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-3); text-align: left;
+      border-bottom: 1px solid var(--glass-border); white-space: nowrap;
+    }
+    td {
+      padding: 0.75rem 1.4rem; font-size: 0.82rem; color: var(--text-1);
+      border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .badge-warn { background: rgba(245,158,11,0.18); color: var(--amber-light); border: 1px solid rgba(245,158,11,0.30); padding: 3px 10px; border-radius: 9999px; font-size: 0.66rem; font-weight: 700; }
+    .acciones { display: flex; gap: 0.35rem; }
+    .btn-green { background: rgba(16,185,129,0.20); border: 1px solid rgba(16,185,129,0.35); color: var(--green-light); }
+    .btn-green:hover { background: rgba(16,185,129,0.32); }
+    .btn-amber { background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.35); color: var(--amber-light); }
+.btn-amber:hover { background: rgba(245,158,11,0.30); }
+    .btn-blue { background: rgba(59,130,246,0.20); border: 1px solid rgba(59,130,246,0.35); color: var(--blue-light); }
+    .btn-blue:hover { background: rgba(59,130,246,0.32); }
+    .btn-sm { padding: 0.38rem 0.75rem; font-size: 0.75rem; border-radius: var(--r-sm); }
+    .btn:disabled { opacity: 0.45; pointer-events: none; }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; padding: 1.25rem 1.4rem; }
+
+    /* CÓDIGO DEL CURSO */
+    .codigo-box {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.9rem 1.1rem; background: rgba(0,0,0,0.25);
+      border: 1px solid var(--glass-border); border-radius: var(--r-md);
+      cursor: pointer; transition: border-color 150ms;
+    }
+    .codigo-box:hover { border-color: var(--blue-light); }
+    .codigo-txt { font-family: monospace; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-1); }
+    .codigo-hint { font-size: 0.70rem; color: var(--text-3); margin-top: 2px; }
+
+    .sala-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: var(--r-full);
+      font-size: 0.68rem; font-weight: 700;
+    }
+    .badge-activa { background: rgba(16,185,129,0.18); color: var(--green-light); border: 1px solid rgba(16,185,129,0.30); }
+    .badge-exito { background: rgba(16,185,129,0.18); color: var(--green-light); border: 1px solid rgba(16,185,129,0.30); padding: 3px 10px; border-radius: 9999px; font-size: 0.66rem; font-weight: 700; }
+    .badge-inactiva { background: rgba(239,68,68,0.15); color: var(--red-light); border: 1px solid rgba(239,68,68,0.28); }
+
+    .stat-mini { text-align: center; }
+    .stat-mini-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 800; color: var(--text-1); }
+    .stat-mini-label { font-size: 0.68rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+    /* MATERIAS */
+    .materia-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.9rem 1.4rem; border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background 120ms;
+    }
+    .materia-item:last-child { border-bottom: none; }
+    .materia-item:hover { background: rgba(255,255,255,0.04); }
+    .materia-nombre { font-size: 0.88rem; font-weight: 600; color: var(--text-1); }
+    .materia-meta { font-size: 0.74rem; color: var(--text-3); margin-top: 2px; }
+
+    /* ESTADO VACÍO */
+    .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 0.84rem; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    .ani { animation: fadeUp 350ms ease both; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 1rem; }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-box { width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+  .modal-box textarea {
+    background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+    border-radius: var(--r-md); color: var(--text-1); padding: 0.6rem;
+    font-family: var(--font-b); font-size: 0.84rem; resize: vertical;
+    width: 100%; box-sizing: border-box;
+  }
+  .msg { padding: 0.65rem 1rem; border-radius: var(--r-md); font-size: 0.80rem; display: none; }
+  .msg.error { background: rgba(239,68,68,0.14); border: 1px solid rgba(239,68,68,0.35); color: var(--red-light); display: block; }
+  .msg.exito { background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.35); color: var(--green-light); display: block; }
+  #modalPlanEvaluacion input[type="text"], #modalPlanEvaluacion input[type="number"] {
+    background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+    border-radius: var(--r-md); color: var(--text-1); padding: 0.5rem 0.6rem;
+    font-family: var(--font-b); font-size: 0.84rem; box-sizing: border-box;
+  }
+  #tablaHoja input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
+
+  /* Horario del director (parrilla semana) */
+  .hdir-tabla { display: grid; grid-template-columns: 84px repeat(7, 1fr); gap: 6px; min-width: 820px; }
+  .hdir-head  { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); padding: 6px; text-align: center; }
+  .hdir-hora  { font-size: 0.74rem; color: var(--text-2); padding: 10px 4px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: var(--r-md); font-weight: 700; }
+  .hdir-celda { min-height: 54px; border-radius: var(--r-md); border: 1px dashed var(--glass-border); padding: 6px; font-size: 0.72rem; color: var(--text-2); }
+  .hdir-celda.ocup { border-style: solid; border-left-width: 4px; background: rgba(255,255,255,0.04); color: var(--text-1); cursor: pointer; }
+  .hdir-celda.libre { display: flex; align-items: center; justify-content: center; }
+  .hdir-celda.libre button { background: transparent; border: 1px solid var(--glass-border); color: var(--text-2); border-radius: 999px; width: 26px; height: 26px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+  .hdir-celda.libre button:hover { color: var(--white); border-color: var(--white); }
+    .hdir-region { position: relative; min-width: 0; }
+    .hdir-region .hdir-celda.ocup.lanes-franja {
+      position: absolute;
+      box-sizing: border-box;
+      margin: 0;
+      overflow: hidden;
+      min-height: 0;
+      background: rgba(255,255,255,0.06);
+    }
+
+  .dia-nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .dia-chip {
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-2);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .dia-chip:hover { background: rgba(255,255,255,0.11); }
+  .dia-chip.sel {
+    border-color: var(--blue-light);
+    color: var(--white);
+    background: rgba(74,144,217,0.30);
+    font-weight: 700;
+  }
+  .hdir-bloque { display: block; font-weight: 600; margin-bottom: 2px; }
+  .hdir-acc { display: flex; gap: 4px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="sia-fondo" id="siaFondo"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+<img src="static/logo/SIA_LOGO.svg?v=2" id="logoInstImg" alt="SIA" onerror="this.style.display='none';document.getElementById('logoFb').style.display='flex'" />
+    <div class="logo-fallback" id="logoFb" style="display:none">S</div>
+    <input type="file" id="inputLogoInst" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="logo-txt">
+      <div class="sigla">SIA</div>
+      <div class="rol" id="sidebarRol">Docente</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <a class="nav-item" href="dashboard.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item activo" href="mis-clases.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Mis clases
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Tareas
+    </a>
+    <a class="nav-item" href="llamadas-docente.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Videollamadas
+    </a>
+    <div class="nav-section">Académico</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Notas
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Asistencia
+    </a>
+    <a class="nav-item" href="comunicados.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      Comunicados
+    </a>
+    <a class="nav-item" href="calendario.html">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+      Calendario
+    </a>
+  </nav>
+  <div class="sidebar-profile">
+    <div class="avatar-sm" id="sidebarAvatar">D</div>
+    <div>
+      <div class="profile-name" id="perfilNombre">Docente</div>
+      <div class="profile-role">Ver perfil</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <div class="glass topbar ani">
+    <div>
+      <div class="topbar-titulo">Mis clases</div>
+      <div class="topbar-sub">Tus materias asignadas y, si diriges un curso, su código para compartir</div>
+    </div>
+    <button type="button" class="btn btn-ghost" title="Ajustes y personalización" onclick="abrirAjustes()" style="width:36px;height:36px;padding:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+<!-- Tus cursos: al entrar solo se muestra la lista; el detalle aparece al elegir -->
+  <div class="glass ani" id="cardListaCursos">
+    <div class="card-header">
+      <div>
+        <div class="card-titulo">Tus cursos</div>
+        <div class="card-sub">El curso que diriges y los grupos donde dictas. Escoge uno para ver su detalle, sus materias y su horario.</div>
+      </div>
+    </div>
+    <div id="listaCursos" style="padding:0 1.4rem 1.4rem;display:flex;flex-direction:column;gap:0.6rem">
+      <div class="empty">Cargando cursos…</div>
+    </div>
+  </div>
+
+  <!-- Curso que diriges (solo visible si es director de curso) -->
+  <div class="glass ani" id="cardDirector" style="display:none">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="card-titulo">Curso que diriges</div>
+        <div class="card-sub" id="directorSub">—</div>
+      </div>
+      <span class="sala-badge" id="badgeCodigoEstado">—</span>
+    </div>
+    <div class="grid-3">
+      <div class="stat-mini">
+        <div class="stat-mini-num" id="dirEstudiantes">—</div>
+        <div class="stat-mini-label">Estudiantes</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-num" id="dirCapacidad">—</div>
+        <div class="stat-mini-label">Cupo máximo</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-num" id="dirGrado">—</div>
+        <div class="stat-mini-label">Grado</div>
+      </div>
+    </div>
+    <div style="padding:0 1.4rem 1.4rem;display:flex;flex-direction:column;gap:0.6rem">
+      <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-3)">Código para tus estudiantes</span>
+      <div class="codigo-box" id="codigoBox" title="Clic para copiar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--blue-light)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <div>
+          <div class="codigo-txt" id="codigoTxt">—</div>
+          <div class="codigo-hint">Con este código, tus estudiantes se matriculan directamente a este curso y quedan inscritos en todas tus materias.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.2rem">
+        <button class="btn btn-ghost btn-sm" id="btnGenerarCodigo">Generar nuevo código</button>
+        <button class="btn btn-amber btn-sm" id="btnToggleCodigo">Desactivar código</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estudiantes que se han unido a tu curso (solo director) -->
+  <div class="glass ani" id="cardEstudiantes" style="display:none">
+    <div class="card-header">
+      <div>
+        <div class="card-titulo">Estudiantes de tu curso</div>
+        <div class="card-sub">Quiénes se han unido con el código. Clic en un estudiante para ver su detalle por materia.</div>
+      </div>
+    </div>
+    <div class="tabla-wrap" style="padding: 0.75rem 0 0.5rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Documento</th>
+            <th>Fallas</th>
+            <th>Promedio</th>
+            <th>Código</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyEstudiantes">
+          <tr><td colspan="6" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detalle del curso (solo director): dos tablas con asistencia
+       y promedio de notas de todos los estudiantes en el periodo -->
+  <div class="glass ani" id="cardDetalleCurso" style="display:none">
+    <div class="card-header">
+      <div>
+        <div class="card-titulo">Detalle del curso</div>
+        <div class="card-sub" id="detalleCursoSub">Asistencia y promedio de notas del periodo</div>
+      </div>
+    </div>
+    <div class="tabla-wrap" style="padding: 0.75rem 0 0.5rem">
+      <div style="font-size:0.74rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-3);margin:0 0.35rem 0.5rem">Asistencia del periodo</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Presente</th>
+            <th>Retardo</th>
+            <th>Falta</th>
+            <th>Justificada</th>
+            <th>Registros</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyDetalleAsistencia">
+          <tr><td colspan="6" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tabla-wrap" style="padding: 0 0 1.2rem">
+      <div style="font-size:0.74rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-3);margin:0 0.35rem 0.5rem">Promedio de notas del periodo</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Promedio</th>
+            <th>Materias con nota</th>
+            <th>Faltas de asistencia</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyDetallePromedios">
+          <tr><td colspan="4" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detalle de un estudiante: desglose por materia (solo director) -->
+  <div class="glass ani" id="cardDetalleEstudiante" style="display:none">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="card-titulo" id="detalleEstudianteNombre">—</div>
+        <div class="card-sub">Fallas y promedio por materia, dentro del periodo actual</div>
+      </div>
+<div style="display:flex;gap:0.5rem">
+        <button class="btn btn-primary btn-sm"
+          onclick="verReporteEstudiante(detalleEstudianteIdActual)">
+          Reporte
+        </button>
+        <button class="btn btn-primary btn-sm"
+          onclick="abrirModalBoletin(detalleEstudianteIdActual, document.getElementById('detalleEstudianteNombre').textContent, grupoDirigido.id)">
+          Mostrar informe
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="volverAVistaCurso()">← Volver al curso</button>
+      </div>
+    </div>
+    <div class="tabla-wrap" style="padding: 0.75rem 0 0.5rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Área</th>
+            <th>Materia</th>
+            <th>Fallas</th>
+            <th>Promedio</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyDetalleEstudiante">
+          <tr><td colspan="4" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Trabajos del curso (solo director) -->
+  <div class="glass ani" id="cardTrabajos" style="display:none">
+    <div class="card-header">
+      <div class="card-titulo">Trabajos</div>
+      <div class="card-sub">Tareas y evaluaciones para tu curso</div>
+    </div>
+    <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem">
+      <button class="btn btn-ghost" onclick="abrirSelectorMateria('tareas')">+ Asignar tarea</button>
+      <button class="btn btn-ghost" onclick="abrirSelectorMateria('evaluacion')">+ Realizar evaluación</button>
+      <button class="btn btn-ghost" onclick="abrirPizarron()">📝 Pizarrón</button>
+    </div>
+  </div>
+
+  <!-- Horario de mi curso (solo director): asigna materias por hora usando
+       las horas de trabajo que definió el admin) -->
+  <div class="glass ani" id="cardHorarioDirector" style="display:none">
+    <div class="card-header">
+      <div class="card-titulo">Horario de mi curso</div>
+      <div class="card-sub">Asigna una materia a cada hora de la plantilla de tu institución. No puedes inventar horas: usa las definidas por el administrador.</div>
+    </div>
+    <div class="msg" id="msgHorarioDirector" style="margin:0 1.4rem"></div>
+    <div class="tabla-wrap" id="horarioDirectorWrap" style="padding: 0.75rem 1.4rem 1.4rem; overflow-x:auto">
+      <div class="empty">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Materias de tu curso (solo director): crearlas y asignar docentes -->
+  <div class="glass ani" id="cardMateriasDirector" style="display:none">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="card-titulo">Materias de tu curso</div>
+        <div class="card-sub">Crea materias para tu salón. El administrador asigna quién las dicta.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="abrirModalMateriaDirector()">+ Nueva materia</button>
+    </div>
+    <div class="tabla-wrap" style="padding: 0.75rem 0 0.5rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Materia</th><th>Horas sem.</th><th>Docentes</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyMateriasDirector">
+          <tr><td colspan="4" class="empty">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: nueva materia para el curso del director -->
+  <div class="modal-overlay" id="modalMateriaDirector" style="display:none">
+    <div class="glass modal-box" style="max-width:480px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo">Nueva materia para tu curso</div>
+          <div class="card-sub">Se creará directamente en tu salón y en su grado.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarModalMateriaDirector()">Cerrar</button>
+      </div>
+      <div id="msgMateriaDirector" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+      <div style="padding:0 1.4rem 1.4rem;display:flex;flex-direction:column;gap:0.9rem">
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Área</label>
+          <select id="dirMatArea"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Nombre de la materia</label>
+          <input type="text" id="dirMatNombre" placeholder="Ej: Matemáticas" maxlength="80" />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalMateriaDirector()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="guardarMateriaDirector()">Crear materia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: agregar/editar franja del horario del director -->
+  <div class="modal-overlay" id="modalFranjaDirector" style="display:none">
+    <div class="glass modal-box" style="max-width:520px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo" id="tituloFranjaDirector">Agregar materia al horario</div>
+          <div class="card-sub">Elige el día, la hora de la plantilla y la materia.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarModalFranjaDirector()">Cerrar</button>
+      </div>
+      <div id="msgFranjaDirector" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+      <div style="padding:0 1.4rem 1.4rem;display:flex;flex-direction:column;gap:0.9rem">
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Día</label>
+          <select id="franjaDirecDia" onchange="refrescarBloquesDirector()">
+            <option value="1">Lunes</option>
+            <option value="2">Martes</option>
+            <option value="3">Miércoles</option>
+            <option value="4">Jueves</option>
+            <option value="5">Viernes</option>
+            <option value="6">Sábado</option>
+            <option value="7">Domingo</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Hora (de la plantilla de tu institución)</label>
+          <select id="franjaDirecHora" onchange="refrescarHoraFinDirector()"></select>
+        </div>
+        <div style="display:none">
+          <input type="time" id="franjaDirecHoraFin">
+        </div>
+<div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Materia</label>
+          <select id="franjaDirecMateria"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Profesor que dicta</label>
+          <select id="franjaDirecDocente"></select>
+          <small style="display:block;font-size:0.72rem;color:var(--text-3);margin-top:2px">Solo los profesores asignados a la materia en este curso.</small>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">Aula (opcional)</label>
+          <input type="text" id="franjaDirecAula" placeholder="Ej: Salón 2" />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalFranjaDirector()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="guardarFranjaDirector()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Materias que dicta -->
+  <div class="glass ani" id="cardMisMaterias" style="display:none;animation-delay:80ms">
+    <div class="card-header">
+      <div class="card-titulo">Materias que dictas</div>
+      <div class="card-sub">Grados y grupos donde tienes clase asignada. Clic en una materia para ver fallas y promedio de sus estudiantes.</div>
+    </div>
+    <div id="listaMaterias">
+      <div class="empty">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Detalle de una materia: fallas y promedio de sus estudiantes -->
+  <div class="glass ani" id="cardDetalleMateria" style="display:none">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="card-titulo" id="detalleMateriaNombre">—</div>
+        <div class="card-sub">Fallas y promedio por estudiante, dentro del periodo actual</div>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-primary btn-sm" onclick="abrirModalPlan()">Plan de evaluación</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalTareas(materiaActualId, document.getElementById('detalleMateriaNombre').textContent)">Tareas</button>
+        <button class="btn btn-ghost btn-sm" onclick="volverAVistaMaterias()">← Volver a materias</button>
+      </div>
+    </div>
+    <div class="tabla-wrap" style="padding: 0.75rem 0 0.5rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Fallas</th>
+            <th>Promedio</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyDetalleMateria">
+          <tr><td colspan="3" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detalle de un curso donde dictas (no es el curso que diriges) -->
+  <div class="glass ani" id="cardCursoDictado" style="display:none">
+    <div class="card-header">
+      <div>
+        <div class="card-titulo" id="cursoDictadoTitulo">—</div>
+        <div class="card-sub" id="cursoDictadoSub">—</div>
+      </div>
+    </div>
+    <div style="padding:0 1.4rem 0.9rem;display:flex;gap:0.9rem;flex-wrap:wrap">
+      <div class="stat-mini">
+        <div class="stat-mini-num" id="cursoDictadoEstudiantes">—</div>
+        <div class="stat-mini-label">Estudiantes</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-num" id="cursoDictadoMaterias">—</div>
+        <div class="stat-mini-label">Materias tuyas</div>
+      </div>
+    </div>
+    <div style="padding:0 1.4rem 0.5rem;font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-3)">Materias que dictas aquí</div>
+    <div id="listaMateriasCurso" style="padding:0 1.4rem 1.2rem"></div>
+    <div class="tabla-wrap" id="horarioCursoDictadoWrap" style="display:none;padding:0 1.4rem 1.4rem"></div>
+  </div>
+
+  <!-- Elegir materia (card Trabajos: asignar tarea / realizar evaluación) -->
+  <div class="modal-overlay" id="modalSelectorMateria" style="display:none">
+    <div class="glass modal-box" style="max-width:480px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo" id="selectorMateriaTitulo">Realizar evaluación</div>
+          <div class="card-sub" id="selectorMateriaSub">Elige la materia.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarSelectorMateria()">Cerrar</button>
+      </div>
+      <div id="msgSelectorMateria" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+      <div style="padding:0 1.4rem 1.4rem" id="listaMateriasSelector">
+        <div class="empty">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tareas de una materia: asignar / listar / editar / eliminar -->
+  <div class="modal-overlay" id="modalTareas" style="display:none">
+    <div class="glass modal-box" style="max-width:600px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo">Tareas</div>
+          <div class="card-sub" id="tareasModalSub">—</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarModalTareas()">Cerrar</button>
+      </div>
+
+      <div id="msgTareas" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+
+      <div style="padding:0 1.4rem" id="listaTareas">
+        <div class="empty">Cargando...</div>
+      </div>
+
+      <div style="padding:1rem 1.4rem;display:flex;gap:0.5rem;flex-wrap:wrap;border-top:1px solid var(--glass-border);margin-top:0.5rem">
+        <input type="text" id="tareaNuevoTitulo" placeholder="Título de la tarea (ej: Resolver ejercicios 1-10)" style="flex:2;min-width:180px" />
+        <input type="date" id="tareaNuevaFecha" style="flex:1;min-width:130px" />
+        <input type="number" id="tareaNuevoValor" placeholder="Valor máx" min="1" max="10" step="0.5" style="flex:1;min-width:90px" />
+        <button class="btn btn-primary btn-sm" onclick="agregarTarea()">+ Asignar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entregas de una tarea: revisar y calificar -->
+  <div class="modal-overlay" id="modalEntregas" style="display:none">
+    <div class="glass modal-box" style="max-width:760px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo">Entregas</div>
+          <div class="card-sub" id="entregasTareaSub">—</div>
+        </div>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="volverAModalTareas()">← Tareas</button>
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalEntregas()">Cerrar</button>
+        </div>
+      </div>
+      <div id="msgEntregas" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+      <div class="tabla-wrap" style="padding: 0 1.4rem 1.4rem; overflow-x:auto">
+        <table>
+          <thead>
+            <tr><th>Estudiante</th><th>Estado</th><th>Nota</th><th>Feedback</th><th></th></tr>
+          </thead>
+          <tbody id="tbodyEntregas">
+            <tr><td colspan="5" class="empty">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan de evaluación: actividades y su peso, por periodo -->
+  <div class="modal-overlay" id="modalPlanEvaluacion" style="display:none">
+    <div class="glass modal-box" style="max-width:560px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo">Plan de evaluación</div>
+          <div class="card-sub" id="planModalSub">—</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarModalPlan()">Cerrar</button>
+      </div>
+
+      <div style="padding:0 1.4rem 1rem">
+        <div style="background:rgba(0,0,0,0.25);border-radius:999px;height:10px;overflow:hidden;margin-bottom:0.35rem">
+          <div id="planBarraProgreso" style="height:100%;width:0%;background:var(--blue-light);transition:width .25s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-3)">
+          <span id="planSumaTxt">Definido: 0%</span>
+          <span id="planPendienteTxt">Pendiente: 100%</span>
+        </div>
+      </div>
+
+      <div id="msgPlan" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+
+      <div style="padding:0 1.4rem" id="listaPlanItems">
+        <div class="empty">Cargando...</div>
+      </div>
+
+      <div style="padding:1rem 1.4rem;display:flex;gap:0.5rem;flex-wrap:wrap;border-top:1px solid var(--glass-border);margin-top:0.5rem">
+        <input type="text" id="planNuevoNombre" placeholder="Nombre de la actividad (ej: Tarea 1)" style="flex:2;min-width:160px" />
+        <input type="number" id="planNuevoPeso" placeholder="% peso" min="1" max="100" style="flex:1;min-width:80px" />
+        <button class="btn btn-primary btn-sm" onclick="agregarItemPlan()">+ Agregar</button>
+      </div>
+
+      <div style="padding:0 1.4rem 1.4rem;display:flex;justify-content:flex-end">
+        <button class="btn btn-amber btn-sm" onclick="abrirModalHoja()">Calificar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hoja de calificación: columnas = actividades, filas = estudiantes -->
+  <div class="modal-overlay" id="modalHojaCalificacion" style="display:none">
+    <div class="glass modal-box" style="max-width:820px">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-titulo">Calificar</div>
+          <div class="card-sub" id="hojaModalSub">—</div>
+        </div>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="volverAModalPlan()">← Plan de evaluación</button>
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalHoja()">Cerrar</button>
+        </div>
+      </div>
+      <div id="msgHoja" class="msg" style="margin:0 1.4rem 0.75rem"></div>
+      <div class="tabla-wrap" style="padding: 0 1.4rem 1.4rem; overflow-x:auto">
+        <table id="tablaHoja">
+          <thead><tr><th>Estudiante</th></tr></thead>
+          <tbody id="tbodyHoja">
+            <tr><td class="empty">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalBoletin" style="display:none">
+    <div class="glass modal-box">
+      <div class="card-header">
+        <div class="card-titulo">Generar boletín</div>
+        <div class="card-sub" id="boletinModalSub">—</div>
+      </div>
+      <div style="padding:1rem 1.4rem;display:flex;flex-direction:column;gap:0.75rem">
+        <label style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-3)">
+          Observaciones (opcional)
+        </label>
+        <textarea id="boletinObservaciones" rows="4" placeholder="Comentario del director sobre el periodo..."></textarea>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalBoletin()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" id="btnConfirmarBoletin">Generar PDF</button>
+        </div>
+      </div>
+      <div id="boletinHistorial" style="padding:0 1.4rem 1.2rem"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ══════════════════════════════════
+   CONFIG
+══════════════════════════════════ */
+const API   = window.location.origin;
+const token = sessionStorage.getItem('sia_token');
+if (!token) window.location.href = 'login.html';
+const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+/* ══════════════════════════════════
+   FONDO Y PERFIL
+══════════════════════════════════ */
+async function aplicarFondoGuardado() {
+  const fondoId = localStorage.getItem('sia_fondo') || 'f01';
+  if (/^f\d{2}$/.test(fondoId)) {
+    const fondoNum = fondoId.replace('f', '').padStart(2, '0');
+    document.getElementById('siaFondo').style.backgroundImage = `url('static/fondos/fondo-${fondoNum}.jpg')`;
+    return;
+  }
+  try {
+    const res  = await fetch(`${API}/api/sistema/fondos`, { headers });
+    const data = await res.json();
+    const f = data.ok ? data.fondos.find(f => f.id === fondoId) : null;
+    document.getElementById('siaFondo').style.backgroundImage =
+      f ? `url('${API}${f.src}')` : `url('static/fondos/fondo-01.jpg')`;
+  } catch {
+    document.getElementById('siaFondo').style.backgroundImage = `url('static/fondos/fondo-01.jpg')`;
+  }
+}
+
+(function initPerfil() {
+  aplicarFondoGuardado();
+  const u = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('perfilNombre').textContent = u.nombre;
+    document.getElementById('sidebarAvatar').textContent = u.nombre.charAt(0).toUpperCase();
+    document.getElementById('sidebarRol').textContent = u.rol || 'Docente';
+  }
+  const av = JSON.parse(localStorage.getItem('sia_avatar') || 'null');
+  if (av) document.getElementById('sidebarAvatar').innerHTML =
+    `<img src="${av.src}" onerror="this.parentElement.textContent='D'" />`;
+})();
+
+/* ══════════════════════════════════
+   CURSO QUE DIRIGE (si aplica)
+══════════════════════════════════ */
+let grupoDirigido = null;
+let detalleEstudianteIdActual = null;
+let materiaActualId = null;
+let MIS_MATERIAS = [];
+
+// Estado de la vista por cursos
+let misCursosCache = [];
+let cursoActivo = null;             // grupo_id abierto en este momento
+let materiaCursoActivo = null;      // grupo del curso "Dictas" en detalle
+let areasCache = [];
+
+function cerrarCardsCurso() {
+  ['cardDirector', 'cardEstudiantes', 'cardDetalleCurso', 'cardTrabajos',
+   'cardHorarioDirector', 'cardMateriasDirector', 'cardMisMaterias',
+   'cardDetalleMateria', 'cardCursoDictado'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+let cursoCardEl = null;
+function marcarCursoCard(el, seleccion) {
+  if (cursoCardEl) {
+    cursoCardEl.style.borderColor = 'rgba(255,255,255,0.10)';
+    cursoCardEl.style.background = 'rgba(255,255,255,0.05)';
+  }
+  if (el && seleccion) {
+    cursoCardEl = el;
+    cursoCardEl.style.borderColor = 'rgba(74,144,217,0.7)';
+    cursoCardEl.style.background = 'rgba(74,144,217,0.15)';
+  } else {
+    cursoCardEl = null;
+  }
+}
+
+async function abrirCurso(grupoId, esDirector, el) {
+  if (cursoActivo === grupoId) {
+    cursoActivo = null;
+    cerrarCardsCurso();
+    marcarCursoCard(null, false);
+    const cont = document.getElementById('listaCursos');
+    if (cont) cont.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  cursoActivo = grupoId;
+  marcarCursoCard(el, true);
+  cerrarCardsCurso();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (esDirector) {
+    if (!grupoDirigido) await cargarMiGrupoDirector();
+    if (!grupoDirigido) { alert('No se pudo cargar tu curso dirigido.'); return; }
+    ['cardDirector', 'cardEstudiantes', 'cardDetalleCurso', 'cardTrabajos',
+     'cardHorarioDirector', 'cardMateriasDirector', 'cardMisMaterias'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+    if (!horarioDirFranjas.length) cargarHorarioDirector();
+    await cargarMateriasDirector();
+  } else {
+    materiaCursoActivo = grupoId;
+    document.getElementById('cardCursoDictado').style.display = '';
+    await renderCursoDictado(grupoId);
+  }
+}
+
+async function cargarMisCursos() {
+  const cont = document.getElementById('listaCursos');
+  try {
+    const res  = await fetch(`${API}/api/academico/mis-cursos`, { headers });
+    const data = await res.json();
+    misCursosCache = data.ok ? data.cursos : [];
+    if (!misCursosCache.length) {
+      cont.innerHTML = '<div class="empty">Todavía no tienes cursos asignados. Pide a tu administrador que te asigne un curso para dirigir o materias para dictar.</div>';
+      return;
+    }
+    cont.innerHTML = misCursosCache.map(c => {
+      const rolTxt = c.es_director
+        ? 'Diriges este curso'
+        : `${c.total_mis_materias} materia${c.total_mis_materias === 1 ? '' : 's'} tuya${c.total_mis_materias === 1 ? '' : 's'} aquí`;
+      return `
+      <div onclick="abrirCurso('${c.grupo_id}', ${c.es_director}, this)"
+           style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:12px 14px;transition:background .15s"
+           onmouseover="this.style.background='rgba(255,255,255,0.10)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:0.95rem">${c.codigo}</div>
+          <div style="font-size:0.76rem;color:var(--text-2)">${c.total_estudiantes} estudiantes · ${c.total_materias} materias del curso · ${rolTxt}</div>
+        </div>
+        <span style="background:${c.es_director ? 'rgba(74,144,217,0.25)' : 'rgba(16,185,129,0.18)'};border:1px solid ${c.es_director ? 'rgba(74,144,217,0.6)' : 'rgba(16,185,129,0.5)'};color:var(--text-1);border-radius:999px;padding:4px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">${c.es_director ? 'Director' : 'Dictas'}</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    cont.innerHTML = '<div class="empty">No se pudieron cargar tus cursos.</div>';
+    console.error(err);
+  }
+}
+
+async function cargarMiGrupoDirector() {
+  try {
+    const res  = await fetch(`${API}/api/academico/mi-grupo`, { headers });
+    if (res.status === 404) return; // no dirige ningún curso, se deja oculto
+    const data = await res.json();
+    if (!data.ok) return;
+
+    grupoDirigido = data.grupo;
+    document.getElementById('directorSub').textContent = `${grupoDirigido.grado_nombre} ${grupoDirigido.nombre}`;
+    document.getElementById('dirEstudiantes').textContent = grupoDirigido.total_estudiantes ?? 0;
+    document.getElementById('dirCapacidad').textContent   = grupoDirigido.capacidad_max ?? '—';
+    document.getElementById('dirGrado').textContent       = grupoDirigido.grado_nombre ?? '—';
+
+    renderCodigo();
+    await cargarResumenCurso();
+    cargarEstudiantesGrupo();
+    cargarHorarioDirector();
+  } catch (err) {
+    console.error('Error cargando el curso dirigido:', err);
+  }
+}
+
+function renderCodigo() {
+  const badge = document.getElementById('badgeCodigoEstado');
+  const btnToggle = document.getElementById('btnToggleCodigo');
+
+  if (grupoDirigido.codigo_matricula) {
+    document.getElementById('codigoTxt').textContent = grupoDirigido.codigo_matricula;
+  } else {
+    document.getElementById('codigoTxt').textContent = 'Sin generar';
+  }
+
+  if (grupoDirigido.codigo_activo) {
+    badge.textContent = 'Código activo';
+    badge.className = 'sala-badge badge-activa';
+    btnToggle.textContent = 'Desactivar código';
+  } else {
+    badge.textContent = 'Código inactivo';
+    badge.className = 'sala-badge badge-inactiva';
+    btnToggle.textContent = 'Activar código';
+  }
+}
+
+document.getElementById('codigoBox').addEventListener('click', () => {
+  if (!grupoDirigido?.codigo_matricula) return;
+  navigator.clipboard.writeText(grupoDirigido.codigo_matricula).then(() => {
+    const el = document.getElementById('codigoTxt');
+    const original = el.textContent;
+    el.textContent = '¡Copiado!';
+    setTimeout(() => el.textContent = original, 1500);
+  });
+});
+
+document.getElementById('btnGenerarCodigo').addEventListener('click', async () => {
+  if (!grupoDirigido) return;
+  if (grupoDirigido.codigo_matricula && !confirm('Esto invalida el código actual y los estudiantes que aún no se han matriculado no podrán usarlo. ¿Generar uno nuevo?')) return;
+  try {
+    const res  = await fetch(`${API}/api/academico/grupos/${grupoDirigido.id}/generar-codigo`, { method: 'POST', headers });
+    const data = await res.json();
+    if (!data.ok) { alert(data.mensaje || 'No se pudo generar el código.'); return; }
+    grupoDirigido.codigo_matricula = data.codigo;
+    grupoDirigido.codigo_activo = true;
+    renderCodigo();
+  } catch (err) {
+    alert('No se pudo generar el código. Intenta de nuevo.');
+    console.error(err);
+  }
+});
+
+document.getElementById('btnToggleCodigo').addEventListener('click', async () => {
+  if (!grupoDirigido) return;
+  const nuevoEstado = !grupoDirigido.codigo_activo;
+  try {
+    const res  = await fetch(`${API}/api/academico/grupos/${grupoDirigido.id}/codigo-estado`, {
+      method: 'PUT', headers, body: JSON.stringify({ activo: nuevoEstado })
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.mensaje || 'No se pudo cambiar el estado del código.'); return; }
+    grupoDirigido.codigo_activo = nuevoEstado;
+    renderCodigo();
+  } catch (err) {
+    alert('No se pudo cambiar el estado del código. Intenta de nuevo.');
+    console.error(err);
+  }
+});
+
+/* ══════════════════════════════════
+   ESTUDIANTES DEL CURSO (director)
+══════════════════════════════════ */
+let resumenCursoCache = {}; // estudiante_id -> { fallas_totales, promedio_general }
+
+async function cargarResumenCurso() {
+  if (!grupoDirigido) return;
+  try {
+    const res  = await fetch(`${API}/api/resumen/curso/${grupoDirigido.id}`, { headers });
+    const data = await res.json();
+    resumenCursoCache = {};
+    if (data.ok) {
+      for (const e of data.estudiantes) resumenCursoCache[e.estudiante_id] = e;
+      renderDetalleCurso(data);
+    }
+  } catch (err) {
+    console.error('Error cargando el resumen del curso:', err);
+  }
+}
+
+async function renderDetalleCurso(data) {
+  const tbA = document.getElementById('tbodyDetalleAsistencia');
+  const tbN = document.getElementById('tbodyDetallePromedios');
+  document.getElementById('detalleCursoSub').textContent =
+    `Asistencia y promedio de notas de ${grupoDirigido.grado_nombre || ''} ${grupoDirigido.nombre || ''} — ` +
+    `${data.periodo_nombre || 'Periodo actual'}${data.anio_lectivo ? ' ' + data.anio_lectivo : ''}`;
+  if (!data.estudiantes || !data.estudiantes.length) {
+    tbA.innerHTML = '<tr><td colspan="6" class="empty">Todavía no hay estudiantes matriculados en este curso.</td></tr>';
+    tbN.innerHTML = '<tr><td colspan="4" class="empty">—</td></tr>';
+    return;
+  }
+  tbA.innerHTML = data.estudiantes.map(e => {
+    const a = e.asistencia || {};
+    const total = (a.presentes || 0) + (a.retardos || 0) + (a.faltas || 0) + (a.justificadas || 0);
+    return `
+      <tr>
+        <td style="font-weight:600">${e.nombres} ${e.apellidos}</td>
+        <td>${a.presentes || 0}</td>
+        <td>${a.retardos || 0}</td>
+        <td>${a.faltas || 0}</td>
+        <td>${a.justificadas || 0}</td>
+        <td>${total}</td>
+      </tr>`;
+  }).join('');
+  tbN.innerHTML = data.estudiantes.map(e => `
+    <tr>
+      <td style="font-weight:600">${e.nombres} ${e.apellidos}</td>
+      <td>${e.promedio_general != null ? e.promedio_general : '—'}</td>
+      <td>${e.materias_con_notas ?? 0}</td>
+      <td>${e.fallas_totales ?? 0}</td>
+    </tr>`).join('');
+}
+
+async function cargarEstudiantesGrupo() {
+  const tbody = document.getElementById('tbodyEstudiantes');
+  if (!grupoDirigido) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="empty">Cargando...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/api/matriculas/grupo/${grupoDirigido.id}`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.estudiantes || !data.estudiantes.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Todavía no se ha unido ningún estudiante con el código.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.estudiantes.map(e => {
+      const revalida = e.codigo_confirmado && grupoDirigido.codigo_matricula && e.codigo_confirmado !== grupoDirigido.codigo_matricula;
+      const nombreCompleto = `${e.nombres} ${e.apellidos}`.replace(/'/g, "\\'");
+      const resumen = resumenCursoCache[e.estudiante_id] || {};
+      const promedio = resumen.promedio_general != null ? resumen.promedio_general : '—';
+      const fallas   = resumen.fallas_totales ?? 0;
+return `
+      <tr>
+        <td style="font-weight:600;cursor:pointer" onclick="abrirDetalleEstudiante('${e.estudiante_id}','${nombreCompleto}')">
+          ${e.foto_url
+            ? `<img src="${e.foto_url}" alt="" data-visor="1" onerror="this.style.display='none'" style="width:24px;height:24px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;cursor:pointer">`
+            : `<span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--card-2,#374151);color:#fff;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-right:6px">${(e.nombres||'?').charAt(0)}</span>`}
+          ${e.nombres} ${e.apellidos}</td>
+        <td style="color:var(--text-2)">${e.tipo_documento} ${e.numero_documento}</td>
+        <td>${fallas}</td>
+        <td>${promedio}</td>
+        <td>${revalida ? '<span class="badge-warn">Debe revalidar</span>' : (e.codigo_confirmado || '<span style="color:var(--text-3)">—</span>')}</td>
+        <td>
+<div class="acciones">
+            <button class="btn btn-blue btn-xs" onclick="verReporteEstudiante('${e.estudiante_id}')">Reporte</button>
+            <button class="btn btn-red btn-xs" onclick="eliminarEstudianteGrupo('${e.matricula_id}', '${nombreCompleto}')">Eliminar</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Error de conexión con el servidor.</td></tr>';
+    console.error(err);
+  }
+}
+
+async function eliminarEstudianteGrupo(matriculaId, nombreCompleto) {
+  if (!confirm(`¿Eliminar a ${nombreCompleto}? Se borrará su cuenta por completo y no podrá volver a registrarse con esos datos en este curso.`)) return;
+  try {
+    const res  = await fetch(`${API}/api/matriculas/${matriculaId}/eliminar-estudiante`, { method: 'DELETE', headers });
+    const data = await res.json();
+    if (!data.ok) { alert(data.mensaje || 'No se pudo eliminar al estudiante.'); return; }
+    await cargarResumenCurso();
+    cargarEstudiantesGrupo();
+    cargarMiGrupoDirector();
+  } catch (err) {
+    alert('Error de conexión. Intenta de nuevo.');
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════
+   DETALLE DE UN ESTUDIANTE (por materia)
+══════════════════════════════════ */
+async function abrirDetalleEstudiante(estudianteId, nombreCompleto) {
+  detalleEstudianteIdActual = estudianteId;
+  document.getElementById('cardDirector').style.display = 'none';
+  document.getElementById('cardEstudiantes').style.display = 'none';
+  document.getElementById('cardTrabajos').style.display = 'none';
+  document.getElementById('cardDetalleEstudiante').style.display = '';
+  document.getElementById('detalleEstudianteNombre').textContent = nombreCompleto;
+
+  const tbody = document.getElementById('tbodyDetalleEstudiante');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Cargando...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/api/resumen/curso/${grupoDirigido.id}/estudiante/${estudianteId}`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.materias.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Este curso todavía no tiene materias creadas.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.materias.map(m => `
+      <tr>
+        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${m.color_hex};margin-right:6px"></span>${m.area_nombre}</td>
+        <td style="font-weight:600">${m.materia_nombre}</td>
+        <td>${m.fallas}</td>
+        <td>${m.promedio != null ? m.promedio : '—'}</td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">Error de conexión con el servidor.</td></tr>';
+    console.error(err);
+  }
+}
+
+function verReporteEstudiante(estudianteId) {
+  window.location.href = `reporte-estudiante.html?estudiante=${encodeURIComponent(estudianteId)}`;
+}
+
+function volverAVistaCurso() {
+  document.getElementById('cardDetalleEstudiante').style.display = 'none';
+  document.getElementById('cardDirector').style.display = '';
+  document.getElementById('cardEstudiantes').style.display = '';
+  document.getElementById('cardTrabajos').style.display = '';
+}
+
+/* ══════════════════════════════════
+   BOLETÍN
+══════════════════════════════════ */
+let estudianteBoletinActual = null; // { id, grupoId }
+
+function abrirModalBoletin(estudianteId, nombreCompleto, grupoId) {
+  estudianteBoletinActual = { id: estudianteId, grupoId };
+  document.getElementById('boletinModalSub').textContent = nombreCompleto;
+  document.getElementById('boletinObservaciones').value = '';
+  document.getElementById('modalBoletin').style.display = 'flex';
+  cargarHistorialBoletines(estudianteId, grupoId);
+}
+
+function cerrarModalBoletin() {
+  document.getElementById('modalBoletin').style.display = 'none';
+  estudianteBoletinActual = null;
+}
+
+async function cargarHistorialBoletines(estudianteId, grupoId) {
+  const cont = document.getElementById('boletinHistorial');
+  cont.innerHTML = '<div class="empty" style="padding:1rem">Cargando historial...</div>';
+  try {
+    const res  = await fetch(`${API}/api/boletines/estudiante/${estudianteId}?grupo_id=${grupoId}`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.boletines.length) {
+      cont.innerHTML = '<div class="empty" style="padding:1rem">Todavía no se ha generado ningún boletín para este estudiante.</div>';
+      return;
+    }
+    cont.innerHTML = `
+      <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-3);margin-bottom:0.5rem">
+        Boletines anteriores
+      </div>
+      ${data.boletines.map(b => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <div>
+            <div style="font-size:0.82rem;font-weight:600">${b.periodo_nombre} (${b.anio_lectivo})</div>
+            <div style="font-size:0.70rem;color:var(--text-3)">${new Date(b.created_at).toLocaleString('es-CO')}</div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-xs" href="${API}${b.descarga_url}" target="_blank" rel="noopener">Descargar</a>
+        </div>
+      `).join('')}
+    `;
+  } catch (err) {
+    cont.innerHTML = '<div class="empty" style="padding:1rem">Error cargando el historial.</div>';
+    console.error(err);
+  }
+}
+
+document.getElementById('btnConfirmarBoletin').addEventListener('click', async () => {
+  if (!estudianteBoletinActual) return;
+  const observaciones = document.getElementById('boletinObservaciones').value.trim();
+  const btn = document.getElementById('btnConfirmarBoletin');
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  try {
+    const res  = await fetch(`${API}/api/boletines/estudiante/${estudianteBoletinActual.id}/generar`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ grupo_id: estudianteBoletinActual.grupoId, observaciones: observaciones || null })
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.mensaje || 'No se pudo generar el boletín.'); return; }
+    window.open(`${API}${data.descarga_url}`, '_blank');
+    cargarHistorialBoletines(estudianteBoletinActual.id, estudianteBoletinActual.grupoId);
+  } catch (err) {
+    alert('Error de conexión. Intenta de nuevo.');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generar PDF';
+  }
+});
+
+function proximamente(nombre) {
+  alert(`"${nombre}" todavía no está disponible. Muy pronto podrás usarlo desde aquí mismo.`);
+}
+
+/* ══════════════════════════════════
+   MATERIAS QUE DICTA
+══════════════════════════════════ */
+async function cargarMisMaterias() {
+  const lista = document.getElementById('listaMaterias');
+  try {
+    const res  = await fetch(`${API}/api/clases/mis-materias`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.materias?.length) {
+      MIS_MATERIAS = [];
+      lista.innerHTML = '<div class="empty">Aún no tienes materias asignadas.</div>';
+      return;
+    }
+    MIS_MATERIAS = data.materias;
+    lista.innerHTML = data.materias.map(m => {
+      const nombreCompleto = `${m.materia} — ${m.grado} ${m.grupo}`.replace(/'/g, "\\'");
+      return `
+      <div class="materia-item" style="cursor:pointer" onclick="abrirVistaMateria('${m.materia_id}', '${nombreCompleto}')">
+        <div>
+          <div class="materia-nombre">${m.materia}</div>
+          <div class="materia-meta">${m.grado} ${m.grupo}</div>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (err) {
+    lista.innerHTML = '<div class="empty">No se pudieron cargar tus materias.</div>';
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════
+   DETALLE DE UNA MATERIA (fallas/promedio de sus estudiantes)
+══════════════════════════════════ */
+async function abrirVistaMateria(materiaId, nombreCompleto) {
+  materiaActualId = materiaId;
+  document.getElementById('cardMisMaterias').style.display = 'none';
+  document.getElementById('cardCursoDictado').style.display = 'none';
+  document.getElementById('cardDetalleMateria').style.display = '';
+  document.getElementById('detalleMateriaNombre').textContent = nombreCompleto;
+
+  const tbody = document.getElementById('tbodyDetalleMateria');
+  tbody.innerHTML = '<tr><td colspan="3" class="empty">Cargando...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/api/resumen/materia/${materiaId}`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.estudiantes.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Todavía no hay estudiantes matriculados en el curso de esta materia.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.estudiantes.map(e => `
+      <tr>
+        <td style="font-weight:600">${e.nombres} ${e.apellidos}</td>
+        <td>${e.fallas}</td>
+        <td>${e.promedio != null ? e.promedio : '—'}</td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">Error de conexión con el servidor.</td></tr>';
+    console.error(err);
+  }
+}
+
+function volverAVistaMaterias() {
+  document.getElementById('cardDetalleMateria').style.display = 'none';
+  document.getElementById('cardMisMaterias').style.display = 'none';
+  // Si venimos del detalle de un curso donde dictas, volvemos ahí.
+  const cc = document.getElementById('cardCursoDictado');
+  if (cc && cc.style.display === '') {
+    cc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  // Caso por defecto: lista general de tus materias (también dentro de la
+  // vista del curso dirigido, que la mantiene visible).
+  document.getElementById('cardMisMaterias').style.display = '';
+}
+
+/* ══════════════════════════════════
+   DETALLE DE UN CURSO DONDE DICTAS (no es el curso que diriges)
+══════════════════════════════════ */
+async function renderCursoDictado(grupoId) {
+  const curso = misCursosCache.find(c => c.grupo_id === grupoId) || {};
+  const codigo = curso.codigo || 'Curso';
+  document.getElementById('cursoDictadoTitulo').textContent = codigo;
+  document.getElementById('cursoDictadoSub').textContent =
+    `${curso.total_estudiantes ?? 0} estudiantes · ${curso.total_materias ?? 0} materias del curso`;
+  document.getElementById('cursoDictadoEstudiantes').textContent = curso.total_estudiantes ?? 0;
+  document.getElementById('cursoDictadoMaterias').textContent = curso.total_mis_materias ?? 0;
+
+  const misMats = MIS_MATERIAS.filter(m => m.grupo_id === grupoId);
+  const cont = document.getElementById('listaMateriasCurso');
+  cont.innerHTML = misMats.length
+    ? misMats.map(m => {
+        const nc = `${m.materia} — ${codigo}`.replace(/'/g, "\\'");
+        return `
+        <div onclick="abrirVistaMateria('${m.materia_id}', '${nc}')"
+             style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;padding:10px 14px;margin-bottom:6px;transition:background .15s"
+             onmouseover="this.style.background='rgba(255,255,255,0.10)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+          <div>
+            <div style="font-weight:700;font-size:0.9rem">${m.materia}</div>
+            <div style="font-size:0.74rem;color:var(--text-2)">${codigo} · clic para ver fallas y promedio</div>
+          </div>
+          <span style="color:var(--text-3)">›</span>
+        </div>`;
+      }).join('')
+    : '<div class="empty">No dictas materias en este curso.</div>';
+
+  await cargarHorarioCursoDictado(grupoId);
+}
+
+// Horario de solo lectura: usa el MISMO endpoint que el administrador,
+// así que refleja exactamente lo que carga (y edita) el admin.
+async function cargarHorarioCursoDictado(grupoId) {
+  const wrap = document.getElementById('horarioCursoDictadoWrap');
+  wrap.style.display = 'none';
+  try {
+    const res  = await fetch(`${API}/api/academico/horario?grupo_id=${grupoId}`, { headers });
+    const data = await res.json();
+    if (!data.ok || !data.franjas || !data.franjas.length) { wrap.innerHTML = ''; return; }
+    const franjas = data.franjas.slice();
+    const porDia = {};
+    franjas.forEach(f => {
+      (porDia[f.dia_semana] = porDia[f.dia_semana] || []).push(f);
+    });
+    const orden = {};
+    DIAS_DIRECTOR.forEach((d, i) => { orden[d.n] = i; });
+    franjas.sort((a, b) => {
+      const diff = (orden[a.dia_semana] ?? 8) - (orden[b.dia_semana] ?? 8);
+      return diff !== 0 ? diff : (a.hora_inicio < b.hora_inicio ? -1 : 1);
+    });
+    const filas = DIAS_DIRECTOR.map(d => {
+      const ds = (porDia[d.n] || []).slice().sort((a, b) => a.hora_inicio < b.hora_inicio ? -1 : 1);
+      if (!ds.length) return '';
+      return `
+        <div style="display:flex;gap:8px;border-bottom:1px solid rgba(255,255,255,0.07);padding:5px 0">
+          <div style="min-width:74px;font-weight:700;color:var(--text-1);font-size:0.8rem">${d.label}</div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            ${ds.map(f => `<div style="font-size:0.78rem;color:var(--text-2)">
+                ${String(f.hora_inicio).slice(0, 5)}–${String(f.hora_fin).slice(0, 5)}
+                <b style="color:var(--text-1)">${f.materia_nombre}</b>
+                ${f.docente_nombre ? ' · ' + f.docente_nombre : ''}${f.aula ? ' · ' + f.aula : ''}
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+    wrap.innerHTML = `
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:0.4rem">Horario del curso · ${data.grupo ? data.grupo.grado_nombre : ''}${data.grupo ? data.grupo.nombre : ''}</div>
+      ${filas}`;
+    wrap.style.display = '';
+  } catch (err) {
+    console.error('horarioCursoDictado:', err);
+    wrap.innerHTML = '';
+  }
+}
+
+/* ══════════════════════════════════
+   GESTIONAR MATERIAS DEL CURSO DIRIGIDO
+══════════════════════════════════ */
+async function cargarMateriasDirector() {
+  if (!grupoDirigido) return;
+  const tbody = document.getElementById('tbodyMateriasDirector');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Cargando…</td></tr>';
+  try {
+    const res = await fetch(`${API}/api/academico/materias?grupo_id=${grupoDirigido.id}`, { headers });
+    const data = await res.json();
+    const materias = data.ok ? data.materias : [];
+    tbody.innerHTML = materias.length
+      ? materias.map(m => `
+        <tr>
+          <td style="font-weight:600">${m.nombre} <span style="font-weight:400;color:var(--text-3)">· ${m.area_nombre || ''}</span></td>
+          <td>${m.horas_semanales ? String(m.horas_semanales).slice(0, 5) : (m.intensidad_hs ? m.intensidad_hs : '—')}</td>
+          <td>${m.docentes_nombres || '—'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="quitarMateriaDirector('${m.id}', '${String(m.nombre).replace(/'/g, "\\'")}')">Desactivar</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="4" class="empty">Este curso todavía no tiene materias. Crea la primera con "+ Nueva materia".</td></tr>';
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">Error al cargar las materias.</td></tr>';
+    console.error(err);
+  }
+}
+
+async function quitarMateriaDirector(id, nombre) {
+  if (!confirm(`¿Desactivar la materia "${nombre}"?`)) return;
+  try {
+    const res  = await fetch(`${API}/api/academico/materias/${id}`, { method: 'DELETE', headers });
+    const data = await res.json();
+    alert(data.mensaje || 'Listo.');
+    if (data.ok) await cargarMateriasDirector();
+  } catch { alert('Error de conexión.'); }
+}
+
+async function abrirModalMateriaDirector() {
+  if (!areasCache.length) {
+    try {
+      const res  = await fetch(`${API}/api/academico/areas`, { headers });
+      const data = await res.json();
+      areasCache = data.ok ? data.areas : [];
+    } catch { areasCache = []; }
+  }
+  const sel = document.getElementById('dirMatArea');
+  sel.innerHTML = areasCache.length
+    ? areasCache.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('')
+    : '<option value="">No hay áreas — pídele al admin que cree una</option>';
+  document.getElementById('dirMatNombre').value = '';
+  const msg = document.getElementById('msgMateriaDirector');
+  msg.className = 'msg'; msg.textContent = '';
+  document.getElementById('modalMateriaDirector').style.display = 'flex';
+}
+
+function cerrarModalMateriaDirector() {
+  document.getElementById('modalMateriaDirector').style.display = 'none';
+}
+
+async function guardarMateriaDirector() {
+  const area_id = document.getElementById('dirMatArea').value;
+  const nombre  = document.getElementById('dirMatNombre').value.trim();
+  const msg = document.getElementById('msgMateriaDirector');
+  if (!area_id || !nombre) { msg.className = 'msg error'; msg.textContent = 'El área y el nombre son obligatorios.'; return; }
+  try {
+    const res  = await fetch(`${API}/api/academico/materias`, {
+      method: 'POST', headers, body: JSON.stringify({ area_id, nombre })
+    });
+    const data = await res.json();
+    if (!data.ok) { msg.className = 'msg error'; msg.textContent = data.mensaje; return; }
+    document.getElementById('modalMateriaDirector').style.display = 'none';
+    alert(data.mensaje);
+    await cargarMateriasDirector();
+  } catch { msg.className = 'msg error'; msg.textContent = 'Error de conexión.'; }
+}
+
+/* ══════════════════════════════════
+   TAREAS (asignar / revisar entregas)
+══════════════════════════════════ */
+let tareasMateriaId = null;
+let tareasMateriaNombre = '';
+
+function mostrarMsgTareas(texto, tipo) {
+  const el = document.getElementById('msgTareas');
+  el.textContent = texto;
+  el.className = `msg ${tipo === 'error' ? 'error' : 'exito'}`;
+}
+function ocultarMsgTareas() {
+  const el = document.getElementById('msgTareas');
+  el.className = 'msg';
+  el.textContent = '';
+}
+function mostrarMsgEntregas(texto, tipo) {
+  const el = document.getElementById('msgEntregas');
+  el.textContent = texto;
+  el.className = `msg ${tipo === 'error' ? 'error' : 'exito'}`;
+}
+function ocultarMsgEntregas() {
+  const el = document.getElementById('msgEntregas');
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+function abrirModalTareas(materiaId, nombre) {
+  tareasMateriaId = materiaId;
+  tareasMateriaNombre = nombre;
+  document.getElementById('tareasModalSub').textContent = nombre;
+  document.getElementById('tareaNuevoTitulo').value = '';
+  document.getElementById('tareaNuevaFecha').value = '';
+  document.getElementById('tareaNuevoValor').value = '';
+  ocultarMsgTareas();
+  document.getElementById('modalTareas').style.display = 'flex';
+  cargarTareas();
+}
+function cerrarModalTareas() {
+  document.getElementById('modalTareas').style.display = 'none';
+}
+
+async function cargarTareas() {
+  const cont = document.getElementById('listaTareas');
+  cont.innerHTML = '<div class="empty">Cargando...</div>';
+  try {
+    const res  = await fetch(`${API}/api/tareas/materia/${tareasMateriaId}`, { headers });
+    const data = await res.json();
+    if (!data.ok) {
+      cont.innerHTML = '';
+      mostrarMsgTareas(data.mensaje, 'error');
+      return;
+    }
+    if (!data.tareas.length) {
+      cont.innerHTML = '<div class="empty">Todavía no hay tareas asignadas para este periodo.</div>';
+      return;
+    }
+    cont.innerHTML = data.tareas.map(t => {
+      const titulo = `${t.titulo}`.replace(/'/g, "\\'");
+      return `
+      <div class="materia-item" style="align-items:center">
+        <div style="flex:1">
+          <div class="materia-nombre">${t.titulo}</div>
+          <div class="materia-meta">Entregar: ${t.fecha_entrega} · Valor máx: ${t.valor_max} · ${t.con_entrega}/${t.total_entregas} entregadas</div>
+          ${t.descripcion ? `<div class="materia-meta">${t.descripcion}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn-sm" onclick="abrirModalEntregas('${t.id}','${titulo}')">Ver entregas</button>
+          <button class="btn-sm" onclick="editarTarea('${t.id}','${titulo}','${t.fecha_entrega}',${t.valor_max})">Editar</button>
+          <button class="btn-sm" onclick="eliminarTarea('${t.id}','${titulo}')">Eliminar</button>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (err) {
+    cont.innerHTML = '';
+    mostrarMsgTareas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function agregarTarea() {
+  const titulo = document.getElementById('tareaNuevoTitulo').value.trim();
+  const fecha = document.getElementById('tareaNuevaFecha').value;
+  const valor = document.getElementById('tareaNuevoValor').value;
+  ocultarMsgTareas();
+  if (!titulo || !fecha) {
+    return mostrarMsgTareas('Escribe un título y una fecha de entrega.', 'error');
+  }
+  try {
+    const res  = await fetch(`${API}/api/tareas`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ materia_id: tareasMateriaId, titulo, fecha_entrega: fecha, valor_max: valor ? Number(valor) : undefined }),
+    });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgTareas(data.mensaje, 'error');
+    document.getElementById('tareaNuevoTitulo').value = '';
+    document.getElementById('tareaNuevaFecha').value = '';
+    document.getElementById('tareaNuevoValor').value = '';
+    ocultarMsgTareas();
+    await cargarTareas();
+  } catch (err) {
+    mostrarMsgTareas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function editarTarea(id, tituloActual, fechaActual, valorActual) {
+  const titulo = prompt('Título de la tarea:', tituloActual);
+  if (titulo === null) return;
+  const fechTxt = prompt('Fecha de entrega (YYYY-MM-DD):', fechaActual);
+  if (fechTxt === null) return;
+  const valor = prompt('Valor máximo:', valorActual);
+  if (valor === null) return;
+  if (!titulo.trim() || !fechTxt) {
+    return mostrarMsgTareas('Título y fecha son obligatorios.', 'error');
+  }
+  try {
+    const res  = await fetch(`${API}/api/tareas/${id}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ titulo: titulo.trim(), fecha_entrega: fechTxt, valor_max: Number(valor) || 10 }),
+    });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgTareas(data.mensaje, 'error');
+    ocultarMsgTareas();
+    await cargarTareas();
+  } catch (err) {
+    mostrarMsgTareas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function eliminarTarea(id, titulo) {
+  if (!confirm(`¿Eliminar la tarea "${titulo}"? Se borran también sus entregas.`)) return;
+  try {
+    const res  = await fetch(`${API}/api/tareas/${id}`, { method: 'DELETE', headers });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgTareas(data.mensaje, 'error');
+    ocultarMsgTareas();
+    await cargarTareas();
+  } catch (err) {
+    mostrarMsgTareas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+/* Entregas de una tarea */
+let entregasTareaId = null;
+
+function abrirModalEntregas(tareaId, titulo) {
+  entregasTareaId = tareaId;
+  document.getElementById('entregasTareaSub').textContent = titulo;
+  document.getElementById('modalTareas').style.display = 'none';
+  document.getElementById('modalEntregas').style.display = 'flex';
+  ocultarMsgEntregas();
+  cargarEntregas();
+}
+function cerrarModalEntregas() {
+  document.getElementById('modalEntregas').style.display = 'none';
+}
+function volverAModalTareas() {
+  document.getElementById('modalEntregas').style.display = 'none';
+  document.getElementById('modalTareas').style.display = 'flex';
+  cargarTareas();
+}
+
+async function cargarEntregas() {
+  const tbody = document.getElementById('tbodyEntregas');
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/api/tareas/${entregasTareaId}/entregas`, { headers });
+    const data = await res.json();
+    if (!data.ok) {
+      tbody.innerHTML = '';
+      mostrarMsgEntregas(data.mensaje, 'error');
+      return;
+    }
+    const maxValor = data.tarea ? Number(data.tarea.valor_max) : 10;
+    tbody.innerHTML = data.filas.map(f => {
+      const nombre = `${f.nombres} ${f.apellidos}`.replace(/'/g, "\\'");
+      return `
+      <tr>
+        <td style="font-weight:600;white-space:nowrap">${f.nombres} ${f.apellidos}</td>
+        <td>${etiquetaEstadoEntrega(f.estado)}</td>
+        <td>
+          <input type="number" min="0" max="${maxValor}" step="0.1" id="nota-${f.estudiante_id}"
+            value="${f.calificacion ?? ''}" style="width:60px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:6px;color:var(--text-1);padding:0.3rem;text-align:center" />
+        </td>
+        <td>
+          <input type="text" id="feedback-${f.estudiante_id}" value="${(f.feedback_doc || '').replace(/"/g, '&quot;')}"
+            placeholder="Feedback..." style="width:140px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:6px;color:var(--text-1);padding:0.3rem" />
+        </td>
+        <td>
+          <button class="btn-sm" onclick="guardarEntrega('${f.estudiante_id}')">Guardar</button>
+        </td>
+      </tr>
+    `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = '';
+    mostrarMsgEntregas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+function etiquetaEstadoEntrega(estado) {
+  const map = {
+    'pendiente': '<span class="badge-warn">Sin entregar</span>',
+    'entregada': '<span class="badge-exito">Entregada</span>',
+    'tarde': '<span class="badge-warn">Entregada tarde</span>',
+    'calificada': '<span class="badge-exito">Calificada</span>',
+  };
+  return map[estado] || estado;
+}
+
+async function guardarEntrega(estudianteId) {
+  ocultarMsgEntregas();
+  const nota = document.getElementById(`nota-${estudianteId}`).value;
+  const feedback = document.getElementById(`feedback-${estudianteId}`).value;
+  const calificacion = nota === '' ? null : Number(nota);
+  try {
+    const res  = await fetch(`${API}/api/tareas/${entregasTareaId}/entrega`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ estudiante_id: estudianteId, calificacion, feedback_doc: feedback }),
+    });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgEntregas(data.mensaje, 'error');
+    await cargarEntregas();
+  } catch (err) {
+    mostrarMsgEntregas('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════
+   PLAN DE EVALUACIÓN
+══════════════════════════════════ */
+let planMateriaId = null;
+let planMateriaNombre = '';
+let planPeriodoId = null; // se resuelve automáticamente en el backend al periodo activo
+
+/* Selección de materia desde la card "Trabajos" (director de curso).
+   `accion` puede ser 'evaluacion' (ver plan/hoja) o 'tareas' (asignar). */
+let selectorAccion = 'evaluacion';
+
+function mostrarMsgSelectorMateria(texto, tipo) {
+  const el = document.getElementById('msgSelectorMateria');
+  el.textContent = texto;
+  el.className = `msg ${tipo === 'error' ? 'error' : 'exito'}`;
+}
+
+async function abrirSelectorMateria(accion) {
+  selectorAccion = accion;
+  const titulo = document.getElementById('selectorMateriaTitulo');
+  const sub    = document.getElementById('selectorMateriaSub');
+  titulo.textContent = accion === 'tareas' ? 'Asignar tarea' : 'Realizar evaluación';
+  sub.textContent = accion === 'tareas'
+    ? 'Elige la materia de tu curso para asignar una tarea.'
+    : 'Elige la materia de tu curso para ver su plan de evaluación.';
+
+  const lista = document.getElementById('listaMateriasSelector');
+  lista.innerHTML = '<div class="empty">Cargando...</div>';
+  mostrarMsgSelectorMateria('', '');
+  document.getElementById('modalSelectorMateria').style.display = 'flex';
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/materias-curso/${grupoDirigido.id}`, { headers });
+    const data = await res.json();
+    if (!data.ok) {
+      mostrarMsgSelectorMateria(data.mensaje || 'No se pudieron cargar las materias.', 'error');
+      lista.innerHTML = '';
+      return;
+    }
+    if (!data.materias.length) {
+      lista.innerHTML = '<div class="empty">Tu curso todavía no tiene materias activas.</div>';
+      return;
+    }
+    lista.innerHTML = data.materias.map(m => {
+      const nombre = `${m.nombre}`.replace(/'/g, "\\'");
+      return `
+      <div class="materia-item" style="cursor:pointer" onclick="elegirMateriaSelector('${m.id}','${nombre}')">
+        <div class="materia-nombre">${m.nombre}</div>
+      </div>
+    `;
+    }).join('');
+  } catch (err) {
+    lista.innerHTML = '';
+    mostrarMsgSelectorMateria('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+function cerrarSelectorMateria() {
+  document.getElementById('modalSelectorMateria').style.display = 'none';
+}
+
+function elegirMateriaSelector(materiaId, nombre) {
+  materiaActualId = materiaId;
+  document.getElementById('detalleMateriaNombre').textContent = nombre;
+  cerrarSelectorMateria();
+  if (selectorAccion === 'tareas') abrirModalTareas(materiaId, nombre);
+  else abrirModalPlan();
+}
+
+function mostrarMsgPlan(texto, tipo) {
+  const el = document.getElementById('msgPlan');
+  el.textContent = texto;
+  el.className = `msg ${tipo === 'error' ? 'error' : 'exito'}`;
+}
+function ocultarMsgPlan() {
+  const el = document.getElementById('msgPlan');
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+function abrirModalPlan() {
+  planMateriaId = materiaActualId;
+  planMateriaNombre = document.getElementById('detalleMateriaNombre').textContent;
+  document.getElementById('planModalSub').textContent = planMateriaNombre;
+  ocultarMsgPlan();
+  document.getElementById('planNuevoNombre').value = '';
+  document.getElementById('planNuevoPeso').value = '';
+  document.getElementById('modalPlanEvaluacion').style.display = 'flex';
+  cargarPlan();
+}
+function cerrarModalPlan() {
+  document.getElementById('modalPlanEvaluacion').style.display = 'none';
+}
+
+async function cargarPlan() {
+  const cont = document.getElementById('listaPlanItems');
+  cont.innerHTML = '<div class="empty">Cargando...</div>';
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/materia/${planMateriaId}`, { headers });
+    const data = await res.json();
+    if (!data.ok) {
+      cont.innerHTML = '';
+      mostrarMsgPlan(data.mensaje, 'error');
+      return;
+    }
+    planPeriodoId = data.periodo_id;
+
+    const pct = Math.min(100, Math.max(0, data.suma_actual));
+    document.getElementById('planBarraProgreso').style.width = `${pct}%`;
+    document.getElementById('planSumaTxt').textContent = `Definido: ${data.suma_actual}%`;
+    document.getElementById('planPendienteTxt').textContent = `Pendiente: ${data.pendiente}%`;
+
+    if (!data.items.length) {
+      cont.innerHTML = '<div class="empty">Todavía no hay actividades definidas para este periodo.</div>';
+      return;
+    }
+    cont.innerHTML = data.items.map(it => `
+      <div class="materia-item" style="align-items:center">
+        <div>
+          <div class="materia-nombre">${it.nombre}</div>
+          <div class="materia-meta">${it.peso_pct}% · ${it.conteo_notas} nota${it.conteo_notas === 1 ? '' : 's'} cargada${it.conteo_notas === 1 ? '' : 's'}</div>
+        </div>
+        <div style="display:flex;gap:0.4rem">
+          <button class="btn-sm" onclick="editarItemPlan('${it.id}','${it.nombre.replace(/'/g, "\\'")}',${it.peso_pct},${it.conteo_notas})">Editar</button>
+          <button class="btn-sm" onclick="eliminarItemPlan('${it.id}','${it.nombre.replace(/'/g, "\\'")}',${it.conteo_notas})">Eliminar</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    cont.innerHTML = '';
+    mostrarMsgPlan('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function agregarItemPlan() {
+  const nombre = document.getElementById('planNuevoNombre').value.trim();
+  const peso   = Number(document.getElementById('planNuevoPeso').value);
+  ocultarMsgPlan();
+  if (!nombre || !peso || peso <= 0 || peso > 100) {
+    return mostrarMsgPlan('Escribe un nombre y un peso entre 1 y 100.', 'error');
+  }
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ materia_id: planMateriaId, nombre, peso_pct: peso }),
+    });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgPlan(data.mensaje, 'error');
+    document.getElementById('planNuevoNombre').value = '';
+    document.getElementById('planNuevoPeso').value = '';
+    await cargarPlan();
+  } catch (err) {
+    mostrarMsgPlan('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function editarItemPlan(id, nombreActual, pesoActual, conteoNotas) {
+  if (conteoNotas > 0) {
+    const ok = confirm(`Esta actividad ya tiene ${conteoNotas} nota(s) cargada(s). Si cambias el peso, esas notas se recalculan con el peso nuevo. ¿Continuar?`);
+    if (!ok) return;
+  }
+  const nombre = prompt('Nombre de la actividad:', nombreActual);
+  if (nombre === null) return;
+  const pesoTxt = prompt('Peso (%):', pesoActual);
+  if (pesoTxt === null) return;
+  const peso = Number(pesoTxt);
+  if (!nombre.trim() || !peso || peso <= 0 || peso > 100) {
+    return mostrarMsgPlan('Nombre o peso inválido.', 'error');
+  }
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/${id}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ nombre: nombre.trim(), peso_pct: peso }),
+    });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgPlan(data.mensaje, 'error');
+    ocultarMsgPlan();
+    await cargarPlan();
+  } catch (err) {
+    mostrarMsgPlan('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function eliminarItemPlan(id, nombre, conteoNotas) {
+  const aviso = conteoNotas > 0
+    ? `"${nombre}" tiene ${conteoNotas} nota(s) cargada(s). Las notas NO se borran, quedan sin actividad asociada. ¿Eliminar de todas formas?`
+    : `¿Eliminar "${nombre}" del plan?`;
+  if (!confirm(aviso)) return;
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/${id}`, { method: 'DELETE', headers });
+    const data = await res.json();
+    if (!data.ok) return mostrarMsgPlan(data.mensaje, 'error');
+    ocultarMsgPlan();
+    await cargarPlan();
+  } catch (err) {
+    mostrarMsgPlan('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════
+   HOJA DE CALIFICACIÓN
+══════════════════════════════════ */
+function mostrarMsgHoja(texto, tipo) {
+  const el = document.getElementById('msgHoja');
+  el.textContent = texto;
+  el.className = `msg ${tipo === 'error' ? 'error' : 'exito'}`;
+}
+function ocultarMsgHoja() {
+  const el = document.getElementById('msgHoja');
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+function abrirModalHoja() {
+  document.getElementById('hojaModalSub').textContent = planMateriaNombre;
+  document.getElementById('modalPlanEvaluacion').style.display = 'none';
+  document.getElementById('modalHojaCalificacion').style.display = 'flex';
+  ocultarMsgHoja();
+  cargarHoja();
+}
+function cerrarModalHoja() {
+  document.getElementById('modalHojaCalificacion').style.display = 'none';
+}
+function volverAModalPlan() {
+  document.getElementById('modalHojaCalificacion').style.display = 'none';
+  document.getElementById('modalPlanEvaluacion').style.display = 'flex';
+  cargarPlan(); // por si algún promedio cambió al calificar
+}
+
+async function cargarHoja() {
+  const thead = document.querySelector('#tablaHoja thead');
+  const tbody = document.getElementById('tbodyHoja');
+  tbody.innerHTML = '<tr><td class="empty">Cargando...</td></tr>';
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/materia/${planMateriaId}/hoja`, { headers });
+    const data = await res.json();
+    if (!data.ok) {
+      tbody.innerHTML = '';
+      mostrarMsgHoja(data.mensaje, 'error');
+      return;
+    }
+    if (!data.items.length) {
+      thead.innerHTML = '<tr><th>Estudiante</th></tr>';
+      tbody.innerHTML = '<tr><td class="empty">Define al menos una actividad en el plan antes de calificar.</td></tr>';
+      return;
+    }
+    if (!data.filas.length) {
+      thead.innerHTML = '<tr><th>Estudiante</th></tr>';
+      tbody.innerHTML = '<tr><td class="empty">Todavía no hay estudiantes matriculados en el curso de esta materia.</td></tr>';
+      return;
+    }
+
+    thead.innerHTML = `<tr><th>Estudiante</th>${data.items.map(it => `<th>${it.nombre}<br><span style="font-weight:400;font-size:0.68rem;color:var(--text-3)">${it.peso_pct}%</span></th>`).join('')}<th>Promedio</th></tr>`;
+
+    tbody.innerHTML = data.filas.map(f => `
+      <tr>
+        <td style="font-weight:600;white-space:nowrap">${f.nombres} ${f.apellidos}</td>
+        ${data.items.map(it => `
+          <td>
+            <input type="number" min="0" max="10" step="0.1"
+              value="${f.valores[it.id] ?? ''}"
+              data-plan-item="${it.id}" data-estudiante="${f.estudiante_id}"
+              onchange="guardarCeldaHoja(this)"
+              style="width:64px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:6px;color:var(--text-1);padding:0.3rem;text-align:center" />
+          </td>`).join('')}
+        <td id="promedio-${f.estudiante_id}" style="font-weight:700">${f.promedio != null ? f.promedio : '—'}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = '';
+    mostrarMsgHoja('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function guardarCeldaHoja(input) {
+  ocultarMsgHoja();
+  const plan_item_id  = input.dataset.planItem;
+  const estudiante_id = input.dataset.estudiante;
+  const valorTxt = input.value.trim();
+  const valor = valorTxt === '' ? null : Number(valorTxt);
+  if (valor !== null && (Number.isNaN(valor) || valor < 0 || valor > 10)) {
+    mostrarMsgHoja('El valor debe estar entre 0 y 10.', 'error');
+    return;
+  }
+  input.disabled = true;
+  try {
+    const res  = await fetch(`${API}/api/plan-evaluacion/celda`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ plan_item_id, estudiante_id, valor }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      mostrarMsgHoja(data.mensaje, 'error');
+      return;
+    }
+    // Recarga la hoja para reflejar el promedio recalculado de esa fila
+    // (el backend ya guardó la celda; esto solo refresca lo que se ve).
+    await cargarHoja();
+  } catch (err) {
+    mostrarMsgHoja('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  } finally {
+    input.disabled = false;
+  }
+}
+
+/* ══════════════════════════════════
+   HORARIO DE MI CURSO (director)
+   Asigna una materia por hora usando la plantilla de horas de la
+   institución que definió el administrador (no se inventan horas).
+══════════════════════════════════ */
+let horarioDirFranjas     = [];
+let horarioDirMaterias    = [];
+let horarioDirEditId      = null;
+let horarioDirDiaVisible  = 0; // 0 = semana completa; 1..7 = solo ese día
+let horasPlantillaDir     = [];
+
+const DIAS_DIRECTOR = [
+  { n: 1, label: 'Lunes' }, { n: 2, label: 'Martes' }, { n: 3, label: 'Miércoles' },
+  { n: 4, label: 'Jueves' }, { n: 5, label: 'Viernes' }, { n: 6, label: 'Sábado' },
+  { n: 7, label: 'Domingo' },
+];
+
+function mostrarMsgHorarioDirector(texto, tipo) {
+  const el = document.getElementById('msgHorarioDirector');
+  el.textContent = texto;
+  el.className = `msg ${tipo}`;
+}
+function ocultarMsgHorarioDirector() {
+  document.getElementById('msgHorarioDirector').className = 'msg';
+}
+
+async function cargarHorarioDirector() {
+  if (!grupoDirigido) return;
+  const wrap = document.getElementById('horarioDirectorWrap');
+  ocultarMsgHorarioDirector();
+  try {
+    const [resF, resM, resH] = await Promise.all([
+      fetch(`${API}/api/academico/horario?grupo_id=${grupoDirigido.id}`, { headers }),
+      fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoDirigido.id}`, { headers }),
+      fetch(`${API}/api/academico/horario/horas`, { headers }),
+    ]);
+    const dataF = await resF.json();
+    const dataM = await resM.json();
+    const dataH = await resH.json();
+    if (!dataF.ok) { wrap.innerHTML = ''; mostrarMsgHorarioDirector(dataF.mensaje || 'No se pudo cargar el horario.', 'error'); return; }
+    horarioDirFranjas  = dataF.franjas || [];
+    horarioDirMaterias = (dataM.ok ? dataM.materias : []) || [];
+    horasPlantillaDir  = (dataH.ok ? dataH.horas : []) || [];
+    renderHorarioDirector();
+  } catch (err) {
+    wrap.innerHTML = '';
+    mostrarMsgHorarioDirector('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+// Mismo criterio que la vista del administrador: recorre en pasos de 30
+// minutos todo el rango de la plantilla (+ la hora de inicio de cada
+// franja) para que ninguna clase quede oculta.
+function horasVisiblesDirector() {
+  const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const pad  = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  let inicio, fin;
+  if (horasPlantillaDir.length) {
+    inicio = Math.min(...horasPlantillaDir.map(t => mins(String(t.hora_inicio).slice(0, 5))));
+    fin    = Math.max(...horasPlantillaDir.map(t => mins(String(t.hora_fin).slice(0, 5))));
+  } else {
+    inicio = 6 * 60; fin = 14 * 60; // por defecto 06:00–14:00
+  }
+  if (horarioDirFranjas.length) {
+    inicio = Math.min(inicio, ...horarioDirFranjas.map(f => mins(String(f.hora_inicio).slice(0, 5))));
+    fin    = Math.max(fin,    ...horarioDirFranjas.map(f => mins(String(f.hora_fin).slice(0, 5))));
+  }
+  if (isNaN(inicio) || isNaN(fin) || inicio > fin) return [];
+  const set = new Set();
+  for (let m = Math.floor(inicio / 30) * 30; m <= fin; m += 30) set.add(pad(m));
+  horasPlantillaDir.forEach(t => { set.add(String(t.hora_inicio).slice(0, 5)); set.add(String(t.hora_fin).slice(0, 5)); });
+  horarioDirFranjas.forEach(f => set.add(String(f.hora_inicio).slice(0, 5)));
+  return [...set].filter(h => mins(h) >= inicio && mins(h) <= fin).sort();
+}
+
+function selDiaHorarioDirector(n) {
+  horarioDirDiaVisible = n;
+  renderHorarioDirector();
+}
+
+function renderHorarioDirector() {
+  const wrap = document.getElementById('horarioDirectorWrap');
+  const horas = horasVisiblesDirector();
+  if (!horas.length) {
+    wrap.innerHTML = '<div class="empty">El administrador todavía no define las horas de trabajo de la institución. Pídele que las configure en "Horas de trabajo".</div>';
+    return;
+  }
+  const diasVisibles = horarioDirDiaVisible
+    ? DIAS_DIRECTOR.filter(d => d.n === horarioDirDiaVisible)
+    : DIAS_DIRECTOR;
+
+  let html = `<div style="font-size:0.78rem;color:var(--text-3);margin-bottom:0.6rem">
+    <b style="color:var(--text-1);text-transform:none">${grupoDirigido.grado_nombre || ''} ${grupoDirigido.nombre || ''}</b> ·
+    Plantilla ${horas[0]} a ${horas[horas.length - 1]}</div>`;
+
+  html += `<div class="dia-nav" style="margin-bottom:0.6rem">
+              <button class="dia-chip${horarioDirDiaVisible === 0 ? ' sel' : ''}" onclick="selDiaHorarioDirector(0)">Semana completa</button>
+              ${DIAS_DIRECTOR.map(d => `<button class="dia-chip${horarioDirDiaVisible === d.n ? ' sel' : ''}" onclick="selDiaHorarioDirector(${d.n})">${d.label}</button>`).join('')}
+            </div>`;
+
+  html += `<div class="hdir-tabla" style="grid-template-columns:84px repeat(${diasVisibles.length},1fr);min-width:0;grid-template-rows:auto repeat(${horas.length},minmax(54px,auto))">
+            <div class="hdir-head" style="grid-column:1;grid-row:1">Hora</div>`;
+  diasVisibles.forEach((d, k) => { html += `<div class="hdir-head" style="grid-column:${k + 2};grid-row:1">${d.label}</div>`; });
+
+  // Etiquetas de hora: una por fila, siempre visibles.
+  horas.forEach((h, i) => { html += `<div class="hdir-hora" style="grid-column:1;grid-row:${i + 2}">${h}</div>`; });
+
+  // Franjas: se agrupan por solapamiento (encadenado) y se dibujan en
+  // "carriles" lado a lado, para que una franja que coincide con otra no
+  // tape su texto ni cambie su fondo. Clic en una franja la edita.
+  diasVisibles.forEach((d, k) => {
+    const col = k + 2;
+    const diaFranjas = horarioDirFranjas
+      .filter(x => Number(x.dia_semana) === d.n)
+      .map(x => ({ f: x, rg: rangoFranjaDirector(x, horas) }))
+      .filter(x => x.rg)
+      .sort((a, b) => a.rg.row - b.rg.row || (a.rg.row + a.rg.rows) - (b.rg.row + b.rg.rows));
+
+    const grupos = [];
+    for (const x of diaFranjas) {
+      const filaFin = x.rg.row + x.rg.rows;
+      const g = grupos.find(gr => x.rg.row < gr.fin);
+      if (g) { g.miembros.push(x); g.fin = Math.max(g.fin, filaFin); }
+      else grupos.push({ inicio: x.rg.row, fin: filaFin, miembros: [x] });
+    }
+
+    const cubiertas = new Set();
+    for (const gr of grupos) {
+      const laneFin = [];
+      gr.miembros.forEach(x => {
+        let lane = laneFin.findIndex(l => l <= x.rg.row);
+        if (lane === -1) { lane = laneFin.length; laneFin.push(x.rg.row + x.rg.rows); }
+        else laneFin[lane] = x.rg.row + x.rg.rows;
+        x.lane = lane;
+      });
+      gr.lanes = Math.max(1, laneFin.length);
+      for (let i = gr.inicio; i < gr.fin; i++) cubiertas.add(i);
+
+      const span = gr.fin - gr.inicio;
+      html += `<div class="hdir-region" style="grid-column:${col};grid-row:${gr.inicio + 2} / span ${span}">`;
+      gr.miembros.forEach(x => {
+        const f = x.f, rg = x.rg;
+        const fin = String(f.hora_fin).slice(0, 5);
+        const ini = String(f.hora_inicio).slice(0, 5);
+        const top  = (rg.row - gr.inicio) / span * 100;
+        const alto = rg.rows / span * 100;
+        const izq  = x.lane / gr.lanes * 100;
+        const ancho = 100 / gr.lanes;
+        html += `<div class="hdir-celda ocup lanes-franja" style="--fc:${f.color_hex || '#4A90D9'};border-left-color:${f.color_hex || '#4A90D9'};top:${top}%;height:${alto}%;left:${izq}%;width:${ancho}%"
+                   title="${f.materia_nombre} (${ini}–${fin})${f.aula ? ' · ' + f.aula : ''}${f.docente_nombre ? ' · Profesor: ' + f.docente_nombre : ''}\nClic para editar"
+                   onclick="abrirModalFranjaDirector('${f.id}')">
+                   <span class="hdir-bloque">${f.materia_nombre}</span>
+                   <span style="color:var(--text-3)">${ini}–${fin}${f.aula ? ' · ' + f.aula : ''}</span>
+                   <span class="hdir-acc">
+                     <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirModalFranjaDirector('${f.id}')">✎</button>
+                     <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();eliminarFranjaDirector('${f.id}')">×</button>
+                   </span>
+                 </div>`;
+      });
+      html += '</div>';
+    }
+
+    for (let i = 0; i < horas.length; i++) {
+      if (cubiertas.has(i)) continue;
+      html += `<div class="hdir-celda libre" style="grid-column:${col};grid-row:${i + 2}"><button title="Asignar materia a las ${horas[i]}" onclick="abrirModalFranjaDirector(null, ${d.n}, '${horas[i]}')">+</button></div>`;
+    }
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// Rango de filas que ocupa una franja (mismo criterio que la vista admin):
+// desde su hora de inicio hasta el primer slot que alcanza su hora de fin.
+function rangoFranjaDirector(f, horas) {
+  const ini = String(f.hora_inicio).slice(0, 5);
+  const fin = String(f.hora_fin).slice(0, 5);
+  const start = horas.indexOf(ini);
+  if (start < 0) return null;
+  let end = start;
+  for (let k = start; k < horas.length; k++) {
+    if (horas[k] >= fin) { end = k; break; }
+  }
+  if (end === start) end = start + 1;
+  return { row: start, rows: end - start };
+}
+
+async function abrirModalFranjaDirector(editId, preDia, preHora) {
+  if (!grupoDirigido) return;
+  ocultarMsgFranjaDirector();
+  if (!horarioDirMaterias.length) {
+    try {
+      const res  = await fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoDirigido.id}`, { headers });
+      const data = await res.json();
+      if (data.ok) horarioDirMaterias = data.materias || [];
+    } catch (err) { console.error(err); }
+  }
+  if (!horarioDirMaterias.length) { alert('Este curso no tiene materias. Primero se deben crear materias para el curso.'); return; }
+  if (!horasPlantillaDir.length) { alert('El administrador aún no define las horas de trabajo de la institución.'); return; }
+
+horarioDirEditId = editId || null;
+  document.getElementById('franjaDirecMateria').innerHTML = horarioDirMaterias.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+  document.getElementById('franjaDirecMateria').onchange = llenarDocentesFranjaDirector;
+  llenarDocentesFranjaDirector();
+  document.getElementById('franjaDirecAula').value = '';
+
+  if (editId) {
+    const f = horarioDirFranjas.find(x => x.id === editId);
+    if (f) {
+      document.getElementById('tituloFranjaDirector').textContent = 'Editar franja del horario';
+      document.getElementById('franjaDirecDia').value = String(f.dia_semana);
+      document.getElementById('franjaDirecMateria').value = f.materia_id;
+      llenarDocentesFranjaDirector();
+      const selD = document.getElementById('franjaDirecDocente');
+      if (selD) selD.value = f.docente_id || selD.value;
+      document.getElementById('franjaDirecAula').value = f.aula || '';
+      refrescarBloquesDirector(String(f.hora_inicio).slice(0, 5));
+      document.getElementById('franjaDirecHoraFin').value = String(f.hora_fin).slice(0, 5);
+    }
+  } else {
+    document.getElementById('tituloFranjaDirector').textContent = 'Agregar materia al horario';
+    const dia = preDia ? String(preDia) : '1';
+    document.getElementById('franjaDirecDia').value = dia;
+    refrescarBloquesDirector(preHora || null);
+  }
+  document.getElementById('modalFranjaDirector').style.display = 'flex';
+}
+
+function cerrarModalFranjaDirector() {
+  document.getElementById('modalFranjaDirector').style.display = 'none';
+}
+
+function llenarDocentesFranjaDirector() {
+  const selD = document.getElementById('franjaDirecDocente');
+  const selM = document.getElementById('franjaDirecMateria');
+  if (!selD) return;
+  const materia = horarioDirMaterias.find(x => x.id === selM.value) || null;
+  const docentes = (materia && materia.docentes) || [];
+  selD.innerHTML = docentes.length
+    ? docentes.map(d => `<option value="${d.docente_id}">${d.docente_nombre}</option>`).join('')
+    : '<option value="">Sin profesor asignado</option>';
+}
+
+function refrescarBloquesDirector(selInicio) {
+  const dia = Number(document.getElementById('franjaDirecDia').value);
+  const bloques = horasPlantillaDir.filter(t => Number(t.dia_semana) === dia);
+  const selHora = document.getElementById('franjaDirecHora');
+  if (!bloques.length) {
+    selHora.innerHTML = '<option value="">Este día no tiene horas definidas</option>';
+    return;
+  }
+  selHora.innerHTML = bloques.map(t => `<option value="${String(t.hora_inicio).slice(0, 5)}" data-fin="${String(t.hora_fin).slice(0, 5)}">${String(t.hora_inicio).slice(0, 5)} – ${String(t.hora_fin).slice(0, 5)}</option>`).join('');
+  if (selInicio) selHora.value = selInicio;
+  refrescarHoraFinDirector();
+}
+
+function refrescarHoraFinDirector() {
+  const selHora = document.getElementById('franjaDirecHora');
+  const selFin  = document.getElementById('franjaDirecHoraFin');
+  const opt = selHora.selectedIndex >= 0 ? selHora.options[selHora.selectedIndex] : null;
+  selFin.value = opt && opt.value ? opt.dataset.fin : '';
+}
+
+function mostrarMsgFranjaDirector(texto, tipo) {
+  const el = document.getElementById('msgFranjaDirector');
+  el.textContent = texto;
+  el.className = `msg ${tipo}`;
+}
+function ocultarMsgFranjaDirector() {
+  document.getElementById('msgFranjaDirector').className = 'msg';
+}
+
+async function guardarFranjaDirector() {
+  if (!grupoDirigido) return;
+  ocultarMsgFranjaDirector();
+  const dia = Number(document.getElementById('franjaDirecDia').value);
+  const horaIni = document.getElementById('franjaDirecHora').value;
+  const horaFin = document.getElementById('franjaDirecHoraFin').value;
+  if (!horaIni || !horaFin) { mostrarMsgFranjaDirector('Este día no tiene horas definidas en la plantilla.', 'error'); return; }
+const body = {
+    grupo_id: grupoDirigido.id,
+    materia_id: document.getElementById('franjaDirecMateria').value,
+    docente_id: document.getElementById('franjaDirecDocente').value || null,
+    dia_semana: dia,
+    hora_inicio: horaIni,
+    hora_fin: horaFin,
+    aula: document.getElementById('franjaDirecAula').value.trim() || null,
+  };
+  try {
+    const url = horarioDirEditId ? `${API}/api/academico/horario/${horarioDirEditId}` : `${API}/api/academico/horario`;
+    const res  = await fetch(url, {
+      method: horarioDirEditId ? 'PUT' : 'POST',
+      headers,
+      body: JSON.stringify(horarioDirEditId ? { materia_id: body.materia_id, docente_id: body.docente_id || undefined, dia_semana: body.dia_semana, hora_inicio: body.hora_inicio, hora_fin: body.hora_fin, aula: body.aula } : body),
+    });
+    const data = await res.json();
+    if (!data.ok) { mostrarMsgFranjaDirector(data.mensaje, 'error'); return; }
+    cerrarModalFranjaDirector();
+    mostrarMsgHorarioDirector(data.mensaje, 'exito');
+    await cargarHorarioDirector();
+  } catch (err) {
+    mostrarMsgFranjaDirector('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+async function eliminarFranjaDirector(id) {
+  if (!confirm('¿Quitar esta materia del horario?')) return;
+  try {
+    const res  = await fetch(`${API}/api/academico/horario/${id}`, { method: 'DELETE', headers });
+    const data = await res.json();
+    if (!data.ok) { mostrarMsgHorarioDirector(data.mensaje, 'error'); return; }
+    mostrarMsgHorarioDirector(data.mensaje, 'exito');
+    await cargarHorarioDirector();
+  } catch (err) {
+    mostrarMsgHorarioDirector('Error de conexión con el servidor.', 'error');
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════
+   PIZARRÓN
+══════════════════════════════════ */
+function abrirPizarron() {
+  const materiaId = MIS_MATERIAS.length > 0 ? MIS_MATERIAS[0].docente_materia_id : null;
+  if (!materiaId) {
+    alert('No tienes materias asignadas para abrir el pizarrón.');
+    return;
+  }
+  window.open(`pizarron.html?materia=${materiaId}`, '_blank');
+}
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+cargarMisCursos();       // Vista por cursos: es la primera pantalla al entrar.
+cargarMiGrupoDirector();
+cargarMisMaterias();
+</script>
+<script src="chat-drawer-inyector.js"></script>
+<script src="sia-identidad.js"></script>
+</body>
+</html>
