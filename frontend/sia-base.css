@@ -1,0 +1,46 @@
+/* ============================================================
+   SIA — Hoja de estilos base compartida
+   Ronda D · D1: corrección de desplegables (select/option)
+   ------------------------------------------------------------
+   Las listas desplegables siguen el esquema de color preferido
+   del navegador (prefers-color-scheme):
+     · tema oscuro  → fondo de lista oscuro y letras claras
+     · tema claro   → fondo de lista claro y letras oscuras
+   Así el contraste se adapta y nunca queda "blanco sobre blanco".
+   ============================================================ */
+
+/* El control (y su lista) se dibujan según el tema del navegador */
+select {
+  color-scheme: light dark;
+}
+
+/* Fondo y texto de las opciones: se adaptan al tema claro/oscuro del navegador */
+select option,
+select optgroup,
+datalist option {
+  background-color: light-dark(#ffffff, #14183a);
+  color: light-dark(#16181f, #f1f5f9);
+}
+
+/* Opción seleccionada / resaltada dentro de la lista */
+select option:checked,
+select option:hover {
+  background-color: light-dark(#1d4ed8, #1d4ed8);
+  color: #ffffff;
+}
+
+/* ------------------------------------------------------------
+   Ronda G · Fondo de color plano ("monocromático")
+   Cuando el usuario elige un color plano en vez de una foto, se
+   quita el degradado oscuro superior para que el fondo se vea de
+   un solo color. La paleta es oscura, así que el texto claro y
+   los paneles de cristal siguen siendo legibles.
+   ------------------------------------------------------------ */
+.sia-fondo.sia-fondo-plano::after { background: none; }
+
+/* Miniatura de los colores planos en "Ajustes y personalización".
+   Usa outline (no box-shadow) para no pisar el resaltado de .sel. */
+.aj-minifondo .aj-mf.aj-mf-color {
+  outline: 1px solid rgba(255,255,255,0.18);
+  outline-offset: -1px;
+}

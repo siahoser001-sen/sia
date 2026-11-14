@@ -5,10 +5,17 @@ const colorPicker = document.getElementById("colorPicker");
 const lineWidthInput = document.getElementById("lineWidth");
 const toolButtons = document.querySelectorAll(".tool-btn");
 const clearButton = document.getElementById("clearBoard");
-const saveButton = document.getElementById("saveBoard");
+const toolControls = document.getElementById("toolControls");
+const styleControls = document.getElementById("styleControls");
+const clearControls = document.getElementById("clearControls");
+const readOnlyNotice = document.getElementById("readOnlyNotice");
+const boardStatus = document.getElementById("boardStatus");
 const API = window.location.origin;
 const token = sessionStorage.getItem("sia_token");
-const docenteMateriaId = new URLSearchParams(window.location.search).get("materia");
+const parametrosPagina = new URLSearchParams(window.location.search);
+const docenteMateriaId = parametrosPagina.get("materia");
+const grupoId = parametrosPagina.get("grupo");
+const soloLectura = parametrosPagina.get("modo") === "ver";
 
 function obtenerUsuario() {
   const usuarioGuardado = JSON.parse(sessionStorage.getItem("sia_usuario") || "null");
@@ -24,18 +31,36 @@ function obtenerUsuario() {
   }
 }
 
-const esDocente = obtenerUsuario().rol === "docente";
+const esEstudiante = obtenerUsuario().rol === "estudiante";
 const socket = token && typeof io === "function" ? io(API, { auth: { token } }) : null;
 
+let puedeDibujar = false;
+let cargaRecibida = false;
 let currentTool = "pen";
 let drawing = false;
 let currentColor = colorPicker.value;
 let currentWidth = Number(lineWidthInput.value);
 let currentPath = [];
 let textInput = null;
+let eventosPendientes = [];
 
 const strokes = [];
 const textNodes = [];
+const idsTrazos = new Set();
+
+function informar(mensaje) {
+  boardStatus.textContent = mensaje;
+}
+
+function actualizarPermisos(permisoServidor) {
+  puedeDibujar = Boolean(permisoServidor) && !soloLectura && !esEstudiante;
+  [toolControls, styleControls, clearControls].forEach((control) => {
+    control.hidden = !puedeDibujar;
+  });
+  readOnlyNotice.hidden = puedeDibujar;
+  canvas.style.cursor = puedeDibujar ? "crosshair" : "default";
+  canvas.setAttribute("aria-readonly", String(!puedeDibujar));
+}
 
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1;
@@ -68,10 +93,12 @@ function limpiarPizarron() {
   strokes.length = 0;
   textNodes.forEach((node) => node.remove());
   textNodes.length = 0;
+  idsTrazos.clear();
   redrawStrokes();
 }
 
 function setActiveTool(tool) {
+  if (!puedeDibujar) return;
   currentTool = tool;
   toolButtons.forEach((button) => button.classList.toggle("active", button.dataset.tool === tool));
   if (textInput) {
@@ -88,7 +115,71 @@ function getPointerPosition(event) {
   };
 }
 
+function crearNodoTexto(trazo) {
+  const node = document.createElement("div");
+  node.className = "text-node";
+  node.textContent = trazo.texto;
+  node.style.left = `${trazo.x}px`;
+  node.style.top = `${trazo.y}px`;
+  node.style.color = trazo.color;
+  boardSurface.appendChild(node);
+  textNodes.push(node);
+}
+
+function normalizarTrazo(datos) {
+  let trazo = datos?.datos_trazo || datos?.trazo || datos;
+  if (typeof trazo === "string") {
+    try {
+      trazo = JSON.parse(trazo);
+    } catch {
+      return null;
+    }
+  }
+  if (!trazo || typeof trazo !== "object") return null;
+
+  if (trazo.tipo === "texto" && typeof trazo.texto === "string") {
+    return {
+      tipo: "texto",
+      texto: trazo.texto,
+      x: Number(trazo.x),
+      y: Number(trazo.y),
+      color: trazo.color || "#1f2937",
+    };
+  }
+  if (!Array.isArray(trazo.points) || trazo.points.length < 2) return null;
+  return {
+    tipo: "trazo",
+    points: trazo.points,
+    color: trazo.color || "#1f2937",
+    width: Number(trazo.width) || 4,
+  };
+}
+
+function aplicarTrazo(evento) {
+  const id = evento?.id;
+  if (id && idsTrazos.has(id)) return;
+  const trazo = normalizarTrazo(evento);
+  if (!trazo) return;
+  if (id) idsTrazos.add(id);
+
+  if (trazo.tipo === "texto") {
+    crearNodoTexto(trazo);
+  } else {
+    strokes.push(trazo);
+    redrawStrokes();
+  }
+}
+
+function aplicarEventoPendiente(evento) {
+  if (evento.tipo === "limpiar") {
+    limpiarPizarron();
+  } else {
+    aplicarTrazo(evento.payload);
+  }
+}
+
 function iniciarDibujo(event) {
+  if (!puedeDibujar) return;
   if (currentTool === "text") {
     const pos = getPointerPosition(event);
     if (textInput) {
@@ -125,19 +216,32 @@ function iniciarDibujo(event) {
   }
 }
 
+function enviarTrazo(trazo) {
+  if (!puedeDibujar || !socket?.connected) {
+    informar("No hay conexión; el cambio no se guardó.");
+    return;
+  }
+  socket.emit("pizarron:trazo", trazo, (respuesta) => {
+    if (!respuesta?.ok) informar(respuesta?.mensaje || "No se pudo guardar el cambio.");
+  });
+}
+
 function dibujar(event) {
-  if (!drawing) return;
+  if (!drawing || !puedeDibujar) return;
 
   const pos = getPointerPosition(event);
   const previousPoint = currentPath[currentPath.length - 1];
   currentPath.push(pos);
 
+  const esBorrador = currentTool === "eraser";
   const trazo = {
+    tipo: "trazo",
+    herramienta: esBorrador ? "borrador" : "lapiz",
     points: [previousPoint, pos],
-    color: currentTool === "eraser" ? "#ffffff" : currentColor,
-    width: currentTool === "eraser" ? 24 : currentWidth,
+    color: esBorrador ? "#ffffff" : currentColor,
+    width: esBorrador ? 24 : currentWidth,
   };
-  socket?.emit("pizarron:trazo", trazo);
+  enviarTrazo(trazo);
 
   redrawStrokes();
   ctx.beginPath();
@@ -155,6 +259,7 @@ function finalizarDibujo() {
   drawing = false;
   if (currentPath.length > 1) {
     strokes.push({
+      tipo: "trazo",
       points: currentPath,
       color: currentTool === "eraser" ? "#ffffff" : currentColor,
       width: currentTool === "eraser" ? 24 : currentWidth,
@@ -172,62 +277,95 @@ function finalizeText(value, pos) {
     }
     return;
   }
-  const node = document.createElement("div");
-  node.className = "text-node";
-  node.textContent = value;
-  node.style.left = `${pos.x}px`;
-  node.style.top = `${pos.y}px`;
-  node.style.color = currentColor;
-  boardSurface.appendChild(node);
-  textNodes.push(node);
-  textInput.remove();
-  textInput = null;
+
+  const trazo = {
+    tipo: "texto",
+    texto: value,
+    x: pos.x,
+    y: pos.y,
+    color: currentColor,
+  };
+  crearNodoTexto(trazo);
+  enviarTrazo(trazo);
+  if (textInput) {
+    textInput.remove();
+    textInput = null;
+  }
 }
 
 if (socket) {
   socket.on("connect", () => {
+    cargaRecibida = false;
+    eventosPendientes = [];
+    informar("Conectado; cargando el pizarrón…");
     if (docenteMateriaId) {
       socket.emit("unirse-materia", { docente_materia_id: docenteMateriaId });
+    } else if (grupoId) {
+      socket.emit("unirse-grupo", { grupo_id: grupoId });
+    } else {
+      informar("Falta indicar la materia o el curso.");
     }
   });
 
-  socket.on("pizarron:trazo", (trazo) => {
-    if (!trazo?.points || trazo.points.length < 2) return;
-    strokes.push(trazo);
-    redrawStrokes();
-  });
-
-  socket.on("pizarron:limpiar", limpiarPizarron);
-}
-
-if (esDocente) {
-  canvas.addEventListener("pointerdown", iniciarDibujo);
-  canvas.addEventListener("pointermove", dibujar);
-  canvas.addEventListener("pointerup", finalizarDibujo);
-
-  clearButton.addEventListener("click", () => {
+  socket.on("pizarron:carga", (datos) => {
     limpiarPizarron();
-    socket?.emit("pizarron:limpiar");
+    (datos?.trazos || []).forEach(aplicarTrazo);
+    cargaRecibida = true;
+    eventosPendientes.forEach(aplicarEventoPendiente);
+    eventosPendientes = [];
+    actualizarPermisos(datos?.puede_dibujar);
+    informar(puedeDibujar ? "Pizarrón listo." : "Pizarrón en modo de solo lectura.");
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key.toLowerCase() === "p") setActiveTool("pen");
-    if (event.key.toLowerCase() === "b") setActiveTool("eraser");
-    if (event.key.toLowerCase() === "t") setActiveTool("text");
+  socket.on("pizarron:trazo", (payload) => {
+    if (!cargaRecibida) {
+      eventosPendientes.push({ tipo: "trazo", payload });
+      return;
+    }
+    aplicarTrazo(payload);
+  });
+
+  socket.on("pizarron:limpiar", () => {
+    if (!cargaRecibida) {
+      eventosPendientes.push({ tipo: "limpiar" });
+      return;
+    }
+    limpiarPizarron();
+  });
+
+  socket.on("pizarron:error", ({ mensaje }) => informar(mensaje || "Error al guardar en el pizarrón."));
+  socket.on("error-autorizacion", ({ mensaje }) => {
+    actualizarPermisos(false);
+    informar(mensaje || "No tienes acceso a este pizarrón.");
+  });
+  socket.on("disconnect", () => {
+    actualizarPermisos(false);
+    informar("Conexión perdida; cambios deshabilitados.");
+  });
+  socket.on("connect_error", () => {
+    actualizarPermisos(false);
+    informar("No se pudo conectar al pizarrón.");
   });
 } else {
-  canvas.style.cursor = "default";
-  toolButtons.forEach((button) => { button.disabled = true; });
-  colorPicker.disabled = true;
-  lineWidthInput.disabled = true;
-  clearButton.disabled = true;
+  informar("Inicia sesión para ver el pizarrón.");
 }
 
-saveButton.addEventListener("click", () => {
-  const link = document.createElement("a");
-  link.download = "pizarron.png";
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+canvas.addEventListener("pointerdown", iniciarDibujo);
+canvas.addEventListener("pointermove", dibujar);
+canvas.addEventListener("pointerup", finalizarDibujo);
+canvas.addEventListener("pointercancel", finalizarDibujo);
+
+clearButton.addEventListener("click", () => {
+  if (!puedeDibujar || !socket?.connected) return;
+  if (!window.confirm("¿Borrar todo el contenido de este pizarrón?")) return;
+  socket.emit("pizarron:limpiar", {}, (respuesta) => {
+    if (!respuesta?.ok) {
+      informar(respuesta?.mensaje || "No se pudo borrar el pizarrón.");
+      return;
+    }
+    limpiarPizarron();
+    informar("Pizarrón borrado.");
+  });
 });
 
 colorPicker.addEventListener("input", (event) => {
@@ -242,5 +380,18 @@ toolButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveTool(button.dataset.tool));
 });
 
+document.addEventListener("keydown", (event) => {
+  if (!puedeDibujar) return;
+  if (event.key.toLowerCase() === "p") setActiveTool("pen");
+  if (event.key.toLowerCase() === "b") setActiveTool("eraser");
+  if (event.key.toLowerCase() === "t") setActiveTool("text");
+});
+
+if (esEstudiante || soloLectura) {
+  document.addEventListener("contextmenu", (event) => event.preventDefault());
+  document.addEventListener("dragstart", (event) => event.preventDefault());
+}
+
+actualizarPermisos(false);
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("load", resizeCanvas);

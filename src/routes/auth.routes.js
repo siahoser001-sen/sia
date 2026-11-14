@@ -14,6 +14,7 @@ router.post('/reestablecer-password', publicoLimiter, ctrl.reestablecerPassword)
 router.post('/definir-password', authMiddleware, ctrl.definirPassword);
 router.get('/perfil', authMiddleware, ctrl.obtenerPerfil);
 router.put('/perfil', authMiddleware, ctrl.actualizarPerfil);
+router.get('/docentes/:id', authMiddleware, ctrl.obtenerDocentePublico);
 router.post('/foto', authMiddleware, uploadFoto.single('imagen'), ctrl.subirFoto);
 router.post('/restablecer', authMiddleware, soloRoles('admin', 'superadmin'), ctrl.restablecerPorAdmin);
 

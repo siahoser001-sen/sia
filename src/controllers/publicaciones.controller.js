@@ -16,6 +16,7 @@
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
 const { crearNotificacionLote } = require('../services/notificacion.service');
+const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
 
 const TIPOS_VALIDOS       = ['general', 'informativo', 'urgente', 'evento', 'mantenimiento', 'novedad'];
 const ROLES_DESTINO_VALIDOS = ['docente', 'estudiante', 'acudiente'];
@@ -178,6 +179,22 @@ exports.publicarInstitucion = async (req, res) => {
       ref_tabla:     'comunicados',
       institucion_nombre: instRows[0]?.nombre || null,
     });
+
+    // Chat del curso (Ronda F, F5): el comunicado aparece también en el
+    // chat de cada curso de la institución.
+    const [grupos] = await pool.query(
+      `SELECT g.id
+         FROM grupos g
+         JOIN grados gr ON gr.id = g.grado_id
+        WHERE gr.institucion_id = ? AND g.activo = TRUE`,
+      [institucionId]
+    );
+    for (const g of grupos) {
+      await publicarMensajeSistema(g.id, {
+        evento: 'comunicado',
+        texto: `📢 Comunicado: "${titulo}".`,
+      });
+    }
 
     return res.status(201).json({
       ok: true,

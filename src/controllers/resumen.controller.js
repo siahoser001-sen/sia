@@ -1,9 +1,9 @@
 // ============================================================
 //  resumen.controller.js — MySQL
 //  Vista agregada "por curso" que necesita el director de curso
-//  (y el admin/superadmin): fallas totales + promedio general de
+// (y el admin/superadmin): asistencia diaria + promedio general de
 //  cada estudiante combinando TODAS las materias del curso, y el
-//  desglose materia por materia de un estudiante puntual.
+// desglose legado materia por materia de un estudiante puntual.
 //
 //  Regla de negocio confirmada por el usuario (2026-08-17):
 //  el promedio general de un estudiante es el promedio SIMPLE de
@@ -12,6 +12,13 @@
 // ============================================================
 
 const pool = require('../config/db');
+const { obtenerResumenAsistenciaDia } = require('../services/asistencia-dia.service');
+const {
+  condicionMateriaEnGrupo,
+  parametrosMateriaEnGrupo,
+  materiaPerteneceAlGrupo,
+  docenteAsignadoEnGrupo,
+} = require('../utils/materias-curso.util');
 
 // Devuelve el grado_id/institucion_id de un grupo, o null si no existe.
 async function datosGrupo(grupoId) {
@@ -42,32 +49,24 @@ async function puedeVerResumenCurso(req, grupo) {
 // Devuelve la materia junto con su grupo/institución, o null si no existe.
 async function datosMateria(materiaId) {
   const [rows] = await pool.query(
-    `SELECT m.id, m.grupo_id, gr.institucion_id
-     FROM materias m
-     JOIN grupos g ON g.id = m.grupo_id
-     JOIN grados gr ON gr.id = g.grado_id
-     WHERE m.id = ?`,
+    `SELECT m.id, m.grupo_id, m.institucion_id
+     FROM materias m WHERE m.id = ?`,
     [materiaId]
   );
   return rows.length ? rows[0] : null;
 }
 
-// admin/superadmin de la institución, el docente que dicta esa materia
-// puntual, o el docente director del curso al que pertenece (aunque no
-// la dicte).
-async function puedeVerResumenMateria(req, materia) {
+// admin/superadmin de la institución, el docente asignado al curso,
+// o el director del curso para consulta de solo lectura.
+async function puedeVerResumenMateria(req, materia, grupoId) {
   if (!materia) return false;
   if (req.usuario.rol === 'superadmin') return true;
   if (req.usuario.rol === 'admin') return materia.institucion_id === req.usuario.institucion_id;
   if (req.usuario.rol === 'docente') {
-    const [dicta] = await pool.query(
-      `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND docente_id = ?`,
-      [materia.id, req.usuario.id]
-    );
-    if (dicta.length > 0) return true;
+    if (await docenteAsignadoEnGrupo(pool, materia.id, req.usuario.id, grupoId)) return true;
     const [director] = await pool.query(
       `SELECT 1 FROM grupos WHERE id = ? AND director_id = ?`,
-      [materia.grupo_id, req.usuario.id]
+      [grupoId, req.usuario.id]
     );
     return director.length > 0;
   }
@@ -141,35 +140,31 @@ exports.resumenCurso = async (req, res) => {
       [grupoId]
     );
     if (!estudiantes.length) {
-      return res.json({ ok: true, periodo_id: periodoId, periodo_nombre: periodoNombre, anio_lectivo: anioLectivo, total: 0, estudiantes: [], promedio_curso: null });
+      return res.json({
+        ok: true,
+        periodo_id: periodoId,
+        periodo_nombre: periodoNombre,
+        anio_lectivo: anioLectivo,
+        unidad_asistencia: 'dias_curso',
+        total: 0,
+        estudiantes: [],
+        promedio_curso: null,
+      });
     }
 
     // Notas de todas las materias del curso, en el periodo pedido.
     const [notas] = await pool.query(
       `SELECT n.estudiante_id, n.materia_id, n.valor, n.valor_max, n.peso_pct
        FROM notas n JOIN materias m ON m.id = n.materia_id
-       WHERE m.grupo_id = ? AND n.periodo_id = ?`,
-      [grupoId, periodoId]
+       WHERE ${condicionMateriaEnGrupo()} AND m.activa = TRUE AND n.periodo_id = ?`,
+      [...parametrosMateriaEnGrupo(grupoId), periodoId]
     );
 
-    // Asistencia de todas las materias del curso, agrupada por estudiante y
-    // estado (presente / tarde / ausente / excusado), acotada a las fechas
-    // del periodo si se conocen.
-    let sqlAsis = `
-      SELECT a.estudiante_id, a.estado, COUNT(*) AS total
-      FROM asistencia a JOIN materias m ON m.id = a.materia_id
-      WHERE m.grupo_id = ?`;
-    const paramsAsis = [grupoId];
-    if (rango) {
-      sqlAsis += ` AND a.fecha BETWEEN ? AND ?`;
-      paramsAsis.push(rango.fecha_inicio, rango.fecha_fin);
-    }
-    sqlAsis += ` GROUP BY a.estudiante_id, a.estado`;
-    const [asisRows] = await pool.query(sqlAsis, paramsAsis);
-    const asistenciaPorEstudiante = {};
-    for (const r of asisRows) {
-      (asistenciaPorEstudiante[r.estudiante_id] ||= {})[r.estado] = r.total;
-    }
+    const asistenciaPorEstudiante = await obtenerResumenAsistenciaDia(
+      grupoId,
+      rango?.fecha_inicio,
+      rango?.fecha_fin
+    );
 
     // Notas agrupadas por estudiante+materia → promedio por materia →
     // promedio simple entre materias (regla confirmada por el usuario).
@@ -200,12 +195,12 @@ exports.resumenCurso = async (req, res) => {
         apellidos: e.apellidos,
         promedio_general: promedioGeneral,
         materias_con_notas: lista.length,
-        fallas_totales: asis['ausente'] || 0,
+        fallas_totales: asis.falta || 0,
         asistencia: {
-          presentes: asis['presente'] || 0,
-          retardos:  asis['tarde'] || 0,
-          faltas:    asis['ausente'] || 0,
-          justificadas: asis['excusado'] || 0,
+          presentes: asis.asistio || 0,
+          retardos:  asis.tarde || 0,
+          faltas:    asis.falta || 0,
+          justificadas: asis.justificada || 0,
         },
       };
     });
@@ -215,7 +210,16 @@ exports.resumenCurso = async (req, res) => {
       ? Number((conPromedio.reduce((a, r) => a + r.promedio_general, 0) / conPromedio.length).toFixed(2))
       : null;
 
-    return res.json({ ok: true, periodo_id: periodoId, periodo_nombre: periodoNombre, anio_lectivo: anioLectivo, total: resultado.length, estudiantes: resultado, promedio_curso: promedioCurso });
+    return res.json({
+      ok: true,
+      periodo_id: periodoId,
+      periodo_nombre: periodoNombre,
+      anio_lectivo: anioLectivo,
+      unidad_asistencia: 'dias_curso',
+      total: resultado.length,
+      estudiantes: resultado,
+      promedio_curso: promedioCurso,
+    });
   } catch (err) {
     console.error('resumenCurso:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
@@ -252,16 +256,16 @@ exports.resumenCursoEstudiante = async (req, res) => {
     const [materias] = await pool.query(
       `SELECT m.id, m.nombre, a.nombre AS area_nombre, a.color_hex
        FROM materias m JOIN areas a ON a.id = m.area_id
-       WHERE m.grupo_id = ? AND m.activa = TRUE
+       WHERE ${condicionMateriaEnGrupo()} AND m.activa = TRUE
        ORDER BY a.nombre, m.nombre`,
-      [grupoId]
+      parametrosMateriaEnGrupo(grupoId)
     );
 
     const [notas] = await pool.query(
       `SELECT materia_id, valor, valor_max, peso_pct FROM notas
        WHERE estudiante_id = ? AND periodo_id = ?
-         AND materia_id IN (SELECT id FROM materias WHERE grupo_id = ?)`,
-      [estudianteId, periodoId, grupoId]
+         AND materia_id IN (SELECT m.id FROM materias m WHERE ${condicionMateriaEnGrupo()})`,
+      [estudianteId, periodoId, ...parametrosMateriaEnGrupo(grupoId)]
     );
     const notasPorMateria = {};
     for (const n of notas) (notasPorMateria[n.materia_id] ||= []).push(n);
@@ -269,8 +273,8 @@ exports.resumenCursoEstudiante = async (req, res) => {
     let sqlFallas = `
       SELECT materia_id, COUNT(*) AS fallas FROM asistencia
       WHERE estudiante_id = ? AND estado = 'ausente'
-        AND materia_id IN (SELECT id FROM materias WHERE grupo_id = ?)`;
-    const paramsFallas = [estudianteId, grupoId];
+        AND materia_id IN (SELECT m.id FROM materias m WHERE ${condicionMateriaEnGrupo()})`;
+    const paramsFallas = [estudianteId, ...parametrosMateriaEnGrupo(grupoId)];
     if (rango) {
       sqlFallas += ` AND fecha BETWEEN ? AND ?`;
       paramsFallas.push(rango.fecha_inicio, rango.fecha_fin);
@@ -310,7 +314,22 @@ exports.resumenMateria = async (req, res) => {
 
   try {
     const materia = await datosMateria(materiaId);
-    if (!(await puedeVerResumenMateria(req, materia))) {
+    if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
+    let grupoId = req.query.grupo_id || materia.grupo_id || null;
+    if (!grupoId) {
+      const [grupos] = await pool.query(
+        `SELECT grupo_id FROM materias_curso WHERE materia_id = ? ORDER BY grupo_id`,
+        [materiaId]
+      );
+      if (grupos.length === 1) grupoId = grupos[0].grupo_id;
+    }
+    if (!grupoId) {
+      return res.status(400).json({ ok: false, mensaje: 'grupo_id es obligatorio para esta materia.' });
+    }
+    if (!(await materiaPerteneceAlGrupo(pool, materiaId, grupoId))) {
+      return res.status(404).json({ ok: false, mensaje: 'La materia no pertenece a ese curso.' });
+    }
+    if (!(await puedeVerResumenMateria(req, materia, grupoId))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver el resumen de esta materia.' });
     }
 
@@ -325,7 +344,7 @@ exports.resumenMateria = async (req, res) => {
        FROM matriculas mt JOIN usuarios u ON u.id = mt.estudiante_id
        WHERE mt.grupo_id = ? AND mt.estado = 'activa'
        ORDER BY u.apellidos, u.nombres`,
-      [materia.grupo_id]
+      [grupoId]
     );
     if (!estudiantes.length) {
       return res.json({ ok: true, periodo_id: periodoId, total: 0, estudiantes: [] });

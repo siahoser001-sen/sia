@@ -101,7 +101,19 @@
       { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
       { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
       { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
-      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' },
+      { id: 'f07', nombre: 'Fondo 07',      src: 'static/fondos/fondo-07.jpg' },
+      { id: 'f08', nombre: 'Fondo 08',      src: 'static/fondos/fondo-08.jpg' },
+      { id: 'f09', nombre: 'Fondo 09',      src: 'static/fondos/fondo-09.jpg' },
+      { id: 'f10', nombre: 'Fondo 10',      src: 'static/fondos/fondo-10.jpg' }
+    ];
+    var COLORES_AJ = [
+      { id: 'c01', nombre: 'Azul noche',    color: '#0b1230' },
+      { id: 'c02', nombre: 'Grafito',       color: '#15171d' },
+      { id: 'c03', nombre: 'Negro',         color: '#000000' },
+      { id: 'c04', nombre: 'Azul petróleo', color: '#0d2b3e' },
+      { id: 'c05', nombre: 'Verde profundo',color: '#0c2a22' },
+      { id: 'c06', nombre: 'Vino',          color: '#2a1219' },
     ];
     function inyectarAjustes() {
       if (document.getElementById('overlayAjustes')) return;
@@ -114,6 +126,10 @@ var miniFondos = '';
         miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
       }
       miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      for (var k = 0; k < COLORES_AJ.length; k++) {
+        var co = COLORES_AJ[k];
+        miniFondos += '<div class="aj-mf aj-mf-color" data-ajf="' + co.id + '" title="' + co.nombre + '" style="background:' + co.color + '" onclick="ajSelColor(\'' + co.id + '\',\'' + co.color + '\')"></div>';
+      }
       o.innerHTML =
         '<div class="glass glass-strong modal">' +
         '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
@@ -143,7 +159,7 @@ var miniFondos = '';
         '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
         '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
         '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
-        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una imagen o un color para aplicarlo.</div>' +
         '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
         '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
         '</div>' +
@@ -179,17 +195,24 @@ var miniFondos = '';
     }
     function pintarFondo() {
       var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var col = colorFondo(actual);
       var mini = document.getElementById('ajFondoMini');
       if (mini) {
-        var fund = null;
-        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
-        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        if (col) {
+          mini.style.backgroundImage = 'none';
+          mini.style.backgroundColor = col.color;
+        } else {
+          mini.style.backgroundColor = '';
+          var fund = null;
+          for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+          mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        }
       }
       var nombre = document.getElementById('ajFondoNombre');
       if (nombre) {
         var nf = null;
         for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
-        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+        nombre.textContent = col ? ('Color plano · ' + col.nombre) : (nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal'));
       }
       var el = document.getElementById('overlayAjustes');
       if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
@@ -231,11 +254,20 @@ var miniFondos = '';
       else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
       var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
     };
-window.ajSelFondo = function (id, src) {
+    window.ajSelFondo = function (id, src) {
       var sf = document.getElementById('siaFondo');
-      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(\'' + src + '\')'; }
+      localStorage.removeItem('sia_fondo_color');
       localStorage.setItem('sia_fondo', id);
       localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSelColor = function (id, color) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) { sf.style.backgroundImage = 'none'; sf.style.backgroundColor = color; sf.classList.add('sia-fondo-plano'); }
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_color', color);
+      localStorage.removeItem('sia_fondo_src');
       pintarFondo();
     };
     window.ajSubirFondo = function () {
@@ -250,7 +282,8 @@ window.ajSelFondo = function (id, src) {
         var rd = new FileReader();
         rd.onload = function () {
           var sf = document.getElementById('siaFondo');
-          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(' + rd.result + ')'; }
+          localStorage.removeItem('sia_fondo_color');
           localStorage.setItem('sia_fondo', 'custom');
           localStorage.setItem('sia_fondo_src', rd.result);
           pintarFondo();
@@ -261,14 +294,40 @@ window.ajSelFondo = function (id, src) {
     };
     window.ajRestablecer = function () {
       if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
-      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_fondo_color', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
       window.location.reload();
     };
-    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+    function colorFondo(id) {
+      for (var i = 0; i < COLORES_AJ.length; i++) if (COLORES_AJ[i].id === id) return COLORES_AJ[i];
+      return null;
+    }
+    function aplicarFondoGuardadoAJ() {
+      var sf = document.getElementById('siaFondo');
+      if (!sf) return;
+      var modo = localStorage.getItem('sia_fondo') || '';
+      var col = colorFondo(modo);
+      if (col) {
+        sf.style.backgroundImage = 'none';
+        sf.style.backgroundColor = col.color;
+        sf.classList.add('sia-fondo-plano');
+      } else {
+        sf.style.backgroundColor = '';
+        sf.classList.remove('sia-fondo-plano');
+        var src = localStorage.getItem('sia_fondo_src');
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === modo) fund = FONDOS_AJ[i];
+        if (fund) sf.style.backgroundImage = 'url(\'' + fund.src + '\')';
+        else if (src) sf.style.backgroundImage = 'url(' + src + ')';
+      }
+    }
+    window.aplicarFondoGuardadoAJ = aplicarFondoGuardadoAJ;
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); aplicarFondoGuardadoAJ(); });
+    window.addEventListener('load', aplicarFondoGuardadoAJ);
   })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sia-base.css" />
   <style>
     :root {
       --glass-bg:        rgba(255,255,255,0.11);
@@ -405,6 +464,12 @@ window.ajSelFondo = function (id, src) {
 
     .main { position: relative; z-index: 1; margin-left: 230px; min-height: 100vh; padding: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
+    /* Las tarjetas del dashboard van dentro de #vistaLocal (un bloque normal),
+       así que NO heredan el gap del .main. Sin esto se pegan entre sí y, con
+       la animación de entrada (fadeUp), se solapan. Mismo espaciado que .main. */
+    #vistaLocal { display: flex; flex-direction: column; gap: 1.25rem; }
+    html[data-ui-density="1"] #vistaLocal { gap: 0.7rem; }
+
     .glass {
       background: var(--glass-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
       border: 1px solid var(--glass-border); border-radius: var(--r-lg); box-shadow: var(--glass-shadow);
@@ -461,7 +526,7 @@ window.ajSelFondo = function (id, src) {
     .modal-btns .btn { flex: 1; justify-content: center; }
     .stat-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
 
-    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     .ani { animation: fadeUp 350ms ease both; }
 
     @media (max-width: 760px) {
@@ -491,6 +556,8 @@ window.ajSelFondo = function (id, src) {
     .badge-exito { background: rgba(16,185,129,0.18); color: var(--green-light); border: 1px solid rgba(16,185,129,0.30); padding: 3px 10px; border-radius: 9999px; font-size: 0.66rem; font-weight: 700; }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
   </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
 </head>
 <body>
 
@@ -553,6 +620,9 @@ window.ajSelFondo = function (id, src) {
     </div>
   </div>
 
+  <!-- Chat del curso (Ronda F, F5): avisos del profesor y del sistema -->
+  <div id="chatCursoContenedor" class="ani" style="animation-delay:60ms"></div>
+
   <div class="glass ani" style="animation-delay:80ms">
 <div class="card-header">
       <div>
@@ -604,7 +674,7 @@ window.ajSelFondo = function (id, src) {
   </div>
 </div>
 
-<script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
   const API     = window.location.origin;
   const token   = sessionStorage.getItem('sia_token');
@@ -615,16 +685,15 @@ window.ajSelFondo = function (id, src) {
   /* SPA: navegación por secciones sin recargar el panel */
   var TIT_SPA = {
     'mis-clases.html':        'Mis clases',
-    'llamadas-docente.html':  'Videollamadas',
-    'llamadas-estudiante.html':'Mis videollamadas',
+    'mis-materias.html':      'Mis materias',
     'academico.html':         'Gestión académica',
-    'estudiantes.html':       'Estudiantes',
-    'acudientes.html':        'Acudientes',
     'comunicados.html':       'Comunicados',
     'calendario.html':        'Calendario',
   };
   var spaHost  = document.getElementById('spaHost');
   var spaFrame = document.getElementById('spaFrame');
+  // Versión de la SPA: cada sección carga siempre el JS actual.
+  var SPA_VERSION = Date.now();
   function buenSaludo() {
     var h = new Date().getHours();
     return h < 12 ? 'Buenos días' : h < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -651,7 +720,7 @@ window.ajSelFondo = function (id, src) {
     if (!TIT_SPA[pag]) return;
     document.getElementById('vistaLocal').style.display = 'none';
     spaHost.style.display = 'flex';
-    spaFrame.src = pag + '?shell=1';
+    spaFrame.src = pag + '?shell=1&v=' + SPA_VERSION;
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (n) { n.classList.remove('activo'); });
     pintarTopbarLab(TIT_SPA[pag], '');
     window.scrollTo(0, 0);
@@ -687,20 +756,16 @@ window.ajSelFondo = function (id, src) {
     admin: [
       { icon:'👨‍🏫', label:'Docentes',        href:'panel-admin.html' },
       { icon:'🎓',   label:'Gestión académica', href:'academico.html' },
-      { icon:'👥',   label:'Estudiantes',       href:'estudiantes.html' },
-      { icon:'👨‍👩‍👧', label:'Acudientes',        href:'acudientes.html' },
       { icon:'📢',   label:'Comunicados',       href:'comunicados.html' },
       { icon:'📅',   label:'Calendario',        href:'calendario.html' },
     ],
     docente: [
       { icon:'📝', label:'Mis clases',   href:'mis-clases.html' },
-      { icon:'📹', label:'Videollamadas', href:'llamadas-docente.html' },
       { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
       { icon:'📅', label:'Calendario',   href:'calendario.html' },
     ],
     estudiante: [
-      { icon:'📖', label:'Mis materias', href:'#' },
-      { icon:'📹', label:'Mis videollamadas', href:'llamadas-estudiante.html' },
+      { icon:'📖', label:'Mis materias', href:'mis-materias.html' },
       { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
       { icon:'📅', label:'Calendario',   href:'calendario.html' },
     ],
@@ -718,23 +783,19 @@ acudiente: [
     admin: [
       { icon:'👨‍🏫', nombre:'Docentes',         desc:'Gestionar solicitudes', href:'panel-admin.html' },
       { icon:'🎓',   nombre:'Gestión académica', desc:'Cursos y materias',     href:'academico.html' },
-      { icon:'👥',   nombre:'Estudiantes',       desc:'Matrícula y cursos',     href:'estudiantes.html' },
-      { icon:'👨‍👩‍👧', nombre:'Acudientes',        desc:'Padres y vinculación',  href:'acudientes.html' },
       { icon:'📢',   nombre:'Comunicados',       desc:'Publicar avisos',       href:'comunicados.html' },
       { icon:'📅',   nombre:'Calendario',        desc:'Eventos y cierres',     href:'calendario.html' },
     ],
     docente: [
       { icon:'📝', nombre:'Mis clases',  desc:'Notas y asistencia',  href:'mis-clases.html' },
-      { icon:'📹', nombre:'Videollamadas', desc:'Clases en línea', href:'llamadas-docente.html' },
       { icon:'📂', nombre:'Tareas',      desc:'Asignar actividades', href:'#' },
       { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio',  href:'comunicados.html' },
       { icon:'📅', nombre:'Calendario',  desc:'Eventos de tus cursos', href:'calendario.html' },
     ],
 estudiante: [
       { icon:'📊', nombre:'Mis notas',   desc:'Ver calificaciones', href:'reporte-estudiante.html' },
-      { icon:'📅', nombre:'Asistencia',  desc:'Ver mi asistencia',  href:'#' },
+      { icon:'📅', nombre:'Asistencia',  desc:'Ver mi asistencia',  href:'materia-estudiante.html?tab=asistencia' },
       { icon:'📂', nombre:'Tareas',      desc:'Ver entregas',       href:'#' },
-      { icon:'📹', nombre:'Mis videollamadas', desc:'Únete a tus clases', href:'llamadas-estudiante.html' },
       { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio', href:'comunicados.html' },
       { icon:'🗓️', nombre:'Calendario',  desc:'Eventos de tu curso', href:'calendario.html' },
     ],
@@ -933,6 +994,12 @@ function cerrarSesion() {
     }
   }
 
+  function escaparHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   async function cargarMisTareas() {
     if (usuario.rol !== 'estudiante') return;
     const card = document.getElementById('cardMisTareas');
@@ -950,7 +1017,24 @@ function cerrarSesion() {
         const yaCalificada = t.estado === 'calificada';
         const boton = yaCalificada
           ? `<span class="badge-exito">${t.calificacion != null ? `Nota: ${t.calificacion} / ${t.valor_max}` : 'Calificada'}</span>`
-          : `<button class="btn btn-primary" onclick="entregarTarea('${t.id}')">${t.estado === 'entregada' || t.estado === 'tarde' ? 'Reentregar' : 'Entregar'}</button>`;
+          : `<button class="btn btn-primary" onclick="entregarTarea('${t.id}', this)">${t.estado === 'entregada' || t.estado === 'tarde' ? 'Actualizar entrega' : 'Marcar como entregado'}</button>`;
+        const archivos = t.archivos || [];
+        const archivosHtml = archivos.length
+          ? archivos.map(a => `
+              <div class="notif-msg" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="descargarArchivoTarea('${t.id}','${a.id}')">⬇ ${escaparHtml(a.nombre_original)}</button>
+                ${yaCalificada ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="quitarArchivoTarea('${t.id}','${a.id}')">Quitar</button>`}
+              </div>`).join('')
+          : '';
+        const subidaHtml = yaCalificada ? '' : `
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.4rem">
+            <input type="file" id="files-${t.id}" multiple
+              accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip"
+              data-existentes="${archivos.length}"
+              onchange="validarArchivosTarea('${t.id}')"
+              style="font-size:0.8rem;max-width:230px" />
+            <span class="stat-label" id="files-msg-${t.id}" aria-live="polite">Adjunta archivos y pulsa «Marcar como entregado». Máx. 5 archivos, 5 MB cada uno.</span>
+          </div>`;
         return `
         <div class="notif-card">
           <div class="notif-icono">📂</div>
@@ -959,6 +1043,8 @@ function cerrarSesion() {
             <div class="notif-msg">Entregar: ${t.fecha_entrega} · Valor máx: ${t.valor_max} · Estado: ${t.estado || 'pendiente'}</div>
             ${t.descripcion ? `<div class="notif-msg">${t.descripcion}</div>` : ''}
             ${t.feedback_doc ? `<div class="notif-msg" style="color:var(--blue-light)">Feedback: ${t.feedback_doc}</div>` : ''}
+            ${archivosHtml}
+            ${subidaHtml}
           </div>
           <div>${boton}</div>
         </div>
@@ -970,15 +1056,98 @@ function cerrarSesion() {
     }
   }
 
-  async function entregarTarea(tareaId) {
+  function validarArchivosTarea(tareaId) {
+    const input = document.getElementById(`files-${tareaId}`);
+    const mensaje = document.getElementById(`files-msg-${tareaId}`);
+    if (!input || !mensaje) return false;
+    const archivos = Array.from(input.files || []);
+    let error = '';
+    if (archivos.length + Number(input.dataset.existentes || 0) > 5) {
+      error = 'La entrega admite máximo 5 archivos. Quita uno antes de agregar más.';
+    } else {
+      const extensiones = new Set(['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'pptx', 'zip']);
+      for (const archivo of archivos) {
+        if (archivo.size > 5 * 1024 * 1024) {
+          error = `“${archivo.name}” supera el máximo de 5 MB por archivo.`;
+          break;
+        }
+        if (!extensiones.has(archivo.name.split('.').pop().toLowerCase())) {
+          error = `“${archivo.name}” tiene un formato no permitido. Usa PDF, JPG, PNG, DOCX, XLSX, PPTX o ZIP.`;
+          break;
+        }
+      }
+    }
+    if (error) input.value = '';
+    mensaje.textContent = error || 'Archivos listos para adjuntar al entregar.';
+    mensaje.style.color = error ? 'var(--red-light)' : '';
+    return !error;
+  }
+
+  async function entregarTarea(tareaId, boton) {
+    const input = document.getElementById(`files-${tareaId}`);
+    if (input && !validarArchivosTarea(tareaId)) return;
+    const archivos = Array.from(input?.files || []);
+    const formData = new FormData();
+    boton.disabled = true;
     try {
-      const res  = await fetch(`${API}/api/tareas/${tareaId}/entrega`, {
-        method: 'POST', headers, body: JSON.stringify({})
+      let res;
+      if (archivos.length) {
+        archivos.forEach(archivo => formData.append('archivos', archivo));
+        res = await fetch(`${API}/api/tareas/${tareaId}/entrega/archivos`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+        });
+      } else {
+        res = await fetch(`${API}/api/tareas/${tareaId}/entrega`, {
+          method: 'POST', headers, body: JSON.stringify({}),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.ok) { alert(data.mensaje || 'No se pudo registrar la entrega.'); return; }
+      alert(archivos.length ? 'Archivos adjuntados y entrega registrada.' : `Tarea entregada (${data.estado}).`);
+      cargarMisTareas();
+    } catch (err) {
+      alert('No se pudo registrar la entrega. Revisa tu conexión e intenta de nuevo.');
+      console.error(err);
+    } finally {
+      boton.disabled = false;
+    }
+  }
+
+  async function quitarArchivoTarea(tareaId, archivoId) {
+    if (!confirm('¿Quitar este archivo de tu entrega?')) return;
+    try {
+      const res  = await fetch(`${API}/api/tareas/${tareaId}/entrega/archivos/${archivoId}`, {
+        method: 'DELETE', headers,
       });
       const data = await res.json();
-      if (!data.ok) { alert(data.mensaje || 'No se pudo entregar.'); return; }
-      alert(`Tarea entregada (${data.estado}).`);
+      if (!data.ok) { alert(data.mensaje || 'No se pudo quitar el archivo.'); return; }
       cargarMisTareas();
+    } catch (err) {
+      alert('Error de conexión. Intenta de nuevo.');
+      console.error(err);
+    }
+  }
+
+  async function descargarArchivoTarea(tareaId, archivoId) {
+    try {
+      const res = await fetch(`${API}/api/tareas/${tareaId}/entrega/archivos/${archivoId}`, { headers });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.mensaje || 'No se pudo descargar el archivo.');
+        return;
+      }
+      const disposicion = res.headers.get('Content-Disposition') || '';
+      const coincidencia = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion);
+      const nombre = coincidencia ? decodeURIComponent(coincidencia[1]) : 'archivo';
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       alert('Error de conexión. Intenta de nuevo.');
       console.error(err);
@@ -998,8 +1167,55 @@ function cerrarSesion() {
   cargarCursoEstudiante();
   cargarMisTareas();
   cargarNotificaciones();
+
+  /* ══════════════════════════════════
+     CHAT DEL CURSO (Ronda F, F5)
+     Estudiante: chat de su curso activo. Acudiente: selector
+     entre sus acudidos (varios cursos → varios chats).
+  ══════════════════════════════════ */
+  async function montarChatCurso() {
+    if (!window.SIAChatCurso) return;
+    const cont = document.getElementById('chatCursoContenedor');
+    if (!cont) return;
+    try {
+      if (usuario.rol === 'estudiante') {
+        const data = await (await fetch(`${API}/api/matriculas/mi-curso`, { headers })).json();
+        if (data.ok && data.matricula && data.matricula.grupo_id) {
+          window.SIAChatCurso.montar(data.matricula.grupo_id, cont);
+        } else {
+          cont.innerHTML = '<div class="empty">Aún no perteneces a un curso.</div>';
+        }
+      } else if (usuario.rol === 'acudiente') {
+        const data = await (await fetch(`${API}/api/matriculas/mis-hijos`, { headers })).json();
+        const hijos = (data.hijos || []).filter(h => h.grupo_id);
+        if (!hijos.length) {
+          cont.innerHTML = '<div class="empty">Tus acudidos no tienen curso activo.</div>';
+        } else if (hijos.length === 1) {
+          window.SIAChatCurso.montar(hijos[0].grupo_id, cont);
+        } else {
+          // Varios acudidos en distintos cursos: selector.
+          cont.innerHTML = `<div style="margin-bottom:.6rem">
+              <select id="ccSelectorHijo" style="min-width:220px">
+                ${hijos.map((h, i) => `<option value="${h.grupo_id}"${i === 0 ? ' selected' : ''}>${h.nombres} ${h.apellidos} — ${h.grado}${h.grupo}</option>`).join('')}
+              </select>
+            </div>
+            <div id="ccHijoContenedor"></div>`;
+          const destino = cont.querySelector('#ccHijoContenedor');
+          document.getElementById('ccSelectorHijo').addEventListener('change', (e) => {
+            window.SIAChatCurso.desmontar();
+            window.SIAChatCurso.montar(e.target.value, destino);
+          });
+          window.SIAChatCurso.montar(hijos[0].grupo_id, destino);
+        }
+      }
+    } catch (err) {
+      console.error('montarChatCurso:', err);
+    }
+  }
+  montarChatCurso();
 </script>
 <script src="chat-drawer-inyector.js"></script>
+<script src="sia-chat-curso.js"></script>
 <script src="sia-identidad.js"></script>
 </body>
 </html>

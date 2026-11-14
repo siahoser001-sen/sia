@@ -6,6 +6,7 @@
 <title>Reporte estudiantil · SIA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="sia-base.css" />
 <style>
   :root {
     --blue:       #3B82F6;
@@ -383,6 +384,8 @@
     .form-grid { grid-template-columns: 1fr; }
   }
 </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
 </head>
 <body>
 
@@ -429,6 +432,7 @@
           <button class="dl-btn todas" onclick="abrirSelectorDescarga()">Exportar…</button>
         </div>
         <button class="dl-btn" onclick="window.print()" title="Imprime la página que estás viendo">Imprimir</button>
+        <button class="dl-btn todas" onclick="descargarInformeAnual()" title="Promedio anual de todo el año lectivo (PDF)">Informe anual</button>
         <div class="dl-grupo" id="dlPersonalizadas" style="display:none"></div>
       </div>
 
@@ -974,6 +978,19 @@
         .finally(function () {
           btns.forEach(function (b) { b.disabled = false; });
         });
+    };
+
+    // D8: informe anual (todo el año, combina el snapshot de D7).
+    // Lo genera el docente/admin del curso o el propio estudiante/acudiente.
+    window.descargarInformeAnual = function () {
+      if (!estudianteIdActual) return;
+      api('/api/boletines/estudiante/' + encodeURIComponent(estudianteIdActual) + '/generar-anual', {
+        method: 'POST',
+        body: {},
+      }).then(function (r) {
+        if (!r.ok) { alert(r.mensaje || 'No se pudo generar el informe anual.'); return; }
+        descargarUrl(r.descarga_url, 'informe_anual.pdf');
+      });
     };
 
     document.getElementById('formFirma').addEventListener('submit', function (ev) {

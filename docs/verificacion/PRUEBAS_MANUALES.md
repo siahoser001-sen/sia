@@ -2,8 +2,9 @@
 
 > Estas son las verificaciones que **solo se pueden hacer con MySQL corriendo** y el
 > servidor levantado (en este entorno de trabajo no hay BD accesible, por eso quedan
-> pendientes). Son el cierre del ROADMAP actual (ver
-> `docs/modulos/actualizaciones/ROADMAP.md`, sección 0 → "Cierre del ROADMAP actual").
+> pendientes). Son el cierre de la Fase 1 (ver `docs/modulos/actualizaciones/ROADMAP.md`,
+> sección 1.2 → "Pendiente de tu verificación"; el detalle histórico está en
+> `docs/modulos/actualizaciones/ROADMAP_HISTORIAL.md`, sección 0 → "Cierre del ROADMAP actual").
 >
 > **Cómo probar:** `npm start` (o `npm run dev`), MySQL activo, entrar por
 > `http://localhost:3000/frontend/login.html`.
@@ -105,6 +106,26 @@ Verifica que estos cambios nuevos no rompieron nada:
 
 ---
 
+## E. Asistencia diaria por curso
+
+1. Revisa primero las migraciones pendientes y respalda la BD: `npm run migrate` aplica
+   todas las migraciones no registradas, no solo la 35. Cuando sea seguro, ejecútalo y
+   abre `mis-clases.html` como director o docente asignado. Entra al curso y selecciona
+   un mes. Confirma que aparecen los estudiantes activos y los días del mes; sábados y
+   domingos deben verse grises y estar deshabilitados.
+2. En un día hábil registra cada estado. Cambia una celda varias veces y recarga el mes:
+   debe persistir un único estado por estudiante/día. Para `justificada`, escribe un
+   motivo, adjunta un PDF, imagen o documento Word permitidos (máx. 5 MB) y usa
+   **Abrir archivo**. Confirma que otro formato y un archivo mayor al límite se rechazan.
+3. Prueba que un docente asignado por materia y el director pueden editar. Un docente
+   sin vínculo al curso no puede leer ni editar. Un estudiante matriculado puede
+   consultar únicamente su propia fila con `GET /api/asistencia-dia?grupo_id=<id>&mes=YYYY-MM`;
+   no puede escribir ni consultar otro grupo.
+4. Comprueba que `GET /api/resumen/curso/<id>` suma días desde `asistencia_dia`, y que
+   boletín e informe didáctico muestran el resumen diario separado de las fallas
+   históricas por materia. Verifica que los endpoints antiguos por materia siguen
+   consultando `asistencia`.
+
 ## Registro de resultados
 
 | # | Prueba | Resultado | Fecha | Cómo se probó |
@@ -115,6 +136,7 @@ Verifica que estos cambios nuevos no rompieron nada:
 | D1 | Horas semanales derivadas | ☐ | | |
 | D2 | Traslape de periodos bloqueado | ☐ | | |
 | D3 | Horario por curso (regresión) | ☐ | | |
+| E | Asistencia diaria por curso | ☐ | | |
 
 Cuando marques cada una como ✅, actualiza `docs/modulos/actualizaciones/ROADMAP.md`
 (tachando el pendiente correspondiente en la sección 8).

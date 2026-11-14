@@ -101,7 +101,19 @@
       { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
       { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
       { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
-      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' },
+      { id: 'f07', nombre: 'Fondo 07',      src: 'static/fondos/fondo-07.jpg' },
+      { id: 'f08', nombre: 'Fondo 08',      src: 'static/fondos/fondo-08.jpg' },
+      { id: 'f09', nombre: 'Fondo 09',      src: 'static/fondos/fondo-09.jpg' },
+      { id: 'f10', nombre: 'Fondo 10',      src: 'static/fondos/fondo-10.jpg' }
+    ];
+    var COLORES_AJ = [
+      { id: 'c01', nombre: 'Azul noche',    color: '#0b1230' },
+      { id: 'c02', nombre: 'Grafito',       color: '#15171d' },
+      { id: 'c03', nombre: 'Negro',         color: '#000000' },
+      { id: 'c04', nombre: 'Azul petróleo', color: '#0d2b3e' },
+      { id: 'c05', nombre: 'Verde profundo',color: '#0c2a22' },
+      { id: 'c06', nombre: 'Vino',          color: '#2a1219' },
     ];
     function inyectarAjustes() {
       if (document.getElementById('overlayAjustes')) return;
@@ -114,6 +126,10 @@ var miniFondos = '';
         miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
       }
       miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      for (var k = 0; k < COLORES_AJ.length; k++) {
+        var co = COLORES_AJ[k];
+        miniFondos += '<div class="aj-mf aj-mf-color" data-ajf="' + co.id + '" title="' + co.nombre + '" style="background:' + co.color + '" onclick="ajSelColor(\'' + co.id + '\',\'' + co.color + '\')"></div>';
+      }
       o.innerHTML =
         '<div class="glass glass-strong modal">' +
         '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
@@ -143,7 +159,7 @@ var miniFondos = '';
         '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
         '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
         '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
-        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una imagen o un color para aplicarlo.</div>' +
         '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
         '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
         '</div>' +
@@ -179,17 +195,24 @@ var miniFondos = '';
     }
     function pintarFondo() {
       var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var col = colorFondo(actual);
       var mini = document.getElementById('ajFondoMini');
       if (mini) {
-        var fund = null;
-        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
-        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        if (col) {
+          mini.style.backgroundImage = 'none';
+          mini.style.backgroundColor = col.color;
+        } else {
+          mini.style.backgroundColor = '';
+          var fund = null;
+          for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+          mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        }
       }
       var nombre = document.getElementById('ajFondoNombre');
       if (nombre) {
         var nf = null;
         for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
-        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+        nombre.textContent = col ? ('Color plano · ' + col.nombre) : (nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal'));
       }
       var el = document.getElementById('overlayAjustes');
       if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
@@ -231,11 +254,20 @@ var miniFondos = '';
       else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
       var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
     };
-window.ajSelFondo = function (id, src) {
+    window.ajSelFondo = function (id, src) {
       var sf = document.getElementById('siaFondo');
-      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(\'' + src + '\')'; }
+      localStorage.removeItem('sia_fondo_color');
       localStorage.setItem('sia_fondo', id);
       localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSelColor = function (id, color) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) { sf.style.backgroundImage = 'none'; sf.style.backgroundColor = color; sf.classList.add('sia-fondo-plano'); }
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_color', color);
+      localStorage.removeItem('sia_fondo_src');
       pintarFondo();
     };
     window.ajSubirFondo = function () {
@@ -250,7 +282,8 @@ window.ajSelFondo = function (id, src) {
         var rd = new FileReader();
         rd.onload = function () {
           var sf = document.getElementById('siaFondo');
-          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(' + rd.result + ')'; }
+          localStorage.removeItem('sia_fondo_color');
           localStorage.setItem('sia_fondo', 'custom');
           localStorage.setItem('sia_fondo_src', rd.result);
           pintarFondo();
@@ -261,14 +294,40 @@ window.ajSelFondo = function (id, src) {
     };
     window.ajRestablecer = function () {
       if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
-      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_fondo_color', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
       window.location.reload();
     };
-    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+    function colorFondo(id) {
+      for (var i = 0; i < COLORES_AJ.length; i++) if (COLORES_AJ[i].id === id) return COLORES_AJ[i];
+      return null;
+    }
+    function aplicarFondoGuardadoAJ() {
+      var sf = document.getElementById('siaFondo');
+      if (!sf) return;
+      var modo = localStorage.getItem('sia_fondo') || '';
+      var col = colorFondo(modo);
+      if (col) {
+        sf.style.backgroundImage = 'none';
+        sf.style.backgroundColor = col.color;
+        sf.classList.add('sia-fondo-plano');
+      } else {
+        sf.style.backgroundColor = '';
+        sf.classList.remove('sia-fondo-plano');
+        var src = localStorage.getItem('sia_fondo_src');
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === modo) fund = FONDOS_AJ[i];
+        if (fund) sf.style.backgroundImage = 'url(\'' + fund.src + '\')';
+        else if (src) sf.style.backgroundImage = 'url(' + src + ')';
+      }
+    }
+    window.aplicarFondoGuardadoAJ = aplicarFondoGuardadoAJ;
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); aplicarFondoGuardadoAJ(); });
+    window.addEventListener('load', aplicarFondoGuardadoAJ);
   })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sia-base.css" />
   <style>
     :root {
       --glass-bg:       rgba(255,255,255,0.11);
@@ -436,6 +495,8 @@ window.ajSelFondo = function (id, src) {
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
     }
   </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
 </head>
 <body>
 
@@ -458,20 +519,16 @@ window.ajSelFondo = function (id, src) {
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       Dashboard
     </a>
-    <a class="nav-item" href="#">
+    <a class="nav-item" href="mis-materias.html">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Mis clases
+      Mis materias
     </a>
     <a class="nav-item" href="#">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       Tareas
     </a>
-    <a class="nav-item activo" href="llamadas-estudiante.html">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-      Mis videollamadas
-    </a>
     <div class="nav-section">Académico</div>
-    <a class="nav-item" href="#">
+    <a class="nav-item" href="reporte-estudiante.html">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Notas
     </a>
@@ -516,13 +573,17 @@ window.ajSelFondo = function (id, src) {
 
 </main>
 
-<script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 /* CONFIG */
 const API   = window.location.origin;
 const token = sessionStorage.getItem('sia_token');
 if (!token) window.location.href = 'login.html';
 const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+// Modo directo: llamadas-estudiante.html?materia=<docente_materia_id>
+// muestra únicamente la llamada de esa materia.
+const MATERIA_PARAM = new URLSearchParams(window.location.search).get('materia');
 
 /* FONDO Y PERFIL */
 (function init() {
@@ -556,6 +617,23 @@ async function cargarMaterias() {
   } catch (err) {
     console.error('Error cargando materias:', err);
   }
+
+  if (MATERIA_PARAM) {
+    const propia = MIS_MATERIAS.filter(
+      m => String(m.docente_materia_id) === String(MATERIA_PARAM)
+    );
+    if (!propia.length) {
+      document.getElementById('listaMaterias').innerHTML =
+        '<div class="empty">Esta materia no está asignada a tu curso.</div>';
+      return;
+    }
+    MIS_MATERIAS = propia;
+    const m = propia[0];
+    document.querySelector('.topbar-titulo').textContent = `Videollamada: ${m.materia}`;
+    document.querySelector('.topbar-sub').textContent =
+      `${m.grado} ${m.grupo} · estado de la llamada`;
+  }
+
   await renderMaterias();
   conectarSocket();
 }
@@ -572,30 +650,36 @@ async function renderMaterias() {
   const items = [];
   for (const m of MIS_MATERIAS) {
     let estadoLlamada = { activa: false };
-    try {
-      const res = await fetch(`${API}/api/clases/${m.docente_materia_id}/estado-llamada`, { headers });
-      if (res.ok) {
-        estadoLlamada = await res.json();
+    if (m.docente_materia_id) {
+      try {
+        const res = await fetch(`${API}/api/clases/${m.docente_materia_id}/estado-llamada`, { headers });
+        if (res.ok) {
+          estadoLlamada = await res.json();
+        }
+      } catch (err) {
+        console.error(`Error consultando estado:`, err);
       }
-    } catch (err) {
-      console.error(`Error consultando estado:`, err);
     }
     
     // Guardar estado para uso posterior con socket.io
-    ESTADOS_LLAMADAS[m.docente_materia_id] = estadoLlamada;
+    if (m.docente_materia_id) ESTADOS_LLAMADAS[m.docente_materia_id] = estadoLlamada;
     
-    const btnClase = estadoLlamada.activa 
-      ? `<button class="btn btn-blue btn-sm" onclick="unirseALlamada('${m.docente_materia_id}', '${estadoLlamada.url}', '${m.materia}')">
+    const btnClase = !m.docente_materia_id
+      ? `<span style="font-size:0.75rem;color:var(--text-3)">Sin docente asignado</span>`
+      : estadoLlamada.activa
+      ? `<button class="btn btn-blue btn-sm" onclick="unirseALlamada('${m.docente_materia_id}', '${SIAarg(estadoLlamada.url)}', '${SIAarg(m.materia)}')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
           Unirse a llamada
         </button>`
       : `<span style="font-size:0.75rem;color:var(--text-3)">No hay llamada en curso</span>`;
 
     items.push(`
-      <div class="glass materia-card ani" style="animation-delay:${items.length * 60}ms" data-materia-id="${m.docente_materia_id}">
+      <div class="glass materia-card ani" style="animation-delay:${items.length * 60}ms" data-materia-id="${m.docente_materia_id || ''}">
         <div>
           <div class="materia-nombre">${m.materia}</div>
-          <div class="materia-docente">Docente: <strong>${m.docente}</strong></div>
+          <div class="materia-docente">Docente: ${m.docente_id
+            ? `<button type="button" onclick="SIAVerDocente('${m.docente_id}')" title="Ver perfil del docente" style="background:none;border:0;color:var(--blue-light,#93C5FD);cursor:pointer;font:inherit;padding:0;font-weight:700">${m.docente}</button>`
+            : `<strong>${m.docente || 'Por asignar'}</strong>`}</div>
           <div class="materia-docente" style="margin-top:0.5rem">Grado: <strong>${m.grado}</strong></div>
         </div>
         <div class="materia-actions">
@@ -650,7 +734,7 @@ function conectarSocket() {
     console.log('✅ Conectado a socket.io');
     // Emitir unirse a cada materia
     for (const m of MIS_MATERIAS) {
-      socket.emit('unirse-materia', { docente_materia_id: m.docente_materia_id });
+      if (m.docente_materia_id) socket.emit('unirse-materia', { docente_materia_id: m.docente_materia_id });
     }
   });
 
@@ -668,7 +752,7 @@ function conectarSocket() {
       const btnContainer = materiaCard.querySelector('.materia-actions');
       const nombreMateria = materiaCard.querySelector('.materia-nombre').textContent;
       btnContainer.innerHTML = `
-        <button class="btn btn-blue btn-sm" onclick="unirseALlamada('${docente_materia_id}', '${url}', '${nombreMateria}')">
+        <button class="btn btn-blue btn-sm" onclick="unirseALlamada('${docente_materia_id}', '${SIAarg(url)}', '${SIAarg(nombreMateria)}')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
           Unirse a llamada
         </button>

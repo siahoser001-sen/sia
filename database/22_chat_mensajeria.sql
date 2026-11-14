@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS chats (
     UNIQUE KEY uq_chat_par (tipo, ente_a, ente_b),
     KEY idx_chat_inst (institucion_id),
     FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS chat_mensajes (
     id           CHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -41,13 +41,13 @@ CREATE TABLE IF NOT EXISTS chat_mensajes (
     FOREIGN KEY (chat_id)      REFERENCES chats(id)     ON DELETE CASCADE,
     FOREIGN KEY (remitente_id) REFERENCES usuarios(id)  ON DELETE CASCADE,
     KEY idx_msg_chat (chat_id, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS chat_config (
     institucion_id               CHAR(36)   PRIMARY KEY,
     permitir_mensajes_abiertos   BOOLEAN    NOT NULL DEFAULT FALSE,
     updated_at                   DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (institucion_id) REFERENCES instituciones(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 COMMIT;

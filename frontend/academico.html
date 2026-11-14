@@ -101,7 +101,19 @@
       { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
       { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
       { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
-      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' },
+      { id: 'f07', nombre: 'Fondo 07',      src: 'static/fondos/fondo-07.jpg' },
+      { id: 'f08', nombre: 'Fondo 08',      src: 'static/fondos/fondo-08.jpg' },
+      { id: 'f09', nombre: 'Fondo 09',      src: 'static/fondos/fondo-09.jpg' },
+      { id: 'f10', nombre: 'Fondo 10',      src: 'static/fondos/fondo-10.jpg' }
+    ];
+    var COLORES_AJ = [
+      { id: 'c01', nombre: 'Azul noche',    color: '#0b1230' },
+      { id: 'c02', nombre: 'Grafito',       color: '#15171d' },
+      { id: 'c03', nombre: 'Negro',         color: '#000000' },
+      { id: 'c04', nombre: 'Azul petróleo', color: '#0d2b3e' },
+      { id: 'c05', nombre: 'Verde profundo',color: '#0c2a22' },
+      { id: 'c06', nombre: 'Vino',          color: '#2a1219' },
     ];
     function inyectarAjustes() {
       if (document.getElementById('overlayAjustes')) return;
@@ -114,6 +126,10 @@ var miniFondos = '';
         miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
       }
       miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      for (var k = 0; k < COLORES_AJ.length; k++) {
+        var co = COLORES_AJ[k];
+        miniFondos += '<div class="aj-mf aj-mf-color" data-ajf="' + co.id + '" title="' + co.nombre + '" style="background:' + co.color + '" onclick="ajSelColor(\'' + co.id + '\',\'' + co.color + '\')"></div>';
+      }
       o.innerHTML =
         '<div class="glass glass-strong modal">' +
         '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
@@ -143,7 +159,7 @@ var miniFondos = '';
         '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
         '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
         '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
-        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una imagen o un color para aplicarlo.</div>' +
         '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
         '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
         '</div>' +
@@ -179,17 +195,24 @@ var miniFondos = '';
     }
     function pintarFondo() {
       var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var col = colorFondo(actual);
       var mini = document.getElementById('ajFondoMini');
       if (mini) {
-        var fund = null;
-        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
-        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        if (col) {
+          mini.style.backgroundImage = 'none';
+          mini.style.backgroundColor = col.color;
+        } else {
+          mini.style.backgroundColor = '';
+          var fund = null;
+          for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+          mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        }
       }
       var nombre = document.getElementById('ajFondoNombre');
       if (nombre) {
         var nf = null;
         for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
-        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+        nombre.textContent = col ? ('Color plano · ' + col.nombre) : (nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal'));
       }
       var el = document.getElementById('overlayAjustes');
       if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
@@ -231,11 +254,20 @@ var miniFondos = '';
       else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
       var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
     };
-window.ajSelFondo = function (id, src) {
+    window.ajSelFondo = function (id, src) {
       var sf = document.getElementById('siaFondo');
-      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(\'' + src + '\')'; }
+      localStorage.removeItem('sia_fondo_color');
       localStorage.setItem('sia_fondo', id);
       localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSelColor = function (id, color) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) { sf.style.backgroundImage = 'none'; sf.style.backgroundColor = color; sf.classList.add('sia-fondo-plano'); }
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_color', color);
+      localStorage.removeItem('sia_fondo_src');
       pintarFondo();
     };
     window.ajSubirFondo = function () {
@@ -250,7 +282,8 @@ window.ajSelFondo = function (id, src) {
         var rd = new FileReader();
         rd.onload = function () {
           var sf = document.getElementById('siaFondo');
-          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(' + rd.result + ')'; }
+          localStorage.removeItem('sia_fondo_color');
           localStorage.setItem('sia_fondo', 'custom');
           localStorage.setItem('sia_fondo_src', rd.result);
           pintarFondo();
@@ -261,14 +294,41 @@ window.ajSelFondo = function (id, src) {
     };
     window.ajRestablecer = function () {
       if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
-      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_fondo_color', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
       window.location.reload();
     };
-    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+    function colorFondo(id) {
+      for (var i = 0; i < COLORES_AJ.length; i++) if (COLORES_AJ[i].id === id) return COLORES_AJ[i];
+      return null;
+    }
+    function aplicarFondoGuardadoAJ() {
+      var sf = document.getElementById('siaFondo');
+      if (!sf) return;
+      var modo = localStorage.getItem('sia_fondo') || '';
+      var col = colorFondo(modo);
+      if (col) {
+        sf.style.backgroundImage = 'none';
+        sf.style.backgroundColor = col.color;
+        sf.classList.add('sia-fondo-plano');
+      } else {
+        sf.style.backgroundColor = '';
+        sf.classList.remove('sia-fondo-plano');
+        var src = localStorage.getItem('sia_fondo_src');
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === modo) fund = FONDOS_AJ[i];
+        if (fund) sf.style.backgroundImage = 'url(\'' + fund.src + '\')';
+        else if (src) sf.style.backgroundImage = 'url(' + src + ')';
+      }
+    }
+    window.aplicarFondoGuardadoAJ = aplicarFondoGuardadoAJ;
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); aplicarFondoGuardadoAJ(); });
+    window.addEventListener('load', aplicarFondoGuardadoAJ);
   })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sia-base.css" />
+  <script src="sia-ui.js"></script>
   <style>
     :root {
       --glass-bg:        rgba(255,255,255,0.11);
@@ -585,6 +645,13 @@ window.ajSelFondo = function (id, src) {
       display: none; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto;
     }
     .overlay.visible { display: flex; }
+    /* Solo el administrador con institución edita el catálogo académico.
+       El resto de roles (docente/director) ve la pantalla en modo lectura:
+       los controles marcados .solo-admin no se muestran, en vez de dejar
+       botones que responden 403 y parecen "rotos". */
+    body.solo-lectura .solo-admin { display: none !important; }
+    .aviso-contexto { display: none; margin: 0 0 0.9rem; }
+    .aviso-contexto.visible { display: block; }
     .modal { width: 100%; max-width: 460px; padding: 2rem; border-radius: var(--r-xl); }
     .modal h3 { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.1rem; }
     .campo { margin-bottom: 1rem; }
@@ -635,14 +702,16 @@ window.ajSelFondo = function (id, src) {
     }
 
     /* ── Horario ── */
-    .horario-tabla {
+    /* ── Horario: grilla proporcional al tiempo real (H7) ──
+       La columna de horas se ancla al inicio del día y avanza cada 30 min;
+       cada franja se posiciona/estira según sus minutos reales. */
+    .horario-grid {
       display: grid;
-      grid-template-columns: 70px repeat(7, 1fr);
       gap: 4px;
       overflow-x: auto;
       min-width: 0;
     }
-    .horario-head {
+    .horario-ghead {
       font-size: 0.74rem;
       font-weight: 700;
       text-align: center;
@@ -651,67 +720,57 @@ window.ajSelFondo = function (id, src) {
       border-radius: 6px;
       color: var(--text-2);
     }
-    .horario-hora {
-      font-size: 0.72rem;
-      text-align: center;
-      padding: 6px 2px;
+    .horario-gutter { position: relative; }
+    .horario-gl {
+      position: absolute;
+      left: 0;
+      right: 6px;
+      text-align: right;
+      font-size: 0.7rem;
       color: var(--text-3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      white-space: nowrap;
+      pointer-events: none;
     }
-    .horario-celda {
-      min-height: 46px;
-      border-radius: 6px;
-      font-size: 0.74rem;
-      padding: 6px;
-      cursor: default;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 2px;
+    .horario-gcol {
       position: relative;
-    }
-    .horario-celda.ocup {
-      background: color-mix(in srgb, var(--fc, #4A90D9) 22%, transparent);
-      border-left: 3px solid var(--fc, #4A90D9);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
       cursor: pointer;
     }
-    .horario-celda.ocup b { font-size: 0.78rem; }
-    .horario-celda.ocup span { opacity: 0.82; font-size: 0.68rem; }
-.horario-celda.libre {
-      background: rgba(255,255,255,0.05);
-      color: var(--text-3);
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      border: 1px dashed rgba(255,255,255,0.14);
+    .horario-gline {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+      pointer-events: none;
     }
-    .horario-celda.libre:hover { background: rgba(255,255,255,0.12); }
-    /* Carriles: cuando dos franjas coinciden en el tiempo, se dibujan
-       lado a lado dentro de la misma columna sin tapar el texto. */
-    .horario-region { position: relative; min-width: 0; }
-.horario-region .horario-celda.ocup.lanes-franja {
+    .horario-gline.mayor { background: rgba(255,255,255,0.15); }
+    .horario-gbloque {
       position: absolute;
       box-sizing: border-box;
-      margin: 0;
+      border-radius: 6px;
+      padding: 5px 6px;
+      font-size: 0.72rem;
       overflow: hidden;
-      min-height: 0;
+      cursor: pointer;
+      z-index: 2;
+      background: color-mix(in srgb, var(--fc, #4A90D9) 24%, transparent);
+      border-left: 3px solid var(--fc, #4A90D9);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
     }
-.horario-acc {
+    .horario-gbloque b { font-size: 0.76rem; }
+    .horario-gbloque > span { opacity: 0.85; font-size: 0.66rem; }
+    .horario-acc {
       display: flex;
       gap: 4px;
-      margin-top: 2px;
+      margin-top: 0;
       opacity: 0;
       transition: opacity 0.15s;
     }
-    .horario-celda.ocup:hover .horario-acc { opacity: 1; }
-    /* Las filas de horas son contenedores invisibles: así la cuadrícula
-       (Hora + 7 días) fluye bien con display:contents. Sin esto cada fila
-       se aplastaba en la primera columna. */
-    .horario-fila { display: contents; }
+    .horario-gbloque:hover .horario-acc { opacity: 1; }
     .dia-nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .dia-chip {
       border: 1px solid rgba(255,255,255,0.14);
@@ -731,6 +790,8 @@ window.ajSelFondo = function (id, src) {
       color: var(--text-1);
     }
   </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
 </head>
 <body>
 
@@ -833,16 +894,19 @@ window.ajSelFondo = function (id, src) {
   <div class="glass ani" style="animation-delay:60ms">
     <div class="tabs">
       <div class="tab activo" data-tab="cursos">Cursos</div>
-      <div class="tab" data-tab="periodos">Periodos</div>
+      <div class="tab solo-admin" data-tab="periodos">Periodos</div>
       <div class="tab" data-tab="materias">Materias</div>
       <div class="tab" data-tab="horario">Horario</div>
-      <div class="tab" data-tab="grados">Grados (avanzado)</div>
-      <div class="tab" data-tab="grupos">Grupos (avanzado)</div>
+      <div class="tab solo-admin" data-tab="grados">Grados (avanzado)</div>
+      <div class="tab solo-admin" data-tab="grupos">Grupos (avanzado)</div>
     </div>
+
+    <!-- Aviso de rol/contexto: explica por qué la pantalla está en modo lectura -->
+    <div class="msg aviso-contexto" id="avisoContexto" role="status"></div>
 
     <!-- ════════ TAB: CURSOS ════════ -->
     <div class="tab-content activo" id="tab-cursos">
-      <div class="toolbar">
+      <div class="toolbar solo-admin">
         <div style="font-size:0.8rem;color:var(--text-2)">Escribe el código del curso: 601, 402, 303... (para 10° y 11° usa 4 dígitos: 1001, 1102)</div>
         <div style="display:flex;gap:8px">
           <input type="text" id="inputCodigoCurso" placeholder="Ej: 601" maxlength="4" style="width:110px">
@@ -852,7 +916,7 @@ window.ajSelFondo = function (id, src) {
       <div class="msg" id="msgCurso"></div>
       <div class="tabla-wrap">
         <table>
-          <thead><tr><th>Curso</th><th>Capacidad</th><th>Director</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Curso</th><th>Capacidad</th><th>Director</th><th>Estado</th><th class="solo-admin">Acciones</th></tr></thead>
           <tbody id="tbodyCursos"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
         </table>
       </div>
@@ -860,13 +924,14 @@ window.ajSelFondo = function (id, src) {
 
     <!-- ════════ TAB: PERIODOS ════════ -->
     <div class="tab-content" id="tab-periodos">
-      <div class="toolbar">
+      <div class="toolbar solo-admin">
         <select id="filtroAnioPeriodos" onchange="cargarPeriodos()">
           <option value="">Todos los años</option>
         </select>
         <button class="btn-nuevo" onclick="abrirModalPeriodo()">+ Nuevo periodo</button>
       </div>
       <div class="msg" id="msgPeriodosLista"></div>
+      <div id="cicloInfo" style="font-size:0.82rem;color:var(--text-2);margin:0.25rem 0 0.8rem"></div>
       <div class="tabla-wrap">
         <table>
           <thead><tr><th>Año</th><th>N°</th><th>Nombre</th><th>Fecha inicio</th><th>Fecha fin</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -877,7 +942,7 @@ window.ajSelFondo = function (id, src) {
 
     <!-- ════════ TAB: GRADOS ════════ -->
     <div class="tab-content" id="tab-grados">
-      <div class="toolbar">
+      <div class="toolbar solo-admin">
         <div></div>
         <button class="btn-nuevo" onclick="abrirModalGrado()">+ Nuevo grado</button>
       </div>
@@ -891,7 +956,7 @@ window.ajSelFondo = function (id, src) {
 
     <!-- ════════ TAB: GRUPOS ════════ -->
     <div class="tab-content" id="tab-grupos">
-      <div class="toolbar">
+      <div class="toolbar solo-admin">
         <select id="filtroGradoGrupos" onchange="cargarGrupos()">
           <option value="">Todos los grados</option>
         </select>
@@ -911,7 +976,7 @@ window.ajSelFondo = function (id, src) {
         <select id="filtroCursoMaterias" onchange="cargarMaterias()">
           <option value="">Todos los cursos</option>
         </select>
-        <button class="btn-nuevo" onclick="abrirModalMateria()">+ Nueva materia</button>
+        <button class="btn-nuevo solo-admin" onclick="abrirModalMateria()">+ Nueva materia</button>
       </div>
       <div class="tabla-wrap">
         <table>
@@ -1031,6 +1096,7 @@ window.ajSelFondo = function (id, src) {
         <input type="text" id="franjaAula" placeholder="Ej: Salón 2" style="width:100%">
       </div>
     </div>
+    <div id="msgFranja" class="msg" style="margin-bottom:0.6rem;display:none"></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="cerrarModalFranja()">Cancelar</button>
       <button class="btn-guardar" onclick="guardarFranja()">Guardar</button>
@@ -1096,6 +1162,23 @@ window.ajSelFondo = function (id, src) {
 </div>
 
 <!-- ════════ MODAL: DIRECTOR DE CURSO ════════ -->
+<!-- ════════ MODAL: RENOMBRAR CURSO ════════ -->
+<div class="overlay" id="overlayRenombrar">
+  <div class="glass glass-strong modal">
+    <h3 id="renombrarTitulo">Renombrar curso</h3>
+    <div class="msg" id="msgRenombrar"></div>
+    <div class="campo">
+      <label>Nuevo número de grupo *</label>
+      <input type="text" id="inputGrupoRenombrar" placeholder="01, 02, 03..." maxlength="3" oninput="actualizarPreviewRenombrar()" />
+    </div>
+    <div style="font-size:0.78rem;color:var(--text-3);margin:-0.2rem 0 0.4rem">Se conserva el mismo grado; solo cambia el número de grupo. El curso pasará a llamarse <b id="renombrarPreview">—</b>.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayRenombrar')">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarRenombrar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ MODAL PERFIL ════════ -->
 <div class="overlay" id="overlayPerfil">
   <div class="glass glass-strong modal">
@@ -1203,7 +1286,7 @@ window.ajSelFondo = function (id, src) {
       <select id="selectCursoProfesorMateria"></select>
       <small class="card-sub" style="margin-top:4px;display:block">La materia es general: elige el curso en el que la dictará este profesor, o déjala "GENERAL" para asignarla a todos.</small>
     </div>
-    <div class="campo">
+    <div class="campo solo-admin">
       <label>Agregar profesor</label>
       <div style="display:flex;gap:8px">
         <select id="selectNuevoProfesorMateria" style="flex:1"></select>
@@ -1212,6 +1295,64 @@ window.ajSelFondo = function (id, src) {
     </div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="cerrarModal('overlayProfesoresMateria')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: DETALLE DEL CURSO (materias + estudiantes/acudientes) ════════ -->
+<div class="overlay" id="overlayDetalleCurso">
+  <div class="glass glass-strong modal" style="max-width:960px;width:95%;max-height:90vh;overflow:auto">
+    <h3 id="detalleCursoTitulo">Curso</h3>
+    <div style="font-size:0.84rem;color:var(--text-2);margin:-0.3rem 0 0.9rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span>Director de curso:</span>
+      <b id="detalleCursoDirector" style="color:var(--text-1);font-weight:600">—</b>
+      <button class="btn-sm" id="btnAsignarDirectorDetalle" onclick="asignarDirectorDesdeDetalle()" style="margin-left:auto">Cambiar</button>
+    </div>
+    <div class="msg" id="msgDetalleCurso"></div>
+
+    <div class="nav-section" style="margin-bottom:0.5rem">Materias del curso</div>
+    <div id="detalleMaterias" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-bottom:0.6rem">
+      <div class="card-sub">Cargando...</div>
+    </div>
+    <div style="text-align:right;margin-bottom:1.2rem">
+      <button class="btn-guardar" onclick="guardarMateriasCursoDetalle()">Guardar materias</button>
+    </div>
+
+    <div class="nav-section" style="margin-bottom:0.5rem">Estudiantes y acudientes</div>
+    <div style="display:flex;gap:8px;margin-bottom:0.5rem">
+      <input type="text" id="detalleBuscarEst" placeholder="Buscar por documento o nombre para matricular..." style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarParaMatricular();}">
+      <button class="btn-sm" onclick="buscarParaMatricular()">Buscar</button>
+    </div>
+    <div id="detalleResultadosBusqueda" style="margin-bottom:0.6rem"></div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr><th>Estudiante</th><th>Documento</th><th>Acudientes</th><th style="text-align:right">Acciones</th></tr>
+        </thead>
+        <tbody id="detalleEstudiantes">
+          <tr><td colspan="4" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayDetalleCurso')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: TRASLADAR ESTUDIANTE (desde detalle del curso) ════════ -->
+<div class="overlay" id="overlayTrasladarDetalle">
+  <div class="glass glass-strong modal" style="max-width:420px">
+    <h3>Trasladar estudiante</h3>
+    <div class="msg" id="msgTrasladarDetalle"></div>
+    <p style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.75rem" id="trasladarDetalleNombre">—</p>
+    <div class="campo">
+      <label>Curso destino *</label>
+      <select id="selectCursoDestino"></select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('overlayTrasladarDetalle')">Cancelar</button>
+      <button class="btn-guardar" onclick="confirmarTrasladoDetalle()">Trasladar</button>
     </div>
   </div>
 </div>
@@ -1265,6 +1406,14 @@ window.ajSelFondo = function (id, src) {
 
   const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
 
+  // Rol y contexto de institución. Gobiernan qué se ve y qué se puede editar:
+  //  · admin/superadmin con institución -> gestión completa.
+  //  · docente (director de curso)      -> solo lectura de SUS cursos, materias y horario.
+  //  · superadmin sin institución       -> esta pantalla no tiene datos que mostrar.
+  const esAdmin        = ['admin', 'superadmin'].includes(usuario.rol);
+  const sinInstitucion = !usuario.institucion_id;
+  const soloLectura    = !esAdmin || sinInstitucion;
+
   let gradosCache  = [];
   let areasCache   = [];
   let cursosCache  = [];
@@ -1283,7 +1432,22 @@ window.ajSelFondo = function (id, src) {
     { id:'f04', nombre:'Bosque',        src:'static/fondos/fondo-04.jpg' },
     { id:'f05', nombre:'Galaxia',       src:'static/fondos/fondo-05.jpg' },
     { id:'f06', nombre:'Desierto',      src:'static/fondos/fondo-06.jpg' },
+    { id:'f07', nombre:'Fondo 07',      src:'static/fondos/fondo-07.jpg' },
+    { id:'f08', nombre:'Fondo 08',      src:'static/fondos/fondo-08.jpg' },
+    { id:'f09', nombre:'Fondo 09',      src:'static/fondos/fondo-09.jpg' },
+    { id:'f10', nombre:'Fondo 10',      src:'static/fondos/fondo-10.jpg' },
   ];
+
+  // Ronda G · fondos de un solo color (sin foto).
+  const COLORES_FONDO = [
+    { id:'c01', nombre:'Azul noche',    color:'#0b1230' },
+    { id:'c02', nombre:'Grafito',       color:'#15171d' },
+    { id:'c03', nombre:'Negro',         color:'#000000' },
+    { id:'c04', nombre:'Azul petróleo', color:'#0d2b3e' },
+    { id:'c05', nombre:'Verde profundo',color:'#0c2a22' },
+    { id:'c06', nombre:'Vino',          color:'#2a1219' },
+  ];
+  function colorFondoFijo(id) { return COLORES_FONDO.find(c => c.id === id) || null; }
 
   let fondosPersonalizados = [];
   function todosFondos() { return [...FONDOS, ...fondosPersonalizados]; }
@@ -1319,6 +1483,8 @@ window.ajSelFondo = function (id, src) {
       selFondo(nuevo.id, nuevo.src);
       fondoActual = nuevo.id;
       localStorage.setItem('sia_fondo', fondoActual);
+      localStorage.setItem('sia_fondo_src', nuevo.src);
+      localStorage.removeItem('sia_fondo_color');
     } catch (err) {
       console.error('Error subiendo fondo:', err);
       alert('No se pudo subir el fondo. Intenta de nuevo.');
@@ -1332,8 +1498,18 @@ window.ajSelFondo = function (id, src) {
   });
 
   function aplicarFondo(id) {
+    const sf = document.getElementById('siaFondo');
+    const c = colorFondoFijo(id);
+    if (c) {
+      sf.style.backgroundImage = 'none';
+      sf.style.backgroundColor = c.color;
+      sf.classList.add('sia-fondo-plano');
+      return;
+    }
+    sf.style.backgroundColor = '';
+    sf.classList.remove('sia-fondo-plano');
     const f = todosFondos().find(f => f.id === id);
-    if (f) document.getElementById('siaFondo').style.backgroundImage = `url('${f.src}')`;
+    if (f) sf.style.backgroundImage = `url('${f.src}')`;
   }
 
   function renderGaleriaFondos() {
@@ -1362,18 +1538,55 @@ window.ajSelFondo = function (id, src) {
         ">+</div>
         <div style="font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:4px">Subir imagen</div>
       </div>
+      <div style="grid-column:1/-1;font-size:0.72rem;font-weight:700;color:var(--text-2);margin:0.5rem 0 -2px">Color plano (sin foto)</div>
+      ${COLORES_FONDO.map(c => `
+        <div style="cursor:pointer" onclick="selColorFondo('${c.id}','${c.color}')">
+          <div style="
+            aspect-ratio:16/9; border-radius:10px; overflow:hidden;
+            border: 2px solid ${fondoTemporal===c.id ? 'var(--blue)':'transparent'};
+            box-shadow: ${fondoTemporal===c.id ? '0 0 0 3px rgba(59,130,246,0.25)':''};
+            outline: 1px solid rgba(255,255,255,0.15); outline-offset:-1px;
+            transition: all 150ms; position:relative; background:${c.color};
+          " id="fopt-${c.id}">
+            ${fondoTemporal===c.id ? '<div style="position:absolute;top:6px;right:6px;width:20px;height:20px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:700">✓</div>' : ''}
+          </div>
+          <div style="font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:4px">${c.nombre}</div>
+        </div>
+      `).join('')}
     `;
   }
 
   function selFondo(id, src) {
     fondoTemporal = id;
-    document.getElementById('siaFondo').style.backgroundImage = `url('${src}')`;
+    const sf = document.getElementById('siaFondo');
+    sf.classList.remove('sia-fondo-plano');
+    sf.style.backgroundColor = '';
+    sf.style.backgroundImage = `url('${src}')`;
+    renderGaleriaFondos();
+  }
+
+  function selColorFondo(id, color) {
+    fondoTemporal = id;
+    const sf = document.getElementById('siaFondo');
+    sf.style.backgroundImage = 'none';
+    sf.style.backgroundColor = color;
+    sf.classList.add('sia-fondo-plano');
     renderGaleriaFondos();
   }
 
   function guardarFondo() {
     fondoActual = fondoTemporal;
-    localStorage.setItem('sia_fondo', fondoActual);
+    const c = colorFondoFijo(fondoActual);
+    if (c) {
+      localStorage.setItem('sia_fondo', c.id);
+      localStorage.setItem('sia_fondo_color', c.color);
+      localStorage.removeItem('sia_fondo_src');
+    } else {
+      const f = todosFondos().find(x => x.id === fondoActual);
+      localStorage.setItem('sia_fondo', fondoActual);
+      if (f) localStorage.setItem('sia_fondo_src', f.src);
+      localStorage.removeItem('sia_fondo_color');
+    }
     cerrarModalFondo();
   }
 
@@ -1413,40 +1626,79 @@ window.ajSelFondo = function (id, src) {
   // ════════════════════════════════════════════════════════
   async function cargarCursos() {
     const tbody = document.getElementById('tbodyCursos');
+    if (sinInstitucion) {
+      cursosCache = [];
+      llenarSelectsCursos();
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Tu cuenta de superadministrador no está ligada a una institución. Entra con la cuenta del administrador del colegio para ver sus cursos.</td></tr>';
+      return;
+    }
     tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
     try {
-      const res  = await fetch(`${API}/api/academico/cursos`, { headers });
+      // El admin ve todos los cursos de la institución; el docente-director
+      // solo los suyos, con el endpoint que sí tiene permitido (/mis-cursos).
+      const url  = esAdmin ? `${API}/api/academico/cursos` : `${API}/api/academico/mis-cursos`;
+      const res  = await fetch(url, { headers });
       const data = await res.json();
-      cursosCache = data.ok ? data.cursos : [];
-      llenarSelectsCursos();
-
-      if (!data.ok || !data.cursos.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay cursos creados. Crea el primero escribiendo su código arriba (ej: 601).</td></tr>';
+      if (!data.ok) {
+        cursosCache = [];
+        llenarSelectsCursos();
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">${SIAtext(data.mensaje || 'No se pudieron cargar los cursos.')}</td></tr>`;
         return;
       }
-      tbody.innerHTML = data.cursos.map(c => `
+      cursosCache = (data.cursos || []).map(c => ({
+        ...c,
+        codigo: c.codigo || `${c.grado_nombre}${c.grupo_nombre}`,
+        activo: c.activo === undefined ? 1 : c.activo,
+      }));
+      llenarSelectsCursos();
+
+      if (!cursosCache.length) {
+        tbody.innerHTML = esAdmin
+          ? '<tr><td colspan="5" class="empty">No hay cursos creados. Crea el primero escribiendo su código arriba (ej: 601).</td></tr>'
+          : '<tr><td colspan="5" class="empty">Todavía no diriges ningún curso. Cuando el administrador te asigne como director, aparecerá aquí.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = cursosCache.map(c => {
+        const director = c.director_nombre ||
+          (c.director_id && c.director_id === usuario.id
+            ? `${usuario.nombres || ''} ${usuario.apellidos || ''}`.trim()
+            : '');
+        return `
         <tr>
-          <td><b>${c.codigo}</b></td>
-          <td>${c.capacidad_max}</td>
-          <td>${c.director_nombre || '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
+          <td><b>${SIAtext(c.codigo)}</b></td>
+          <td>${c.capacidad_max ?? '—'}</td>
+          <td>${director ? SIAtext(director) : '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
           <td>${c.activo ? 'Activo' : 'Inactivo'}</td>
-          <td>
-            <button class="btn-sm" onclick="abrirModalDirector('${c.grupo_id}','${c.grupo_nombre}','${c.grado_nombre}','${c.director_id || ''}')">Director</button>
-            <button class="btn-sm" onclick="eliminarCurso('${c.grupo_id}')">Eliminar</button>
+          <td class="solo-admin">
+            <button type="button" class="btn-sm" onclick="abrirDetalleCurso('${SIAarg(c.grupo_id)}','${SIAarg(c.codigo)}')">Detalle</button>
+            <button type="button" class="btn-sm" onclick="abrirModalRenombrar('${SIAarg(c.grupo_id)}','${SIAarg(c.grado_nombre)}','${SIAarg(c.grupo_nombre)}')">Renombrar</button>
+            <button type="button" class="btn-sm" onclick="abrirModalDirector('${SIAarg(c.grupo_id)}','${SIAarg(c.grupo_nombre)}','${SIAarg(c.grado_nombre)}','${SIAarg(c.director_id || '')}')">Director</button>
+            <button type="button" class="btn-sm danger" onclick="archivarCurso('${SIAarg(c.grupo_id)}','${SIAarg(c.codigo)}')">Archivar</button>
           </td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     } catch {
       tbody.innerHTML = '<tr><td colspan="5" class="empty">Error cargando cursos.</td></tr>';
     }
   }
 
 function llenarSelectsCursos() {
-    const opciones = cursosCache.map(c => `<option value="${c.grupo_id}">${c.codigo}</option>`).join('');
+    // Para el docente-director los selectores solo ofrecen los cursos que
+    // dirige: el backend solo autoriza materias/horario de esos cursos.
+    const lista    = esAdmin ? cursosCache : cursosCache.filter(c => c.director_id === usuario.id);
+    const opciones = lista.map(c => `<option value="${c.grupo_id}">${SIAtext(c.codigo)}</option>`).join('');
     const filtroM  = document.getElementById('filtroCursoMaterias');
     const filtroH  = document.getElementById('filtroCursoHorario');
     if (filtroM) filtroM.innerHTML = '<option value="">Todos los cursos</option>' + opciones;
     if (filtroH) filtroH.innerHTML = '<option value="">Elige un curso</option>' + opciones;
+    // Modo director: arranca en su curso para que Materias y Horario tengan
+    // datos sin obligarlo a elegir nada.
+    if (!esAdmin && lista.length) {
+      if (filtroM && !filtroM.value) filtroM.value = lista[0].grupo_id;
+      if (filtroH && !filtroH.value) filtroH.value = lista[0].grupo_id;
+    }
   }
+
 
   async function crearCurso() {
     const input  = document.getElementById('inputCodigoCurso');
@@ -1471,10 +1723,289 @@ function llenarSelectsCursos() {
     }
   }
 
-  async function eliminarCurso(id) {
-    if (!confirm('¿Desactivar este curso?')) return;
-    await fetch(`${API}/api/academico/cursos/${id}`, { method:'DELETE', headers });
-    cargarCursos();
+  // Renombrar curso (solo el número de grupo, mismo grado)
+  let grupoRenombrarId = null;
+  let gradoRenombrarNombre = '';
+
+  function abrirModalRenombrar(grupoId, gradoNombre, grupoNombre) {
+    grupoRenombrarId = grupoId;
+    gradoRenombrarNombre = gradoNombre;
+    document.getElementById('renombrarTitulo').textContent = `Renombrar curso ${gradoNombre}${grupoNombre}`;
+    document.getElementById('inputGrupoRenombrar').value = grupoNombre;
+    actualizarPreviewRenombrar();
+    ocultarMsg('msgRenombrar');
+    document.getElementById('overlayRenombrar').classList.add('visible');
+  }
+
+  function actualizarPreviewRenombrar() {
+    const val = document.getElementById('inputGrupoRenombrar').value.trim();
+    const grupo = /^\d{1,3}$/.test(val) ? val.padStart(2, '0') : '??';
+    document.getElementById('renombrarPreview').textContent = `${gradoRenombrarNombre}${grupo}`;
+  }
+
+  async function guardarRenombrar() {
+    const val = document.getElementById('inputGrupoRenombrar').value.trim();
+    if (!/^\d{1,3}$/.test(val)) {
+      return mostrarMsg('msgRenombrar', 'El grupo debe ser un número (ej: 02).', 'error');
+    }
+    const grupo = val.padStart(2, '0');
+    try {
+      const res  = await fetch(`${API}/api/academico/grupos/${grupoRenombrarId}`, {
+        method:'PUT', headers, body: JSON.stringify({ nombre: grupo })
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgRenombrar', data.mensaje, 'error');
+      cerrarModal('overlayRenombrar');
+      mostrarMsg('msgCurso', `Curso renombrado a ${gradoRenombrarNombre}${grupo}.`, 'exito');
+      cargarCursos();
+    } catch {
+      mostrarMsg('msgRenombrar', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function archivarCurso(id, codigo) {
+    if (!confirm(`¿Archivar el curso ${codigo}? Solo es posible si no tiene estudiantes activos.`)) return;
+    try {
+      const res  = await fetch(`${API}/api/academico/cursos/${id}`, { method:'DELETE', headers });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgCurso', data.mensaje, 'error');
+      mostrarMsg('msgCurso', data.mensaje || 'Curso archivado.', 'exito');
+      cargarCursos();
+    } catch {
+      mostrarMsg('msgCurso', 'Error de conexión.', 'error');
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  DETALLE DEL CURSO (materias + estudiantes/acudientes)
+  // ════════════════════════════════════════════════════════
+  let detalleCursoId = null;
+  let detalleCursoCodigo = '';
+  let detalleEstudiantesCache = [];
+  let busquedaEstudiantesCache = [];
+  let trasladoMatriculaId = null;
+
+  function dEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  /* Para los `onclick` en línea se usa SIAarg() (frontend/sia-utils.js):
+     escapa a la vez el contexto JS y el atributo HTML, para que un nombre
+     con apóstrofe no rompa el atributo y deje el botón sin hacer nada. */
+
+  async function abrirDetalleCurso(grupoId, codigo) {
+    detalleCursoId = grupoId;
+    detalleCursoCodigo = codigo;
+    document.getElementById('detalleCursoTitulo').textContent = `Curso ${codigo}`;
+    actualizarDirectorEnDetalle();
+    document.getElementById('detalleBuscarEst').value = '';
+    document.getElementById('detalleResultadosBusqueda').innerHTML = '';
+    ocultarMsg('msgDetalleCurso');
+    document.getElementById('overlayDetalleCurso').classList.add('visible');
+    await Promise.all([cargarMateriasCursoDetalle(), cargarEstudiantesDetalle()]);
+  }
+
+  // H1: el administrador ve el director del curso dentro de su información
+  // (el nombre viene del caché de cursos, que el endpoint ya trae).
+  function actualizarDirectorEnDetalle() {
+    const el = document.getElementById('detalleCursoDirector');
+    if (!el) return;
+    const c = (cursosCache || []).find(x => x.grupo_id === detalleCursoId);
+    el.innerHTML = (c && c.director_nombre)
+      ? dEsc(c.director_nombre)
+      : '<span style="color:var(--text-3);font-weight:400">Sin asignar</span>';
+  }
+
+  function asignarDirectorDesdeDetalle() {
+    if (!detalleCursoId) return;
+    const c = (cursosCache || []).find(x => x.grupo_id === detalleCursoId) || {};
+    abrirModalDirector(
+      detalleCursoId,
+      c.grupo_nombre || detalleCursoCodigo,
+      c.grado_nombre || '',
+      c.director_id || ''
+    );
+  }
+
+  async function cargarMateriasCursoDetalle() {
+    const cont = document.getElementById('detalleMaterias');
+    cont.innerHTML = '<div class="card-sub">Cargando...</div>';
+    try {
+      const res  = await fetch(`${API}/api/academico/grupos/${detalleCursoId}/materias`, { headers });
+      const data = await res.json();
+      if (!data.ok) { cont.innerHTML = `<div class="card-sub">${dEsc(data.mensaje)}</div>`; return; }
+      if (!data.materias.length) {
+        cont.innerHTML = '<div class="card-sub">No hay materias creadas. Créalas en la pestaña "Materias".</div>';
+        return;
+      }
+      cont.innerHTML = data.materias.map(m => `
+        <label style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,0.04);cursor:pointer">
+          <input type="checkbox" class="detalle-materia" value="${m.id}" ${m.asignada ? 'checked' : ''}>
+          <span style="flex:1">${dEsc(m.nombre)}</span>
+          <span style="font-size:0.72rem;color:var(--text-3)">${dEsc(m.area_nombre || '')}</span>
+        </label>`).join('');
+    } catch {
+      cont.innerHTML = '<div class="card-sub">Error cargando materias.</div>';
+    }
+  }
+
+  async function guardarMateriasCursoDetalle() {
+    const ids = Array.from(document.querySelectorAll('.detalle-materia:checked')).map(c => c.value);
+    try {
+      const res = await fetch(`${API}/api/academico/grupos/${detalleCursoId}/materias`, {
+        method: 'PUT', headers, body: JSON.stringify({ materia_ids: ids }),
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgDetalleCurso', data.mensaje, 'error');
+      mostrarMsg('msgDetalleCurso', data.mensaje || 'Materias guardadas.', 'exito');
+    } catch {
+      mostrarMsg('msgDetalleCurso', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function cargarEstudiantesDetalle() {
+    const tbody = document.getElementById('detalleEstudiantes');
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">Cargando...</td></tr>';
+    try {
+      const res  = await fetch(`${API}/api/matriculas/grupo/${detalleCursoId}/con-acudientes`, { headers });
+      const data = await res.json();
+      if (!data.ok) { tbody.innerHTML = `<tr><td colspan="4" class="empty">${dEsc(data.mensaje)}</td></tr>`; return; }
+      detalleEstudiantesCache = data.estudiantes || [];
+      if (!detalleEstudiantesCache.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">Este curso no tiene estudiantes matriculados.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = detalleEstudiantesCache.map(e => {
+        const acud = e.acudientes.length
+          ? e.acudientes.map(a => `
+              <div style="font-size:0.8rem">
+                <span style="color:var(--text-1)">${dEsc(a.nombres)} ${dEsc(a.apellidos)}</span>
+                <span style="color:var(--text-3)"> · ${dEsc(a.parentesco || 'acudiente')}${a.es_principal ? ' ★' : ''}</span>
+                <span style="color:var(--text-3)"> · ${dEsc(a.telefono || a.email || '')}</span>
+              </div>`).join('')
+          : '<span style="color:var(--text-3);font-size:0.8rem">Sin acudientes</span>';
+        return `<tr>
+          <td>${dEsc(e.nombres)} ${dEsc(e.apellidos)}</td>
+          <td>${dEsc(e.numero_documento)}</td>
+          <td>${acud}</td>
+          <td style="text-align:right;white-space:nowrap">
+            <button class="btn-sm" onclick="reporteEstudiante('${e.estudiante_id}')">Reporte</button>
+            <button class="btn-sm" onclick="abrirTrasladoDetalle('${e.matricula_id}')">Trasladar</button>
+            <button class="btn-sm danger" onclick="retirarDesdeDetalle('${e.matricula_id}')">Retirar</button>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Error cargando estudiantes.</td></tr>';
+    }
+  }
+
+  function reporteEstudiante(estudianteId) {
+    window.open(`reporte-estudiante.html?estudiante=${estudianteId}`, '_blank');
+  }
+
+  function nombrePorMatricula(matriculaId) {
+    const e = detalleEstudiantesCache.find(x => x.matricula_id === matriculaId);
+    return e ? `${e.nombres} ${e.apellidos}` : 'el estudiante';
+  }
+
+  async function buscarParaMatricular() {
+    const q = document.getElementById('detalleBuscarEst').value.trim();
+    const cont = document.getElementById('detalleResultadosBusqueda');
+    if (!q) { cont.innerHTML = ''; return; }
+    cont.innerHTML = '<div class="card-sub">Buscando...</div>';
+    try {
+      const res  = await fetch(`${API}/api/matriculas/estudiantes-buscar?q=${encodeURIComponent(q)}`, { headers });
+      const data = await res.json();
+      if (!data.ok || !data.estudiantes.length) {
+        cont.innerHTML = '<div class="card-sub">Sin resultados.</div>';
+        return;
+      }
+      busquedaEstudiantesCache = data.estudiantes;
+      cont.innerHTML = data.estudiantes.map(e => {
+        const yaAqui = e.matricula_id && e.grupo && `${e.grado}${e.grupo}` === detalleCursoCodigo;
+        const ocupado = !!e.matricula_id && !yaAqui;
+        const cursoActual = e.matricula_id ? `${dEsc(e.grado || '')}${dEsc(e.grupo || '')}` : '';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:6px 9px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px">
+          <span style="flex:1">${dEsc(e.nombres)} ${dEsc(e.apellidos)} <span style="color:var(--text-3);font-size:0.78rem">· ${dEsc(e.numero_documento)}</span></span>
+          ${ocupado
+            ? `<span style="font-size:0.78rem;color:var(--text-3)">Matriculado en ${cursoActual}</span>`
+            : yaAqui
+              ? '<span style="font-size:0.78rem;color:var(--text-3)">Ya está en este curso</span>'
+              : `<button class="btn-sm" onclick="matricularEnDetalle('${e.estudiante_id}')">Matricular</button>`}
+        </div>`;
+      }).join('');
+    } catch {
+      cont.innerHTML = '<div class="card-sub">Error de conexión.</div>';
+    }
+  }
+
+  async function matricularEnDetalle(estudianteId) {
+    const est = busquedaEstudiantesCache.find(x => x.estudiante_id === estudianteId);
+    const nombre = est ? `${est.nombres} ${est.apellidos}` : 'El estudiante';
+    const anio = new Date().getFullYear();
+    try {
+      const res = await fetch(`${API}/api/matriculas`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ estudiante_id: estudianteId, grupo_id: detalleCursoId, anio_lectivo: anio }),
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgDetalleCurso', data.mensaje, 'error');
+      mostrarMsg('msgDetalleCurso', `${nombre} matriculado en ${detalleCursoCodigo}.`, 'exito');
+      document.getElementById('detalleResultadosBusqueda').innerHTML = '';
+      document.getElementById('detalleBuscarEst').value = '';
+      busquedaEstudiantesCache = [];
+      await cargarEstudiantesDetalle();
+    } catch {
+      mostrarMsg('msgDetalleCurso', 'Error de conexión.', 'error');
+    }
+  }
+
+  async function retirarDesdeDetalle(matriculaId) {
+    const nombre = nombrePorMatricula(matriculaId);
+    if (!confirm(`¿Retirar a ${nombre} del curso ${detalleCursoCodigo}?`)) return;
+    try {
+      const res = await fetch(`${API}/api/matriculas/${matriculaId}/retirar`, {
+        method: 'PUT', headers, body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgDetalleCurso', data.mensaje, 'error');
+      mostrarMsg('msgDetalleCurso', `${nombre} retirado.`, 'exito');
+      await cargarEstudiantesDetalle();
+    } catch {
+      mostrarMsg('msgDetalleCurso', 'Error de conexión.', 'error');
+    }
+  }
+
+  function abrirTrasladoDetalle(matriculaId) {
+    trasladoMatriculaId = matriculaId;
+    document.getElementById('trasladarDetalleNombre').textContent = nombrePorMatricula(matriculaId);
+    const sel = document.getElementById('selectCursoDestino');
+    sel.innerHTML = cursosCache
+      .filter(c => c.grupo_id !== detalleCursoId)
+      .map(c => `<option value="${c.grupo_id}">${c.codigo}</option>`).join('');
+    if (!sel.innerHTML) sel.innerHTML = '<option value="">No hay otro curso disponible</option>';
+    ocultarMsg('msgTrasladarDetalle');
+    document.getElementById('overlayTrasladarDetalle').classList.add('visible');
+  }
+
+  async function confirmarTrasladoDetalle() {
+    const destino = document.getElementById('selectCursoDestino').value;
+    if (!destino) return mostrarMsg('msgTrasladarDetalle', 'Elige un curso destino.', 'error');
+    try {
+      const res = await fetch(`${API}/api/matriculas/${trasladoMatriculaId}/trasladar`, {
+        method: 'POST', headers, body: JSON.stringify({ nuevo_grupo_id: destino }),
+      });
+      const data = await res.json();
+      if (!data.ok) return mostrarMsg('msgTrasladarDetalle', data.mensaje, 'error');
+      cerrarModal('overlayTrasladarDetalle');
+      mostrarMsg('msgDetalleCurso', 'Estudiante trasladado.', 'exito');
+      await cargarEstudiantesDetalle();
+    } catch {
+      mostrarMsg('msgTrasladarDetalle', 'Error de conexión.', 'error');
+    }
   }
 
   // ════════════════════════════════════════════════════════
@@ -1490,13 +2021,28 @@ function llenarSelectsCursos() {
 
   async function cargarPeriodos() {
     const tbody = document.getElementById('tbodyPeriodos');
+    if (!esAdmin) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Solo el administrador puede ver y editar los periodos académicos.</td></tr>';
+      return;
+    }
     const anio  = document.getElementById('filtroAnioPeriodos').value;
     tbody.innerHTML = '<tr><td colspan="7" class="empty">Cargando...</td></tr>';
     try {
       const url = anio ? `${API}/api/academico/periodos?anio_lectivo=${anio}` : `${API}/api/academico/periodos`;
-      const res  = await fetch(url, { headers });
+      const urlCiclo = anio ? `${API}/api/academico/ciclo?anio_lectivo=${anio}` : `${API}/api/academico/ciclo`;
+      const [res, cres] = await Promise.all([
+        fetch(url, { headers }),
+        fetch(urlCiclo, { headers }),
+      ]);
       const data = await res.json();
+      const cdat = await cres.json();
       periodosCache = data.periodos || [];
+
+      const cicloEl = document.getElementById('cicloInfo');
+      const c = cdat.ok && cdat.ciclo ? cdat.ciclo : null;
+      cicloEl.textContent = c
+        ? `Ciclo lectivo ${c.anio_lectivo}: ${fechaCorta(c.fecha_inicio)} → ${fechaCorta(c.fecha_fin)} · ≈${c.semanas} semanas (derivado de los periodos)`
+        : '';
 
       // refresca el filtro de años sin perder la selección actual
       const anios = [...new Set(periodosCache.map(p => p.anio_lectivo))].sort((a, b) => b - a);
@@ -1609,6 +2155,12 @@ function llenarSelectsCursos() {
   // ════════════════════════════════════════════════════════
   async function cargarGrados() {
     const tbody = document.getElementById('tbodyGrados');
+    if (!esAdmin) {
+      gradosCache = [];
+      llenarSelectsGrados();
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Solo el administrador puede ver y editar los grados.</td></tr>';
+      return;
+    }
     tbody.innerHTML = '<tr><td colspan="5" class="empty">Cargando...</td></tr>';
     try {
       const res  = await fetch(`${API}/api/academico/grados`, { headers });
@@ -1696,6 +2248,10 @@ function llenarSelectsCursos() {
   // ════════════════════════════════════════════════════════
   async function cargarGrupos() {
     const tbody = document.getElementById('tbodyGrupos');
+    if (!esAdmin) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Solo el administrador puede ver y editar los grupos.</td></tr>';
+      return;
+    }
     const gradoId = document.getElementById('filtroGradoGrupos').value;
     tbody.innerHTML = '<tr><td colspan="6" class="empty">Cargando...</td></tr>';
     try {
@@ -1714,8 +2270,8 @@ function llenarSelectsCursos() {
           <td>${g.director_nombre ? g.director_nombre : '<span style="color:var(--text-3)">Sin asignar</span>'}</td>
           <td><span class="badge ${g.activo ? 'activo' : 'inactivo'}">${g.activo ? 'Activo' : 'Inactivo'}</span></td>
           <td class="acciones">
-            <button class="btn-sm" onclick="abrirModalDirector('${g.id}','${g.nombre.replace(/'/g,"\\'")}', '${g.grado_nombre.replace(/'/g,"\\'")}','${g.director_id || ''}')">Director</button>
-            <button class="btn-sm danger" onclick="eliminarGrupo('${g.id}')">Desactivar</button>
+            <button class="btn-sm" onclick="abrirModalDirector('${g.id}','${SIAarg(g.nombre)}','${SIAarg(g.grado_nombre)}','${SIAarg(g.director_id || '')}')">Director</button>
+            <button class="btn-sm danger" onclick="archivarGrupo('${g.id}')">Archivar</button>
           </td>
         </tr>`).join('');
     } catch {
@@ -1750,9 +2306,11 @@ function llenarSelectsCursos() {
     } catch { mostrarMsg('msgGrupo', 'Error de conexión.', 'error'); }
   }
 
-  async function eliminarGrupo(id) {
-    if (!confirm('¿Desactivar este grupo?')) return;
-    await fetch(`${API}/api/academico/grupos/${id}`, { method:'DELETE', headers });
+  async function archivarGrupo(id) {
+    if (!confirm('¿Archivar este curso? Solo es posible si no tiene estudiantes activos.')) return;
+    const res  = await fetch(`${API}/api/academico/grupos/${id}`, { method:'DELETE', headers });
+    const data = await res.json();
+    if (!data.ok) return alert(data.mensaje);
     cargarGrupos();
   }
 
@@ -1801,8 +2359,14 @@ function llenarSelectsCursos() {
       // Se refrescan las dos tablas: "Cursos" (pestaña activa por defecto)
       // y "Grupos (avanzado)", porque el modal de director se puede abrir
       // desde cualquiera de las dos y antes solo se refrescaba una.
-      cargarCursos();
+      await cargarCursos();
       cargarGrupos();
+      // H1: si la información del curso está abierta, refrescar el nombre
+      // del director mostrado (viene del caché de cursos ya actualizado).
+      const od = document.getElementById('overlayDetalleCurso');
+      if (od && od.classList.contains('visible') && detalleCursoId === grupoDirectorId) {
+        actualizarDirectorEnDetalle();
+      }
     } catch { mostrarMsg('msgDirector', 'Error de conexión.', 'error'); }
   }
 
@@ -1825,14 +2389,42 @@ function llenarSelectsCursos() {
 
   async function cargarMaterias() {
     const tbody = document.getElementById('tbodyMaterias');
-    const grupoId = document.getElementById('filtroCursoMaterias').value;
+    let grupoId = document.getElementById('filtroCursoMaterias').value;
+
+    if (sinInstitucion) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Tu cuenta de superadministrador no está ligada a una institución. Entra con la cuenta del administrador del colegio para ver sus materias.</td></tr>';
+      return;
+    }
+
+    // Modo director: /materias exige un curso y solo autoriza el que él
+    // dirige, así que se fija su curso automáticamente.
+    if (!esAdmin) {
+      if (!grupoId) {
+        const propio = cursosCache.find(c => c.director_id === usuario.id);
+        if (propio) {
+          grupoId = propio.grupo_id;
+          document.getElementById('filtroCursoMaterias').value = grupoId;
+        }
+      }
+      if (!grupoId) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No diriges ningún curso todavía. Cuando el administrador te asigne como director, verás aquí sus materias.</td></tr>';
+        return;
+      }
+    }
+
     tbody.innerHTML = '<tr><td colspan="7" class="empty">Cargando...</td></tr>';
     try {
       const url = grupoId ? `${API}/api/academico/materias?grupo_id=${grupoId}` : `${API}/api/academico/materias`;
       const res  = await fetch(url, { headers });
       const data = await res.json();
-if (!data.ok || !data.materias.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay materias. Crea una con "+ Nueva materia" — será general y la asignas después a los cursos y profesores.</td></tr>';
+      if (!data.ok) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">${SIAtext(data.mensaje || 'No se pudieron cargar las materias.')}</td></tr>`;
+        return;
+      }
+      if (!data.materias.length) {
+        tbody.innerHTML = esAdmin
+          ? '<tr><td colspan="7" class="empty">No hay materias. Crea una con "+ Nueva materia" — será general y la asignas después a los cursos y profesores.</td></tr>'
+          : '<tr><td colspan="7" class="empty">Este curso todavía no tiene materias asignadas.</td></tr>';
         return;
       }
       tbody.innerHTML = data.materias.map(m => {
@@ -1847,8 +2439,8 @@ if (!data.ok || !data.materias.length) {
           <td>${m.horas_semanales ? m.horas_semanales.substring(0, 5) + ' h' : '<span style="color:var(--text-3)">—</span>'}</td>
           <td><span class="badge ${m.activa ? 'activo' : 'inactivo'}">${m.activa ? 'Activa' : 'Inactiva'}</span></td>
           <td class="acciones">
-            <button class="btn-sm" onclick="abrirModalProfesoresMateria('${m.id}','${(m.nombre + ' — ' + etiquetaModal).replace(/'/g,"\\'")}','${m.grupo_id || ''}')">Profesores</button>
-            <button class="btn-sm danger" onclick="eliminarMateria('${m.id}')">Desactivar</button>
+            <button class="btn-sm" onclick="abrirModalProfesoresMateria('${m.id}','${SIAarg(m.nombre + ' — ' + etiquetaModal)}','${SIAarg(m.grupo_id || grupoId || '')}')">Profesores</button>
+            <button class="btn-sm danger solo-admin" onclick="eliminarMateria('${m.id}')">Desactivar</button>
           </td>
         </tr>`;
       }).join('');
@@ -1856,6 +2448,7 @@ if (!data.ok || !data.materias.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">Error cargando materias.</td></tr>';
     }
   }
+
 
 async function abrirModalMateria() {
     llenarSelectArea();
@@ -1930,7 +2523,7 @@ async function abrirModalMateria() {
     materiaProfesoresGrupo = grupoId || '';
     document.getElementById('profesoresMateriaNombre').textContent = nombreMostrar;
     ocultarMsg('msgProfesoresMateria');
-    await cargarDocentesParaSelect();
+    if (esAdmin) await cargarDocentesParaSelect();
     llenarCursoProfesorMateria();
     await refrescarProfesoresMateria();
     document.getElementById('overlayProfesoresMateria').classList.add('visible');
@@ -1940,7 +2533,7 @@ async function abrirModalMateria() {
     const row = document.getElementById('cursoProfesorMateriaRow');
     const sel = document.getElementById('selectCursoProfesorMateria');
     if (!row || !sel) return;
-    if (materiaProfesoresGrupo) { row.style.display = 'none'; return; }
+    if (!esAdmin || materiaProfesoresGrupo) { row.style.display = 'none'; return; }
     row.style.display = 'block';
     const opciones = cursosCache.map(c => `<option value="${c.grupo_id}">${c.codigo}</option>`).join('');
     sel.innerHTML = '<option value="">GENERAL (sin curso)</option>' + (opciones || '');
@@ -1950,9 +2543,14 @@ async function abrirModalMateria() {
     const cont = document.getElementById('listaProfesoresMateria');
     cont.innerHTML = 'Cargando...';
     try {
-      const res  = await fetch(`${API}/api/academico/materias/${materiaProfesoresId}/docentes`, { headers });
+      const qs  = materiaProfesoresGrupo ? `?grupo_id=${encodeURIComponent(materiaProfesoresGrupo)}` : '';
+      const res  = await fetch(`${API}/api/academico/materias/${materiaProfesoresId}/docentes${qs}`, { headers });
       const data = await res.json();
-      const asignados = data.ok ? data.docentes : [];
+      if (!data.ok) {
+        cont.innerHTML = `<div style="color:var(--text-3)">${SIAtext(data.mensaje || 'No se pudieron cargar los profesores.')}</div>`;
+        return;
+      }
+      const asignados = data.docentes || [];
 
 cont.innerHTML = asignados.length
         ? asignados.map(d => `
@@ -1961,7 +2559,7 @@ cont.innerHTML = asignados.length
                 <b>${d.nombres} ${d.apellidos}</b>
                 <span style="opacity:0.75;font-size:0.9em"> · ${d.curso || 'General'}</span>
               </span>
-              <button class="btn-sm danger" onclick="quitarProfesorMateria('${d.id}','${d.grupo_id || ''}')">Quitar</button>
+              <button class="btn-sm danger solo-admin" onclick="quitarProfesorMateria('${d.id}','${d.grupo_id || ''}')">Quitar</button>
             </div>`).join('')
         : '<div style="color:var(--text-3)">Sin profesores asignados.</div>';
 
@@ -2014,11 +2612,27 @@ async function quitarProfesorMateria(docenteId, grupoId) {
     const el = document.getElementById(id);
     el.textContent = texto;
     el.className = `msg ${tipo}`;
+    el.style.display = '';   // ← añadir
+    if (window.siaExitoMsg) window.siaExitoMsg(el, tipo);
   }
   function ocultarMsg(id) {
     const el = document.getElementById(id);
     el.className = 'msg';
     el.textContent = '';
+  }
+
+  // Aviso de rol/contexto: explica por qué la pantalla está en modo lectura,
+  // en vez de dejar tablas vacías y botones que no hacen nada.
+  function mostrarAvisoContexto(tipo) {
+    const el = document.getElementById('avisoContexto');
+    if (!el) return;
+    if (tipo === 'sinInstitucion') {
+      el.textContent = 'Tu cuenta de superadministrador no está ligada a una institución. Esta pantalla gestiona los datos de una institución concreta: entra con la cuenta del administrador del colegio.';
+      el.className = 'msg aviso-contexto visible error';
+    } else if (tipo === 'docente') {
+      el.textContent = 'Estás en modo director de curso: ves los cursos que diriges, sus materias y su horario. Crear, renombrar o archivar cursos, editar periodos y grados y asignar directores es exclusivo del administrador.';
+      el.className = 'msg aviso-contexto visible exito';
+    }
   }
   function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -2073,7 +2687,8 @@ let horarioConfig    = { inicio: '06:00', fin: '14:00' };
   let horasTrabajo     = [];        // plantilla global de horas de la institución
   let horasTrabajoEdit = null;      // id de hora en edición dentro del gestor
 
-  const esAdmin = ['admin', 'superadmin'].includes(usuario.rol);
+  // (esAdmin se define arriba, junto a `headers`, para que esté disponible
+  //  en todos los cargadores y no sólo en la sección de horario.)
 
   const HORAS_HORARIO = (() => {
     const lista = [];
@@ -2200,31 +2815,52 @@ let horarioConfig    = { inicio: '06:00', fin: '14:00' };
     }
   }
 
-// Rango de horas de la parrilla: barre en pasos de 30 minutos todo el
-  // rango cubierto por la plantilla de la institución (o el rango por
-  // defecto si aún no hay plantilla) y añade la hora de inicio exacta de
-  // cada franja para que ninguna clase quede oculta.
-  function horasVisibles() {
+  // Hora de fin sugerida para una franja nueva: el fin del bloque de la
+  // plantilla de ese día que empiece (o contenga) la hora de inicio; si la
+  // institución no tiene plantilla, una hora después (Ronda F, punto F1).
+  function horaFinSugerida(dia, hi) {
     const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
     const pad  = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-    let inicio, fin;
+    const delDia = (horasTrabajo || []).filter(t => Number(t.dia_semana) === Number(dia));
+    const bloque = delDia.find(t => String(t.hora_inicio).slice(0, 5) === hi)
+                || delDia.find(t => hi >= String(t.hora_inicio).slice(0, 5) && hi < String(t.hora_fin).slice(0, 5));
+    if (bloque) return String(bloque.hora_fin).slice(0, 5);
+    return pad(mins(hi) + 60);
+  }
+
+  // Grilla proporcional al tiempo real (H7). Escala en px por minuto.
+  const PX_POR_MIN = 1.5;
+  let horarioRango = { ini: 0, fin: 0 }; // minutos del día que se dibujan
+
+  function _hm(t) { const s = String(t).slice(0, 5); return Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5)); }
+  function _hhmm(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+
+  // Rango del día: del inicio más temprano al fin más tardío (plantilla +
+  // franjas). Si no hay plantilla, usa el rango por defecto del horario.
+  function horarioRangoDia() {
+    let ini, fin;
     if (horasTrabajo.length) {
-      inicio = Math.min(...horasTrabajo.map(t => mins(String(t.hora_inicio).slice(0, 5))));
-      fin    = Math.max(...horasTrabajo.map(t => mins(String(t.hora_fin).slice(0, 5))));
+      ini = Math.min(...horasTrabajo.map(t => _hm(t.hora_inicio)));
+      fin = Math.max(...horasTrabajo.map(t => _hm(t.hora_fin)));
     } else {
-      inicio = mins(horarioConfig.inicio);
-      fin    = mins(horarioConfig.fin);
+      ini = _hm(horarioConfig.inicio);
+      fin = _hm(horarioConfig.fin);
     }
     if (horarioFranjas.length) {
-      inicio = Math.min(inicio, ...horarioFranjas.map(f => mins(String(f.hora_inicio).slice(0, 5))));
-      fin    = Math.max(fin,    ...horarioFranjas.map(f => mins(String(f.hora_fin).slice(0, 5))));
+      ini = Math.min(ini, ...horarioFranjas.map(f => _hm(f.hora_inicio)));
+      fin = Math.max(fin, ...horarioFranjas.map(f => _hm(f.hora_fin)));
     }
-    if (isNaN(inicio) || isNaN(fin) || inicio > fin) return [];
-    const set = new Set();
-    for (let m = Math.floor(inicio / 30) * 30; m <= fin; m += 30) set.add(pad(m));
-    horasTrabajo.forEach(t => { set.add(String(t.hora_inicio).slice(0, 5)); set.add(String(t.hora_fin).slice(0, 5)); });
-    horarioFranjas.forEach(f => set.add(String(f.hora_inicio).slice(0, 5)));
-    return [...set].filter(h => mins(h) >= inicio && mins(h) <= fin).sort();
+    if (!(fin > ini)) { ini = 6 * 60; fin = 14 * 60; }
+    return { ini, fin };
+  }
+
+  // Etiquetas cada media hora ancladas al inicio del día; si el fin no cae en
+  // una media hora exacta, el último tramo se acorta para cuadrar (H7).
+  function marcasHorario(ini, fin) {
+    const marcas = [];
+    for (let m = ini; m < fin; m += 30) marcas.push(m);
+    marcas.push(fin);
+    return marcas;
   }
 
   async function cargarHorario() {
@@ -2251,17 +2887,17 @@ let horarioConfig    = { inicio: '06:00', fin: '14:00' };
 
 function renderHorario() {
     const wrap = document.getElementById('horarioWrap');
-    const horas = horasVisibles();
     const cursoSel = document.getElementById('filtroCursoHorario');
     const curso = cursosCache.find(c => c.grupo_id === cursoSel.value);
-    if (!horas.length) {
-      wrap.innerHTML = '<p class="empty" style="padding:1.5rem;text-align:center;color:var(--text-3)">Configura un rango de horas válido.</p>';
-      return;
-    }
     if (!horarioFranjas.length && !horarioMaterias.length) {
       wrap.innerHTML = '<p class="empty" style="padding:1.5rem;text-align:center;color:var(--text-3)">Este curso no tiene horario todavía. Agrega la primera materia o crea materias para este curso.</p>';
       return;
     }
+
+    const { ini, fin } = horarioRangoDia();
+    horarioRango = { ini, fin };
+    const marcas = marcasHorario(ini, fin);
+    const alto  = Math.max(160, (fin - ini) * PX_POR_MIN);
 
     // Navegación por días: semana completa o un solo día.
     const diasVisibles = horarioDiaVisible
@@ -2269,7 +2905,7 @@ function renderHorario() {
       : DIAS_HORARIO;
 
     let html = `<div style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                  <span><b>${curso ? curso.codigo : (cursoSel.value ? 'Curso' : '')}</b> · Horario ${horarioConfig.inicio} a ${horarioConfig.fin}</span>
+                  <span><b>${curso ? curso.codigo : (cursoSel.value ? 'Curso' : '')}</b> · Horario ${_hhmm(ini)} a ${_hhmm(fin)}</span>
                   <span style="display:flex;gap:6px;align-items:center">
                     <button class="btn-sm" onclick="abrirModalFranja()">+ Materia</button>
                     ${esAdmin ? `<button class="btn-sm" onclick="abrirModalConfigHorario()">Horas</button>` : ''}
@@ -2283,91 +2919,91 @@ function renderHorario() {
               </div>
             </div>`;
 
-    html += `<div class="horario-tabla" style="grid-template-columns:70px repeat(${diasVisibles.length},1fr);grid-template-rows:auto repeat(${horas.length},minmax(46px,auto))">
-                <div class="horario-head" style="grid-column:1;grid-row:1">Hora</div>`;
-    diasVisibles.forEach((d, k) => { html += `<div class="horario-head" style="grid-column:${k + 2};grid-row:1">${d.label}</div>`; });
+    html += `<div class="horario-grid" style="grid-template-columns:64px repeat(${diasVisibles.length},minmax(88px,1fr))">`;
+    html += `<div class="horario-ghead"></div>`;
+    diasVisibles.forEach(d => { html += `<div class="horario-ghead">${d.label}</div>`; });
 
-    // Etiquetas de hora: una por fila, siempre visibles.
-    horas.forEach((h, i) => { html += `<div class="horario-hora" style="grid-column:1;grid-row:${i + 2}">${h}</div>`; });
+    // Columna de horas: etiquetas cada 30 min desde el inicio del día.
+    html += `<div class="horario-gutter" style="height:${alto}px">`;
+    marcas.forEach(m => { html += `<span class="horario-gl" style="top:${(m - ini) * PX_POR_MIN}px">${_hhmm(m)}</span>`; });
+    html += `</div>`;
 
-    // Franjas: se agrupan por solapamiento (encadenado) y se dibujan en
-    // "carriles" lado a lado, para que una franja que coincide con otra no
-    // tape su texto ni cambie su fondo. Clic en una franja la edita.
-    diasVisibles.forEach((d, k) => {
-      const col = k + 2;
+    // Una columna por día, con líneas de hora y franjas posicionadas por
+    // sus minutos reales (H7). Un clic en el fondo agrega una materia.
+    diasVisibles.forEach(d => {
+      html += `<div class="horario-gcol" style="height:${alto}px" title="Clic para agregar una materia" onclick="clicColumnaHorario(event, ${d.n})">`;
+      marcas.forEach(m => { if (m === ini) return; html += `<div class="horario-gline${m % 60 === 0 ? ' mayor' : ''}" style="top:${(m - ini) * PX_POR_MIN}px"></div>`; });
+
       const diaFranjas = horarioFranjas
         .filter(f => Number(f.dia_semana) === d.n)
-        .map(f => ({ f, rg: rangoFranja(f, horas) }))
-        .filter(x => x.rg)
-        .sort((a, b) => a.rg.row - b.rg.row || (a.rg.row + a.rg.rows) - (b.rg.row + b.rg.rows));
+        .map(f => ({ f, ini: _hm(f.hora_inicio), fin: _hm(f.hora_fin) }))
+        .sort((a, b) => a.ini - b.ini || a.fin - b.fin);
 
+      // Agrupación por solapamiento (encadenado) en minutos, con carriles
+      // lado a lado para que dos franjas simultáneas no se tapen.
       const grupos = [];
       for (const x of diaFranjas) {
-        const filaFin = x.rg.row + x.rg.rows;
-        const g = grupos.find(gr => x.rg.row < gr.fin);
-        if (g) { g.miembros.push(x); g.fin = Math.max(g.fin, filaFin); }
-        else grupos.push({ inicio: x.rg.row, fin: filaFin, miembros: [x] });
+        const g = grupos.find(gr => x.ini < gr.fin);
+        if (g) { g.miembros.push(x); g.fin = Math.max(g.fin, x.fin); }
+        else grupos.push({ ini: x.ini, fin: x.fin, miembros: [x] });
       }
-
-      const cubiertas = new Set();
       for (const gr of grupos) {
         const laneFin = [];
         gr.miembros.forEach(x => {
-          let lane = laneFin.findIndex(l => l <= x.rg.row);
-          if (lane === -1) { lane = laneFin.length; laneFin.push(x.rg.row + x.rg.rows); }
-          else laneFin[lane] = x.rg.row + x.rg.rows;
+          let lane = laneFin.findIndex(l => l <= x.ini);
+          if (lane === -1) { lane = laneFin.length; laneFin.push(x.fin); }
+          else laneFin[lane] = x.fin;
           x.lane = lane;
         });
         gr.lanes = Math.max(1, laneFin.length);
-        for (let i = gr.inicio; i < gr.fin; i++) cubiertas.add(i);
+      }
 
-        const span = gr.fin - gr.inicio;
-        html += `<div class="horario-region" style="grid-column:${col};grid-row:${gr.inicio + 2} / span ${span}">`;
+      for (const gr of grupos) {
         gr.miembros.forEach(x => {
-          const f = x.f, rg = x.rg;
-          const fin = String(f.hora_fin).slice(0, 5);
-          const ini = String(f.hora_inicio).slice(0, 5);
-          const top  = (rg.row - gr.inicio) / span * 100;
-          const alto = rg.rows / span * 100;
-          const izq  = x.lane / gr.lanes * 100;
+          const f = x.f;
+          const fIni = String(f.hora_inicio).slice(0, 5);
+          const fFin = String(f.hora_fin).slice(0, 5);
+          const top   = (x.ini - ini) * PX_POR_MIN;
+          const altoB = Math.max(22, (x.fin - x.ini) * PX_POR_MIN - 3);
+          const izq   = x.lane / gr.lanes * 100;
           const ancho = 100 / gr.lanes;
-          html += `<div class="horario-celda ocup lanes-franja" style="--fc:${f.color_hex || '#4A90D9'};top:${top}%;height:${alto}%;left:${izq}%;width:${ancho}%"
-                     title="${f.materia_nombre} (${ini}–${fin})${f.aula ? ' · ' + f.aula : ''}${f.docente_nombre ? ' · Profesor: ' + f.docente_nombre : ''}\nClic para editar"
-                     onclick="abrirModalFranja('${f.id}')">
+          html += `<div class="horario-gbloque" style="--fc:${f.color_hex || '#4A90D9'};top:${top}px;height:${altoB}px;left:${izq}%;width:calc(${ancho}% - 3px)"
+                     title="${f.materia_nombre} (${fIni}–${fFin})${f.aula ? ' · ' + f.aula : ''}${f.docente_nombre ? ' · Profesor: ' + f.docente_nombre : ''}\nClic para editar"
+                     onclick="event.stopPropagation();abrirModalFranja('${f.id}')">
                      <b>${f.materia_nombre}</b>
-                     <span>${ini}–${fin}</span>
+                     <span>${fIni}–${fFin}</span>
                      <span class="horario-acc">
                        <button class="btn-sm" onclick="event.stopPropagation();abrirModalFranja('${f.id}')">✎</button>
                        <button class="btn-sm danger" onclick="event.stopPropagation();eliminarFranja('${f.id}')">×</button>
                      </span>
                    </div>`;
         });
-        html += `</div>`;
       }
-
-      for (let i = 0; i < horas.length; i++) {
-        if (cubiertas.has(i)) continue;
-        html += `<div class="horario-celda libre" style="grid-column:${col};grid-row:${i + 2}" title="Clic para agregar materia a las ${horas[i]}" onclick="abrirModalFranja(null,'${d.n}','${horas[i]}')">+</div>`;
-      }
+      html += `</div>`;
     });
+    html += `</div>`;
     wrap.innerHTML = html;
   }
 
-  // Rango de filas que ocupa una franja: desde el índice de su hora de
-  // inicio hasta el primer slot que alcanza (o supera) su hora de fin.
-  // Así una franja 06:15–07:30 cubre las filas 06:15, 06:30 y 07:00
-  // (termina justo donde empieza la fila de las 07:30).
-  function rangoFranja(f, horas) {
-    const ini = String(f.hora_inicio).slice(0, 5);
-    const fin = String(f.hora_fin).slice(0, 5);
-    const start = horas.indexOf(ini);
-    if (start < 0) return null;
-    let end = start;
-    for (let k = start; k < horas.length; k++) {
-      if (horas[k] >= fin) { end = k; break; }
+  // Clic sobre una columna de día (hora libre): calcula la hora según la
+  // posición vertical y abre el modal. En modo director la ajusta al bloque
+  // de la plantilla que contiene ese minuto; el admin puede usar la hora
+  // exacta (H7).
+  function clicColumnaHorario(ev, dia) {
+    if (ev.target.closest('.horario-gbloque')) return;
+    const col = ev.currentTarget;
+    const r = col.getBoundingClientRect();
+    let min = horarioRango.ini + Math.round((ev.clientY - r.top) / PX_POR_MIN);
+    min = Math.max(horarioRango.ini, Math.min(horarioRango.fin, min));
+    min = Math.round(min / 5) * 5;
+    let hhmm = _hhmm(min);
+    if (!esAdmin) {
+      const b = horasTrabajo
+        .filter(t => Number(t.dia_semana) === Number(dia))
+        .find(t => min >= _hm(t.hora_inicio) && min < _hm(t.hora_fin));
+      if (b) hhmm = String(b.hora_inicio).slice(0, 5);
     }
-    if (end === start) end = start + 1;
-    return { row: start, rows: end - start };
+    abrirModalFranja(null, dia, hhmm);
   }
 
   function selDiaHorario(n) {
@@ -2378,11 +3014,13 @@ function renderHorario() {
   async function abrirModalFranja(editId, preDia, preHora) {
     const grupoId = document.getElementById('filtroCursoHorario').value;
     if (!grupoId) return alert('Elige primero un curso.');
-    if (!horarioMaterias.length) {
-      const res  = await fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoId}`, { headers });
-      const data = await res.json();
-      if (data.ok) horarioMaterias = data.materias || [];
-    }
+    // Refrescar SIEMPRE las materias con sus docentes (Ronda F, punto F3):
+    // antes solo se cargaban si el caché estaba vacío, así que un profesor
+    // asignado desde la pestaña Materias no aparecía en el modal hasta
+    // recargar la página.
+    const resM  = await fetch(`${API}/api/academico/horario/materias?grupo_id=${grupoId}`, { headers });
+    const dataM = await resM.json();
+    if (dataM.ok) horarioMaterias = dataM.materias || [];
     if (!horarioMaterias.length) return alert('Este curso no tiene materias. Crea una en la pestaña Materias.');
 
     if (!horasTrabajo.length) await cargarHorasTrabajo();
@@ -2422,13 +3060,22 @@ if (editId) {
       document.getElementById('tituloFranja').textContent = 'Agregar materia al horario';
       const dia = preDia ? String(preDia) : '1';
       document.getElementById('franjaDia').value = dia;
-      document.getElementById('franjaHoraInicio').value = preHora || (horasTrabajo[0] ? horasTrabajo[0].hora_inicio : horarioConfig.inicio);
-      document.getElementById('franjaHoraFin').value = '07:00';
+      // OJO: los valores de la plantilla vienen de MySQL como "HH:MM:SS";
+      // un <input type="time"> rechaza ese formato y queda vacío, por eso
+      // se recortan a 5 caracteres (Ronda F, punto F1).
+      const hiPlantilla = horasTrabajo[0] ? String(horasTrabajo[0].hora_inicio).slice(0, 5) : horarioConfig.inicio;
+      document.getElementById('franjaHoraInicio').value = preHora || hiPlantilla;
+      // La hora de fin se deriva del bloque de plantilla del día (o de una
+      // hora después si no hay plantilla). Antes quedaba '07:00' fijo, lo
+      // que producía franjas con hora de fin absurda al crear (Ronda F1).
+      document.getElementById('franjaHoraFin').value = horaFinSugerida(dia, document.getElementById('franjaHoraInicio').value);
       setSelectHora(dia, preHora || null, null);
     }
+    const mF = document.getElementById('msgFranja');
+    if (mF) { mF.className = 'msg'; mF.style.display = 'none'; }
     document.getElementById('overlayFranja').classList.add('visible');
   }
-  function cerrarModalFranja() { document.getElementById('overlayFranja').classList.remove('visible'); }
+  function cerrarModalFranja() { document.getElementById('overlayFranja').classList.remove('visible'); const mF=document.getElementById('msgFranja'); if(mF){mF.className='msg';mF.style.display='none';} }
 
   // Puebla el select de profesor con los docentes asignados a la materia
   // seleccionada en el modal de franja.
@@ -2440,7 +3087,7 @@ if (editId) {
     const docentes = (materia && materia.docentes) || [];
     selD.innerHTML = docentes.length
       ? docentes.map(d => `<option value="${d.docente_id}">${d.docente_nombre}</option>`).join('')
-      : '<option value="">Sin profesor asignado</option>';
+      : '<option value="">Sin profesor en este curso (asígnalo en Materias)</option>';
   }
 
   // Puebla los selects de hora con las horas de la plantilla del día (modo director)
@@ -2480,6 +3127,8 @@ async function guardarFranja() {
     const grupoId = document.getElementById('filtroCursoHorario').value;
     if (!grupoId) return cerrarModalFranja();
     const selD = document.getElementById('franjaDocenteId');
+    // Ronda F (F3): no ofrecer guardar sin profesor del curso.
+    if (selD && !selD.value) return mostrarMsg('msgFranja', 'Esta materia no tiene profesor en este curso. Asígnalo desde la pestaña Materias antes de agregarla al horario.', 'error');
     const body = {
       grupo_id: grupoId,
       materia_id: document.getElementById('franjaMateriaId').value,
@@ -2489,7 +3138,7 @@ async function guardarFranja() {
       hora_fin: _franjaHoraFin(),
       aula: document.getElementById('franjaAula').value.trim() || null,
     };
-    if (!body.hora_inicio || !body.hora_fin) return mostrarMsg('msgHorario', 'Escoge una hora de la plantilla para este día.', 'error');
+    if (!body.hora_inicio || !body.hora_fin) return mostrarMsg('msgFranja', esAdmin ? 'Falta la hora de inicio o de fin. Usa el formato de 24 horas (ej. 09:00).' : 'Escoge una hora de la plantilla para este día.', 'error');
     try {
       const url = horarioEditId ? `${API}/api/academico/horario/${horarioEditId}` : `${API}/api/academico/horario`;
       const res  = await fetch(url, {
@@ -2500,12 +3149,12 @@ async function guardarFranja() {
           : body),
       });
       const data = await res.json();
-      if (!data.ok) return mostrarMsg('msgHorario', data.mensaje, 'error');
+      if (!data.ok) return mostrarMsg('msgFranja', data.mensaje, 'error');
       cerrarModalFranja();
       mostrarMsg('msgHorario', data.mensaje, 'exito');
       await cargarHorario();
     } catch {
-      mostrarMsg('msgHorario', 'Error de conexión.', 'error');
+      mostrarMsg('msgFranja', 'Error de conexión.', 'error');
     }
   }
 
@@ -2525,11 +3174,18 @@ async function guardarFranja() {
   // ── Init ──────────────────────────────────────────────────
   (async function init() {
     cargarPerfilSidebar();
+    // Modo lectura: docente/director y superadmin sin institución no pueden
+    // editar el catálogo académico. Se ocultan los controles de edición y se
+    // explica el motivo, en lugar de mostrar tablas vacías y botones sin efecto.
+    if (soloLectura) document.body.classList.add('solo-lectura');
+    if (sinInstitucion) mostrarAvisoContexto('sinInstitucion');
+    else if (!esAdmin) mostrarAvisoContexto('docente');
     await cargarGrados();
     await cargarAreas();
     await cargarGrupos();
     await cargarCursos();
     await cargarMaterias();
+    await cargarHorario();
     await cargarPeriodos();
     cargarFondosPersonalizados();
     if (!esAdmin) {

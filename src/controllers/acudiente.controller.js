@@ -7,9 +7,21 @@
 
 const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
+const jwt    = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
 const email  = require('../services/email.service');
 const { generarPassword } = require('../utils/contrasena.util');
+
+// Emite el token de sesión igual que matriculas.controller (mismo payload),
+// para que el acudiente recién registrado pueda crear su contraseña enseguida.
+function _emitirToken(usuario) {
+  return jwt.sign(
+    { id: usuario.id, email: usuario.email, rol: usuario.rol, institucion_id: usuario.institucion_id,
+      jti: randomUUID(), ver: usuario.token_version || 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+  );
+}
 
 // ── GET /api/acudientes (admin) ──────────────────────────────
 // Lista los acudientes de la institución con sus estudiantes
@@ -258,5 +270,160 @@ exports.eliminar = async (req, res) => {
   } catch (err) {
     console.error('eliminarAcudiente:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// ── POST /api/acudientes/registro (público) ─────────────────
+// Autoregistro del acudiente atado al código del curso del hijo.
+// El código valida que el hijo existe y está matriculado en ese
+// curso; luego el acudiente crea su propia contraseña con
+// POST /api/auth/definir-password. El código no se revalida después.
+// body: { nombres, apellidos, tipo_documento?, numero_documento, email?, parentesco?,
+//         hijo: { tipo_documento?, numero_documento, nombres, apellidos }, codigo }
+exports.registroPropio = async (req, res) => {
+  const { nombres, apellidos, numero_documento, parentesco } = req.body;
+  const correo = req.body.email;
+  const hijo = req.body.hijo || {};
+  const codigo = (req.body.codigo || '').toString().trim().toUpperCase();
+  const tipo_documento      = (req.body.tipo_documento || 'CC').toString().trim().toUpperCase();
+  const hijo_tipo_documento = (hijo.tipo_documento || 'TI').toString().trim().toUpperCase();
+
+  if (!nombres || !apellidos || !numero_documento) {
+    return res.status(400).json({ ok: false, mensaje: 'Completa tus nombres, apellidos y número de documento.' });
+  }
+  if (!hijo.numero_documento || !hijo.nombres || !hijo.apellidos) {
+    return res.status(400).json({ ok: false, mensaje: 'Completa el documento, nombres y apellidos de tu hijo.' });
+  }
+  if (!codigo) {
+    return res.status(400).json({ ok: false, mensaje: 'Ingresa el código del curso de tu hijo.' });
+  }
+
+  let correoNormalizado = null;
+  if (correo) {
+    if (!/^\S+@\S+\.\S+$/.test(correo)) {
+      return res.status(400).json({ ok: false, mensaje: 'Escribe un correo válido.' });
+    }
+    correoNormalizado = correo.trim().toLowerCase();
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1) El código identifica el curso (y de ahí la institución).
+    const [grupoRows] = await conn.query(
+      `SELECT g.id AS grupo_id, gr.institucion_id
+       FROM grupos g
+       JOIN grados gr ON gr.id = g.grado_id
+       WHERE g.codigo_matricula = ? AND g.codigo_activo = TRUE AND g.activo = TRUE
+       LIMIT 1 FOR UPDATE`,
+      [codigo]
+    );
+    if (!grupoRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, mensaje: 'Ese código no existe o ya no está activo. Pídele uno vigente al director del curso.' });
+    }
+    const grupo = grupoRows[0];
+
+    // 2) El hijo debe tener cuenta y estar matriculado en ESE curso.
+    const [estRows] = await conn.query(
+      `SELECT id, nombres, apellidos FROM usuarios
+       WHERE rol = 'estudiante' AND institucion_id = ?
+         AND tipo_documento = ? AND numero_documento = ?
+         AND LOWER(nombres) = LOWER(?) AND LOWER(apellidos) = LOWER(?)
+       LIMIT 1`,
+      [grupo.institucion_id, hijo_tipo_documento, hijo.numero_documento.toString().trim(),
+       hijo.nombres.trim(), hijo.apellidos.trim()]
+    );
+    if (!estRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, mensaje: 'No encontramos a ese estudiante. Verifica el documento y los nombres, o pídele que se registre con su propio código de clase.' });
+    }
+    const estudiante = estRows[0];
+
+    const [matRows] = await conn.query(
+      `SELECT id FROM matriculas
+       WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'activa' LIMIT 1`,
+      [estudiante.id, grupo.grupo_id]
+    );
+    if (!matRows.length) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, mensaje: 'El estudiante no está matriculado en ese curso. Revisa el código.' });
+    }
+
+    // 3) ¿Ya existe una cuenta (de cualquier rol) con ese documento/correo?
+    const [existe] = await conn.query(
+      `SELECT id FROM usuarios
+       WHERE (institucion_id = ? AND numero_documento = ?) OR (email = ?)
+       LIMIT 1`,
+      [grupo.institucion_id, numero_documento.toString().trim(), correoNormalizado]
+    );
+    if (existe.length) {
+      await conn.rollback();
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe una cuenta con ese documento o correo. Inicia sesión.' });
+    }
+
+    // 4) ¿Ese documento ya está vinculado como acudiente del mismo estudiante?
+    const [yaVinculo] = await conn.query(
+      `SELECT ae.acudiente_id FROM acudientes_estudiantes ae
+       JOIN usuarios u ON u.id = ae.acudiente_id
+       WHERE ae.estudiante_id = ? AND u.numero_documento = ? LIMIT 1`,
+      [estudiante.id, numero_documento.toString().trim()]
+    );
+    if (yaVinculo.length) {
+      await conn.rollback();
+      return res.status(409).json({ ok: false, mensaje: 'Ese documento ya está vinculado a este estudiante.' });
+    }
+
+    // 5) Crear la cuenta (sin contraseña: la define enseguida).
+    const acudienteId = randomUUID();
+    await conn.query(
+      `INSERT INTO usuarios
+         (id, institucion_id, rol, nombres, apellidos, tipo_documento,
+          numero_documento, email, activo)
+       VALUES (?, ?, 'acudiente', ?, ?, ?, ?, ?, TRUE)`,
+      [acudienteId, grupo.institucion_id, nombres.trim(), apellidos.trim(),
+       tipo_documento, numero_documento.toString().trim(), correoNormalizado]
+    );
+
+    await conn.query(
+      `INSERT INTO acudientes_estudiantes (acudiente_id, estudiante_id, parentesco, es_principal, codigo_confirmado)
+       VALUES (?, ?, ?, TRUE, ?)`,
+      [acudienteId, estudiante.id, (parentesco || 'Acudiente').toString().trim(), codigo]
+    );
+
+    await conn.commit();
+
+    const [rows] = await pool.query(
+      `SELECT u.id, u.nombres, u.apellidos, u.email, u.rol, u.institucion_id, u.token_version,
+              i.nombre AS institucion_nombre
+       FROM usuarios u LEFT JOIN instituciones i ON i.id = u.institucion_id
+       WHERE u.id = ?`,
+      [acudienteId]
+    );
+    const usuario = rows[0];
+    const token = _emitirToken(usuario);
+
+    return res.status(201).json({
+      ok: true,
+      mensaje: 'Vinculación confirmada. Ahora crea tu contraseña.',
+      token,
+      usuario: {
+        id: usuario.id, nombres: usuario.nombres, apellidos: usuario.apellidos,
+        email: usuario.email, rol: usuario.rol,
+        institucion_id: usuario.institucion_id,
+        institucion_nombre: usuario.institucion_nombre || null,
+        hijo: `${estudiante.nombres} ${estudiante.apellidos}`,
+      },
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe una cuenta con ese documento o correo.' });
+    }
+    console.error('registroPropio:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    conn.release();
   }
 };

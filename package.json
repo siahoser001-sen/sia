@@ -3,10 +3,13 @@
   "version": "2.0.0",
   "main": "src/app.js",
   "scripts": {
+    "prestart": "node scripts/libre-puerto.js",
     "start": "node src/app.js",
+    "predev": "node scripts/libre-puerto.js",
     "dev": "nodemon src/app.js",
     "migrate": "node migrate.js",
-    "migrate:seed": "node migrate.js --seed"
+    "migrate:seed": "node migrate.js --seed",
+    "datos:prueba": "node scripts/generar-datos-prueba.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

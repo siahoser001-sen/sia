@@ -6,7 +6,13 @@
 // ============================================================
 
 const pool = require('../config/db');
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+  parametrosMateriaEnGrupo,
+} = require('../utils/materias-curso.util');
 const { randomUUID, randomBytes } = require('crypto');
+const { obtenerCiclo } = require('../utils/ciclo.util');
 
 // Charset sin caracteres confundibles (sin 0/O, 1/I/L)
 const CHARSET_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -337,26 +343,85 @@ exports.crearGrupo = async (req, res) => {
 };
 
 // PUT /api/academico/grupos/:id
+// Renombra el grupo (mismo grado), cambia capacidad y/o archiva.
+// Archivar (activo = false) solo se permite si el curso NO tiene matrículas activas.
 exports.actualizarGrupo = async (req, res) => {
   const { nombre, capacidad_max, activo } = req.body;
+  const institucionId = req.usuario.institucion_id;
+  const grupoId = req.params.id;
+  const conn = await pool.getConnection();
 
   try {
-    const [result] = await pool.query(
-      `UPDATE grupos g
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(
+      `SELECT g.id, g.nombre, g.grado_id, g.anio_lectivo
+       FROM grupos g
        JOIN grados gr ON gr.id = g.grado_id
-       SET g.nombre = COALESCE(?, g.nombre),
-           g.capacidad_max = COALESCE(?, g.capacidad_max),
-           g.activo = COALESCE(?, g.activo)
-       WHERE g.id = ? AND gr.institucion_id = ?`,
-      [nombre, capacidad_max, activo, req.params.id, req.usuario.institucion_id]
+       WHERE g.id = ? AND gr.institucion_id = ?
+       FOR UPDATE`,
+      [grupoId, institucionId]
     );
-    if (result.affectedRows === 0) {
+    if (!rows.length) {
+      await conn.rollback();
       return res.status(404).json({ ok: false, mensaje: 'Grupo no encontrado.' });
     }
-    return res.json({ ok: true, mensaje: 'Grupo actualizado.' });
+    const grupo = rows[0];
+
+    // Archivar (desactivar): bloqueado si hay estudiantes con matrícula activa.
+    if (activo === false || activo === 0 || activo === '0') {
+      const [m] = await conn.query(
+        `SELECT COUNT(*) AS n FROM matriculas WHERE grupo_id = ? AND estado = 'activa'`,
+        [grupoId]
+      );
+      if (m[0].n > 0) {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          mensaje: `No se puede archivar el curso: tiene ${m[0].n} estudiante(s) con matrícula activa. Retíralos o trasládalos primero.`
+        });
+      }
+    }
+
+    // Renombrar: valida que no exista otro grupo con el mismo grado + año + nombre.
+    let nombreNormalizado = null;
+    if (typeof nombre === 'string' && nombre.trim()) {
+      nombreNormalizado = nombre.trim().toUpperCase();
+      if (nombreNormalizado !== grupo.nombre) {
+        const [dup] = await conn.query(
+          `SELECT id FROM grupos
+           WHERE grado_id = ? AND nombre = ? AND anio_lectivo = ? AND id <> ?`,
+          [grupo.grado_id, nombreNormalizado, grupo.anio_lectivo, grupoId]
+        );
+        if (dup.length) {
+          await conn.rollback();
+          return res.status(409).json({ ok: false, mensaje: `Ya existe el grupo ${nombreNormalizado} en ese grado.` });
+        }
+      } else {
+        nombreNormalizado = grupo.nombre; // sin cambios reales
+      }
+    }
+
+    await conn.query(
+      `UPDATE grupos
+       SET nombre = COALESCE(?, nombre),
+           capacidad_max = COALESCE(?, capacidad_max),
+           activo = COALESCE(?, activo)
+       WHERE id = ?`,
+      [nombreNormalizado, capacidad_max ?? null, activo ?? null, grupoId]
+    );
+
+    await conn.commit();
+    return res.json({ ok: true, mensaje: 'Curso actualizado.' });
   } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe un grupo con ese nombre en el grado.' });
+    }
     console.error('actualizarGrupo:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    conn.release();
   }
 };
 
@@ -516,13 +581,17 @@ exports.misCursosDocente = async (req, res) => {
               gr.id AS grado_id, gr.nombre AS grado_nombre,
               g.director_id,
               (SELECT COUNT(*) FROM matriculas mt WHERE mt.grupo_id = g.id AND mt.estado = 'activa') AS total_estudiantes,
-              (SELECT COUNT(*) FROM docentes_materias dmc WHERE dmc.grupo_id = g.id) AS total_materias
+              (SELECT COUNT(DISTINCT m2.id) FROM materias m2
+               WHERE m2.activa = TRUE AND ${condicionMateriaEnGrupo('m2', 'g.id')}) AS total_materias
        FROM grupos g
        JOIN grados gr ON gr.id = g.grado_id
        WHERE gr.institucion_id = ?
          AND (g.director_id = ? OR EXISTS (
                SELECT 1 FROM docentes_materias dm2
-               WHERE dm2.docente_id = ? AND dm2.grupo_id = g.id
+               JOIN materias m2 ON m2.id = dm2.materia_id
+               WHERE dm2.docente_id = ? AND m2.activa = TRUE
+                 AND ${condicionDocenteEnGrupo('dm2', 'm2', 'g.id')}
+                 AND ${condicionMateriaEnGrupo('m2', 'g.id')}
              ))
          AND g.activo = TRUE
        ORDER BY (g.director_id = ?) DESC, gr.orden ASC, g.nombre ASC`,
@@ -530,13 +599,14 @@ exports.misCursosDocente = async (req, res) => {
     );
 
     const [mats] = await pool.query(
-      `SELECT dm.grupo_id AS grupo_id, m.id AS materia_id, m.nombre AS materia_nombre
+      `SELECT g.id AS grupo_id, m.id AS materia_id, m.nombre AS materia_nombre
        FROM docentes_materias dm
        JOIN materias m ON m.id = dm.materia_id
-       JOIN grupos g   ON g.id = dm.grupo_id
+       JOIN grupos g   ON ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
+                        AND ${condicionMateriaEnGrupo('m', 'g.id')}
        JOIN grados gr  ON gr.id = g.grado_id
-       WHERE dm.docente_id = ? AND gr.institucion_id = ?
-       GROUP BY dm.grupo_id, m.id, m.nombre
+       WHERE dm.docente_id = ? AND m.activa = TRUE AND gr.institucion_id = ?
+       GROUP BY g.id, m.id, m.nombre
        ORDER BY m.nombre`,
       [usuarioId, institucionId]
     );
@@ -588,20 +658,41 @@ exports.listarDocentesInstitucion = async (req, res) => {
   }
 };
 
-// DELETE /api/academico/grupos/:id  → soft delete
+// DELETE /api/academico/grupos/:id  → archivar (soft delete)
+// Solo si el curso NO tiene matrículas activas.
 exports.eliminarGrupo = async (req, res) => {
+  const institucionId = req.usuario.institucion_id;
+  const grupoId = req.params.id;
   try {
-    const [result] = await pool.query(
-      `UPDATE grupos g
+    const [rows] = await pool.query(
+      `SELECT g.id FROM grupos g
        JOIN grados gr ON gr.id = g.grado_id
-       SET g.activo = FALSE
        WHERE g.id = ? AND gr.institucion_id = ?`,
-      [req.params.id, req.usuario.institucion_id]
+      [grupoId, institucionId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Grupo no encontrado.' });
+    }
+
+    const [m] = await pool.query(
+      `SELECT COUNT(*) AS n FROM matriculas WHERE grupo_id = ? AND estado = 'activa'`,
+      [grupoId]
+    );
+    if (m[0].n > 0) {
+      return res.status(409).json({
+        ok: false,
+        mensaje: `No se puede archivar el curso: tiene ${m[0].n} estudiante(s) con matrícula activa. Retíralos o trasládalos primero.`
+      });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE grupos SET activo = FALSE WHERE id = ?`,
+      [grupoId]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'Grupo no encontrado.' });
     }
-    return res.json({ ok: true, mensaje: 'Grupo desactivado.' });
+    return res.json({ ok: true, mensaje: 'Curso archivado.' });
   } catch (err) {
     console.error('eliminarGrupo:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
@@ -700,8 +791,8 @@ exports.listarMaterias = async (req, res) => {
     const params = [req.usuario.institucion_id];
 
     if (grupoFiltro) {
-      sql += ` AND m.grupo_id = ?`;
-      params.push(grupoFiltro);
+      sql += ` AND ${condicionMateriaEnGrupo()}`;
+      params.push(...parametrosMateriaEnGrupo(grupoFiltro));
     }
     sql += ` ORDER BY COALESCE(gr.orden, 999) ASC, a.nombre ASC, m.nombre ASC`;
 
@@ -917,27 +1008,54 @@ async function _esDirectorDeMateria(conn, materia, usuario) {
   return rows.length > 0;
 }
 
-// GET /api/academico/materias/:id/docentes
+// GET /api/academico/materias/:id/docentes?grupo_id=...
+// El `grupo_id` es opcional y sirve para el docente-director: las materias
+// del catálogo son generales (materias.grupo_id = NULL) y se vinculan a cada
+// curso por `materias_curso`, así que la autorización debe mirar ese curso.
 exports.listarDocentesMateria = async (req, res) => {
+  const grupoId = req.query.grupo_id || null;
   try {
     const materia = await _materiaAccesible(pool, req.params.id, req.usuario.institucion_id);
     if (!materia) {
       return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
     }
-    if (!(await _esDirectorDeMateria(pool, materia, req.usuario))) {
+    let autorizado = await _esDirectorDeMateria(pool, materia, req.usuario);
+    if (!autorizado && grupoId && req.usuario.rol === 'docente') {
+      const [dirRows] = await pool.query(
+        `SELECT 1
+           FROM grupos g
+           JOIN grados gr ON gr.id = g.grado_id
+          WHERE g.id = ? AND g.director_id = ? AND gr.institucion_id = ?
+            AND EXISTS (SELECT 1 FROM materias m2
+                        WHERE m2.id = ? AND m2.activa = TRUE
+                          AND ${condicionMateriaEnGrupo('m2', 'g.id')})
+          LIMIT 1`,
+        [grupoId, req.usuario.id, req.usuario.institucion_id, materia.id]
+      );
+      autorizado = dirRows.length > 0;
+    }
+    if (!autorizado) {
       return res.status(403).json({ ok: false, mensaje: 'Solo puedes consultar los docentes de una materia si eres el director de su curso o un administrador.' });
     }
-    const [rows] = await pool.query(
-      `SELECT DISTINCT u.id, u.nombres, u.apellidos, dm.grupo_id,
+    let sql = `
+      SELECT DISTINCT u.id, u.nombres, u.apellidos, dm.grupo_id,
               g.nombre AS grupo_nombre, gr.nombre AS grado_nombre
        FROM docentes_materias dm
-       JOIN usuarios u ON u.id = dm.docente_id
-       LEFT JOIN grupos g   ON g.id = dm.grupo_id
-       LEFT JOIN grados gr  ON gr.id = g.grado_id
-       WHERE dm.materia_id = ?
-       ORDER BY gr.orden ASC, g.nombre ASC, u.nombres ASC, u.apellidos ASC`,
-      [req.params.id]
-    );
+      JOIN materias m ON m.id = dm.materia_id
+      JOIN usuarios u ON u.id = dm.docente_id
+      LEFT JOIN grupos g   ON g.id = dm.grupo_id
+      LEFT JOIN grados gr ON gr.id = g.grado_id
+      WHERE dm.materia_id = ?`;
+    const params = [req.params.id];
+    if (grupoId) {
+      sql += ` AND m.activa = TRUE
+              AND ${condicionDocenteEnGrupo('dm', 'm')}
+              AND ${condicionMateriaEnGrupo('m')}`;
+      params.push(grupoId, grupoId, grupoId, grupoId, grupoId);
+    }
+    sql += ` ORDER BY gr.orden ASC, g.nombre ASC, u.nombres ASC, u.apellidos ASC`;
+
+    const [rows] = await pool.query(sql, params);
     const docentes = rows.map(d => ({
       ...d,
       curso: d.grado_nombre && d.grupo_nombre ? `${d.grado_nombre}${d.grupo_nombre}` : null,
@@ -1147,6 +1265,20 @@ exports.listarPeriodos = async (req, res) => {
     return res.json({ ok: true, total: rows.length, periodos: rows });
   } catch (err) {
     console.error('listarPeriodos:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// GET /api/academico/ciclo?anio_lectivo=2026
+// Ciclo lectivo DERIVADO de los periodos (D6): rango total del año y
+// semanas estimadas. Sin año, usa el del periodo activo (o el mayor).
+exports.obtenerCicloLectivo = async (req, res) => {
+  const { anio_lectivo } = req.query;
+  try {
+    const ciclo = await obtenerCiclo(req.usuario.institucion_id, anio_lectivo);
+    return res.json({ ok: true, ciclo });
+  } catch (err) {
+    console.error('obtenerCicloLectivo:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };
@@ -1377,6 +1509,18 @@ function _autorizarHorario(grupo, usuario) {
   return { ok: true };
 }
 
+// Normaliza una hora a 'HH:MM' validando el formato de 24 h.
+// Acepta 'HH:MM' o 'HH:MM:SS' y devuelve el valor listo para MySQL,
+// o null si no es una hora válida. Evita que un valor como "9" o
+// "0900" (que padStart convertía en "00009") rompa el INSERT con un
+// 500 en vez de un error claro (Ronda F, punto F1).
+function _normalizarHora(v) {
+  const s = (v === undefined || v === null) ? '' : String(v).trim();
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(s);
+  if (!m) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
 // GET /api/academico/horario?grupo_id=
 // Devuelve todas las franjas del grupo con nombres amigables.
 exports.listarHorario = async (req, res) => {
@@ -1477,8 +1621,11 @@ exports.crearHorario = async (req, res) => {
   if (!hora_inicio || !hora_fin) {
     return res.status(400).json({ ok: false, mensaje: 'hora de inicio y hora de fin son obligatorias.' });
   }
-  const hi = hora_inicio.slice ? hora_inicio : String(hora_inicio).padStart(5, '0');
-  const hf = hora_fin.slice ? hora_fin : String(hora_fin).padStart(5, '0');
+  const hi = _normalizarHora(hora_inicio);
+  const hf = _normalizarHora(hora_fin);
+  if (!hi || !hf) {
+    return res.status(400).json({ ok: false, mensaje: 'Usa el formato de hora de 24 horas (HH:MM), por ejemplo 08:15 o 09:00.' });
+  }
   if (hi >= hf) {
     return res.status(400).json({ ok: false, mensaje: 'La hora de fin debe ser mayor a la hora de inicio.' });
   }
@@ -1545,7 +1692,19 @@ exports.crearHorario = async (req, res) => {
       );
       if (!asig.length) {
         await conn.rollback();
-        return res.status(400).json({ ok: false, mensaje: 'Ese profesor no está asignado a la materia. Asígnalo desde la pestaña Materias.' });
+        // Ronda F (F3): distinguir "el profesor es de otro curso" de "la
+        // materia no tiene a nadie" — antes ambos decían "La materia no
+        // tiene profesor asignado", confundiendo al usuario.
+        const [otroCurso] = await conn.query(
+          `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND docente_id = ? LIMIT 1`,
+          [materia_id, docente_id]
+        );
+        return res.status(400).json({
+          ok: false,
+          mensaje: otroCurso.length
+            ? 'Ese profesor está asignado a la materia en otro curso. Elige un profesor asignado a este curso o asígnalo a este curso desde la pestaña Materias.'
+            : 'La materia no tiene profesor asignado. Asígnalo desde la pestaña Materias.',
+        });
       }
     }
 
@@ -1562,6 +1721,29 @@ exports.crearHorario = async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Ese bloque horario no existe en las horas de trabajo de la institución. El administrador debe definirlo primero en "Horario > Horas de trabajo".' });
       }
+    }
+
+    // Ronda F (F2): ninguna franja puede traslaparse con otra del mismo
+    // curso y día (una clase hasta las 8:30 y otra desde las 8:15 se
+    // cruzaban sin error y "compartían casilla" en la parrilla). Se
+    // valida dentro del periodo activo de la institución.
+    const [cruces] = await conn.query(
+      `SELECT h.hora_inicio, h.hora_fin, m.nombre AS materia_nombre
+       FROM horarios h
+       JOIN materias m ON m.id = h.materia_id
+       WHERE h.grupo_id = ? AND h.dia_semana = ? AND h.periodo_id = ?
+         AND h.hora_inicio < ? AND h.hora_fin > ?
+       LIMIT 1`,
+      [grupo_id, dia, periodoId, hf, hi]
+    );
+    if (cruces.length) {
+      await conn.rollback();
+      const c = cruces[0];
+      const cIni = String(c.hora_inicio).slice(0, 5), cFin = String(c.hora_fin).slice(0, 5);
+      return res.status(400).json({
+        ok: false,
+        mensaje: `Ese horario se cruza con ${c.materia_nombre} (${cIni}–${cFin}) el mismo día. Elige otra hora de inicio o de fin.`,
+      });
     }
 
     const id = randomUUID();
@@ -1610,8 +1792,11 @@ exports.actualizarHorario = async (req, res) => {
     if (!Number.isInteger(dia) || dia < 1 || dia > 7) {
       return res.status(400).json({ ok: false, mensaje: 'Día inválido.' });
     }
-    const hi = hora_inicio !== undefined ? (hora_inicio.slice ? hora_inicio : String(hora_inicio).padStart(5, '0')) : fila.hora_inicio;
-    const hf = hora_fin !== undefined ? (hora_fin.slice ? hora_fin : String(hora_fin).padStart(5, '0')) : fila.hora_fin;
+    const hi = hora_inicio !== undefined ? _normalizarHora(hora_inicio) : String(fila.hora_inicio).slice(0, 5);
+    const hf = hora_fin !== undefined ? _normalizarHora(hora_fin) : String(fila.hora_fin).slice(0, 5);
+    if (!hi || !hf) {
+      return res.status(400).json({ ok: false, mensaje: 'Usa el formato de hora de 24 horas (HH:MM), por ejemplo 08:15 o 09:00.' });
+    }
     if (hi >= hf) return res.status(400).json({ ok: false, mensaje: 'La hora de fin debe ser mayor a la hora de inicio.' });
 
     // Regla del Punto 1: el director solo puede usar horas de la plantilla.
@@ -1649,7 +1834,36 @@ exports.actualizarHorario = async (req, res) => {
       [newMateria, nuevoDocente, fila.grupo_id]
     );
     if (!asig.length) {
-      return res.status(400).json({ ok: false, mensaje: 'Ese profesor no está asignado a la materia. Asígnalo desde la pestaña Materias.' });
+      const [otroCurso] = await pool.query(
+        `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND docente_id = ? LIMIT 1`,
+        [newMateria, nuevoDocente]
+      );
+      return res.status(400).json({
+        ok: false,
+        mensaje: otroCurso.length
+          ? 'Ese profesor está asignado a la materia en otro curso. Elige un profesor asignado a este curso o asígnalo a este curso desde la pestaña Materias.'
+          : 'Ese profesor no está asignado a la materia. Asígnalo desde la pestaña Materias.',
+      });
+    }
+
+    // Ronda F (F2): tampoco al editar puede quedar traslapada con otra
+    // franja del mismo curso y día (excluyendo esta misma).
+    const [cruces] = await pool.query(
+      `SELECT h.hora_inicio, h.hora_fin, m.nombre AS materia_nombre
+       FROM horarios h
+       JOIN materias m ON m.id = h.materia_id
+       WHERE h.grupo_id = ? AND h.dia_semana = ? AND h.periodo_id = ? AND h.id <> ?
+         AND h.hora_inicio < ? AND h.hora_fin > ?
+       LIMIT 1`,
+      [fila.grupo_id, dia, fila.periodo_id, req.params.id, hf, hi]
+    );
+    if (cruces.length) {
+      const c = cruces[0];
+      const cIni = String(c.hora_inicio).slice(0, 5), cFin = String(c.hora_fin).slice(0, 5);
+      return res.status(400).json({
+        ok: false,
+        mensaje: `Ese horario se cruza con ${c.materia_nombre} (${cIni}–${cFin}) el mismo día. Elige otra hora de inicio o de fin.`,
+      });
     }
 
     const [result] = await pool.query(
@@ -1754,10 +1968,28 @@ async function _guardarHoraInstitucion(req, res, id, dia_semana, hora_inicio, ho
   if (!hora_inicio || !hora_fin) {
     return res.status(400).json({ ok: false, mensaje: 'hora de inicio y hora de fin son obligatorias.' });
   }
-  const hi = hora_inicio.slice ? hora_inicio.slice(0, 5) : String(hora_inicio).padStart(5, '0');
-  const hf = hora_fin.slice ? hora_fin.slice(0, 5) : String(hora_fin).padStart(5, '0');
+  const hi = _normalizarHora(hora_inicio);
+  const hf = _normalizarHora(hora_fin);
+  if (!hi || !hf) {
+    return res.status(400).json({ ok: false, mensaje: 'Usa el formato de hora de 24 horas (HH:MM), por ejemplo 08:15 o 09:00.' });
+  }
   if (hi >= hf) {
     return res.status(400).json({ ok: false, mensaje: 'La hora de fin debe ser mayor a la hora de inicio.' });
+  }
+
+  // Ronda F (F2): la plantilla de la institución tampoco admite bloques
+  // de hora traslapados el mismo día (decidido por el usuario 2026-10-12).
+  const [cruces] = await pool.query(
+    `SELECT hora_inicio, hora_fin FROM horario_horas
+     WHERE institucion_id = ? AND dia_semana = ? ${id ? 'AND id <> ?' : ''}
+       AND hora_inicio < ? AND hora_fin > ?
+     LIMIT 1`,
+    id ? [req.usuario.institucion_id, dia, id, hf, hi] : [req.usuario.institucion_id, dia, hf, hi]
+  );
+  if (cruces.length) {
+    const c = cruces[0];
+    const cIni = String(c.hora_inicio).slice(0, 5), cFin = String(c.hora_fin).slice(0, 5);
+    return res.status(400).json({ ok: false, mensaje: `Esa hora se cruza con el bloque ${cIni}–${cFin} de ese día. Elige otro inicio y fin.` });
   }
 
   try {
@@ -1798,5 +2030,127 @@ exports.eliminarHoraInstitucion = async (req, res) => {
   } catch (err) {
     console.error('eliminarHoraInstitucion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+//  MATERIAS POR CURSO  (Ronda E1)
+//  El curso tiene su propio conjunto de materias (tabla materias_curso).
+//  El catálogo disponible es el de las materias generales de la institución.
+// ────────────────────────────────────────────────────────────
+
+// Verifica que el grupo pertenezca a la institución y devuelve { id, codigo, grado_nombre, grupo_nombre }.
+async function _grupoDeInstitucion(grupoId, institucionId) {
+  const [rows] = await pool.query(
+    `SELECT g.id, g.nombre AS grupo_nombre, gr.nombre AS grado_nombre
+       FROM grupos g
+       JOIN grados gr ON gr.id = g.grado_id
+      WHERE g.id = ? AND gr.institucion_id = ?`,
+    [grupoId, institucionId]
+  );
+  return rows[0] || null;
+}
+
+// GET /api/academico/grupos/:id/materias
+// Devuelve el catálogo de materias generales de la institución con un flag
+// `asignada` que indica si la materia ya está vinculada a este curso.
+exports.listarMateriasCurso = async (req, res) => {
+  try {
+    const institucionId = req.usuario.institucion_id;
+    if (!institucionId) {
+      return res.status(400).json({ ok: false, mensaje: 'Tu sesión no está ligada a una institución.' });
+    }
+    const grupo = await _grupoDeInstitucion(req.params.id, institucionId);
+    if (!grupo) return res.status(404).json({ ok: false, mensaje: 'Curso no encontrado.' });
+
+    const [rows] = await pool.query(
+      `SELECT m.id, m.nombre, m.descripcion, m.activa,
+              a.id AS area_id, a.nombre AS area_nombre, a.color_hex,
+              EXISTS(
+                SELECT 1 FROM materias_curso mc
+                 WHERE mc.materia_id = m.id AND mc.grupo_id = ?
+              ) AS asignada
+         FROM materias m
+         LEFT JOIN areas a ON a.id = m.area_id
+        WHERE m.institucion_id = ?
+        ORDER BY a.nombre ASC, m.nombre ASC`,
+      [grupo.id, institucionId]
+    );
+
+    return res.json({
+      ok: true,
+      grupo: { id: grupo.id, codigo: `${grupo.grado_nombre}${grupo.grupo_nombre}` },
+      total: rows.length,
+      materias: rows.map(r => ({ ...r, asignada: !!r.asignada })),
+    });
+  } catch (err) {
+    console.error('listarMateriasCurso:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// PUT /api/academico/grupos/:id/materias  { materia_ids: [] }
+// Reemplaza el conjunto de materias del curso por el enviado.
+exports.guardarMateriasCurso = async (req, res) => {
+  const institucionId = req.usuario.institucion_id;
+  const grupoId = req.params.id;
+  const idsRecibidos = Array.isArray(req.body.materia_ids) ? req.body.materia_ids : null;
+  if (!institucionId) {
+    return res.status(400).json({ ok: false, mensaje: 'Tu sesión no está ligada a una institución.' });
+  }
+  if (!idsRecibidos) {
+    return res.status(400).json({ ok: false, mensaje: 'Formato inválido: se esperaba materia_ids (array).' });
+  }
+
+  const conexion = await pool.getConnection();
+  try {
+    await conexion.beginTransaction();
+
+    const grupo = await _grupoDeInstitucion(grupoId, institucionId);
+    if (!grupo) {
+      await conexion.rollback();
+      return res.status(404).json({ ok: false, mensaje: 'Curso no encontrado.' });
+    }
+
+    // Solo se aceptan materias que pertenezcan a la institución.
+    let idsValidos = [];
+    if (idsRecibidos.length) {
+      const [validas] = await conexion.query(
+        `SELECT id FROM materias WHERE institucion_id = ? AND id IN (?)`,
+        [institucionId, idsRecibidos]
+      );
+      idsValidos = validas.map(v => v.id);
+    }
+
+    // Borra las que ya no van y agrega las nuevas.
+    if (idsValidos.length) {
+      await conexion.query(
+        `DELETE FROM materias_curso WHERE grupo_id = ? AND materia_id NOT IN (?)`,
+        [grupoId, idsValidos]
+      );
+    } else {
+      await conexion.query(`DELETE FROM materias_curso WHERE grupo_id = ?`, [grupoId]);
+    }
+
+    for (const materiaId of idsValidos) {
+      await conexion.query(
+        `INSERT IGNORE INTO materias_curso (id, institucion_id, grupo_id, materia_id)
+         VALUES (?, ?, ?, ?)`,
+        [randomUUID(), institucionId, grupoId, materiaId]
+      );
+    }
+
+    await conexion.commit();
+    return res.json({
+      ok: true,
+      mensaje: `Materias del curso actualizadas (${idsValidos.length}).`,
+      total: idsValidos.length,
+    });
+  } catch (err) {
+    await conexion.rollback();
+    console.error('guardarMateriasCurso:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    conexion.release();
   }
 };

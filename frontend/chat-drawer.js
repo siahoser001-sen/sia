@@ -42,6 +42,10 @@
       if (data.ok) {
         estado.config = data.config;
         actualizarControlesRol();
+        // El estado vacío de la lista depende de la config: si las
+        // conversaciones respondieron antes que esta petición, se quedaba
+        // mostrando "Cargando…" para siempre.
+        renderLista();
       }
     } catch (e) { /* sin conexión */ }
   }

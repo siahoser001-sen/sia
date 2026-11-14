@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIA - Debug Gestión Académica</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+    .ok { color: #10b981; } .err { color: #ef4444; } .warn { color: #f59e0b; }
+    .section { margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; }
+    pre { background: #000; padding: 10px; border-radius: 4px; overflow: auto; }
+    button { padding: 10px 20px; margin: 5px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    button.danger { background: #ef4444; }
+    .log-entry { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Diagnóstico Gestión Académica SIA</h1>
+  
+  <div class="section">
+    <h2>1. Verificación de Sesión</h2>
+    <div id="session-info"></div>
+    <button onclick="checkSession()">Verificar Sesión</button>
+  </div>
+
+  <div class="section">
+    <h2>2. Prueba de Endpoints Académicos</h2>
+    <div id="api-results"></div>
+    <button onclick="testAllEndpoints()">Probar Todos los Endpoints</button>
+    <button onclick="testSingleEndpoint('/api/academico/grados')">Probar /grados</button>
+    <button onclick="testSingleEndpoint('/api/academico/cursos')">Probar /cursos</button>
+    <button onclick="testSingleEndpoint('/api/academico/areas')">Probar /areas</button>
+    <button onclick="testSingleEndpoint('/api/academico/periodos')">Probar /periodos</button>
+    <button onclick="testSingleEndpoint('/api/academico/horario/horas')">Probar /horario/horas</button>
+    <button onclick="testSingleEndpoint('/api/docentes')">Probar /docentes</button>
+  </div>
+
+  <div class="section">
+    <h2>3. Verificar Datos en BD (via API)</h2>
+    <div id="db-check"></div>
+    <button onclick="checkDatabase()">Verificar Datos en BD</button>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const token = sessionStorage.getItem('sia_token');
+    const usuario = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+    function log(containerId, msg, type = 'info') {
+      const container = document.getElementById(containerId);
+      const div = document.createElement('div');
+      div.className = 'log-entry ' + type;
+      div.innerHTML = `<span class="${type}">[${type.toUpperCase()}]</span> ${msg}`;
+      container.appendChild(div);
+    }
+
+    function clear(containerId) {
+      document.getElementById(containerId).innerHTML = '';
+    }
+
+    async function checkSession() {
+      clear('session-info');
+      if (!token) {
+        log('session-info', '❌ No hay token en sessionStorage', 'err');
+        return;
+      }
+      log('session-info', '✅ Token encontrado en sessionStorage', 'ok');
+      log('session-info', `Usuario: ${usuario.nombres} ${usuario.apellidos} (${usuario.rol})`, 'ok');
+      log('session-info', `Institución ID: ${usuario.institucion_id || 'NINGUNA ⚠️'}`, usuario.institucion_id ? 'ok' : 'warn');
+      log('session-info', `Institución: ${usuario.institucion_nombre || 'No definida'}`, 'ok');
+      
+      // Verificar token con el backend
+      try {
+        const res = await fetch(`${API}/api/auth/perfil`, { headers });
+        const data = await res.json();
+        if (data.ok) {
+          log('session-info', '✅ Token válido según backend', 'ok');
+        } else {
+          log('session-info', `❌ Token inválido: ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('session-info', `❌ Error conectando al backend: ${e.message}`, 'err');
+      }
+    }
+
+    async function testSingleEndpoint(endpoint) {
+      clear('api-results');
+      log('api-results', `Probando ${endpoint}...`);
+      try {
+        const start = Date.now();
+        const res = await fetch(`${API}${endpoint}`, { headers });
+        const time = Date.now() - start;
+        const data = await res.json();
+        if (data.ok) {
+          log('api-results', `✅ ${endpoint} - ${res.status} (${time}ms) - ${data.total || data.grados?.length || data.cursos?.length || data.areas?.length || data.periodos?.length || data.horas?.length || data.docentes?.length || 0} items`, 'ok');
+          log('api-results', `   Respuesta: ${JSON.stringify(data).slice(0, 300)}...`, 'info');
+        } else {
+          log('api-results', `❌ ${endpoint} - ${res.status} - ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('api-results', `❌ ${endpoint} - Error de red: ${e.message}`, 'err');
+      }
+    }
+
+    async function testAllEndpoints() {
+      clear('api-results');
+      const endpoints = [
+        '/api/academico/grados',
+        '/api/academico/cursos',
+        '/api/academico/areas',
+        '/api/academico/periodos',
+        '/api/academico/horario/horas',
+        '/api/docentes',
+        '/api/auth/perfil'
+      ];
+      for (const ep of endpoints) {
+        await testSingleEndpoint(ep);
+        await new Promise(r => setTimeout(r, 100)); // Pequeña pausa
+      }
+    }
+
+    async function checkDatabase() {
+      clear('db-check');
+      log('db-check', 'Verificando si la institución tiene datos base...');
+      
+      // Verificar grados
+      try {
+        const res = await fetch(`${API}/api/academico/grados`, { headers });
+        const data = await res.json();
+        if (data.ok) {
+          log('db-check', `Grados encontrados: ${data.grados.length}`, data.grados.length > 0 ? 'ok' : 'warn');
+          data.grados.forEach(g => log('db-check', `  - ${g.nombre} (${g.nivel}, orden ${g.orden}) ${g.activo ? '✅' : '❌'}`, 'info'));
+        } else {
+          log('db-check', `❌ Error grados: ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('db-check', `❌ Error: ${e.message}`, 'err');
+      }
+
+      // Verificar grupos
+      try {
+        const res = await fetch(`${API}/api/academico/grupos`, { headers });
+        const data = await res.json();
+        if (data.ok) {
+          log('db-check', `Grupos encontrados: ${data.grupos.length}`, data.grupos.length > 0 ? 'ok' : 'warn');
+          data.grupos.forEach(g => log('db-check', `  - ${g.grado_nombre}${g.nombre} (${g.activo ? 'activo' : 'inactivo'}) ${g.director_nombre ? '→ ' + g.director_nombre : 'sin director'}`, 'info'));
+        } else {
+          log('db-check', `❌ Error grupos: ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('db-check', `❌ Error: ${e.message}`, 'err');
+      }
+
+      // Verificar periodos
+      try {
+        const res = await fetch(`${API}/api/academico/periodos`, { headers });
+        const data = await res.json();
+        if (data.ok) {
+          log('db-check', `Periodos encontrados: ${data.periodos.length}`, data.periodos.length > 0 ? 'ok' : 'warn');
+          data.periodos.forEach(p => log('db-check', `  - ${p.anio_lectivo} P${p.numero_periodo}: ${p.nombre} (${p.fecha_inicio} a ${p.fecha_fin}) ${p.activo ? '🟢 ACTIVO' : ''}`, 'info'));
+        } else {
+          log('db-check', `❌ Error periodos: ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('db-check', `❌ Error: ${e.message}`, 'err');
+      }
+
+      // Verificar horas de trabajo
+      try {
+        const res = await fetch(`${API}/api/academico/horario/horas`, { headers });
+        const data = await res.json();
+        if (data.ok) {
+          log('db-check', `Horas de trabajo: ${data.horas.length}`, data.horas.length > 0 ? 'ok' : 'warn');
+        } else {
+          log('db-check', `❌ Error horas: ${data.mensaje}`, 'err');
+        }
+      } catch (e) {
+        log('db-check', `❌ Error: ${e.message}`, 'err');
+      }
+    }
+
+    // Auto-ejecutar al cargar
+    checkSession();
+    setTimeout(testAllEndpoints, 500);
+  </script>
+</body>
+</html>

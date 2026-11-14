@@ -26,6 +26,10 @@
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
 const asyncHandler = require('../utils/asyncHandler');
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+} = require('../utils/materias-curso.util');
 
 // ── Helpers ─────────────────────────────────────────────────
 function parCanonico(a, b) {
@@ -73,7 +77,9 @@ async function docentesDeEstudiante(estudianteId, like) {
             MAX(CASE WHEN g.director_id = u.id THEN 1 ELSE 0 END) AS es_director
      FROM matriculas mt
      JOIN grupos g ON g.id = mt.grupo_id
-     JOIN docentes_materias dm ON dm.grupo_id = g.id
+     JOIN materias m ON m.activa = TRUE AND ${condicionMateriaEnGrupo('m', 'g.id')}
+     JOIN docentes_materias dm ON dm.materia_id = m.id
+       AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
      JOIN usuarios u ON u.id = dm.docente_id AND u.rol = 'docente' AND u.activo = TRUE
      WHERE mt.estudiante_id = ? AND mt.estado = 'activa'
        AND (u.nombres LIKE ? OR u.apellidos LIKE ? OR CONCAT(u.nombres, ' ', u.apellidos) LIKE ? OR u.numero_documento LIKE ?)
@@ -99,7 +105,9 @@ async function docentesDeAcudido(acudienteId, like) {
      FROM acudientes_estudiantes ae
      JOIN matriculas mt ON mt.estudiante_id = ae.estudiante_id AND mt.estado = 'activa'
      JOIN grupos g ON g.id = mt.grupo_id
-     JOIN docentes_materias dm ON dm.grupo_id = g.id
+     JOIN materias m ON m.activa = TRUE AND ${condicionMateriaEnGrupo('m', 'g.id')}
+     JOIN docentes_materias dm ON dm.materia_id = m.id
+       AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
      JOIN usuarios u ON u.id = dm.docente_id AND u.rol = 'docente' AND u.activo = TRUE
      WHERE ae.acudiente_id = ?
        AND (u.nombres LIKE ? OR u.apellidos LIKE ? OR CONCAT(u.nombres, ' ', u.apellidos) LIKE ? OR u.numero_documento LIKE ?)
@@ -144,10 +152,13 @@ async function estudiantesDeDocente(docenteId, like) {
 async function docenteDictaAlEstudiante(docenteId, estudianteId) {
   const [[{ c }]] = await pool.query(
     `SELECT COUNT(*) AS c FROM (
-       SELECT e.id FROM docentes_materias dm
-       JOIN matriculas mt ON mt.grupo_id = dm.grupo_id AND mt.estado = 'activa'
+       SELECT e.id FROM matriculas mt
+       JOIN grupos g ON g.id = mt.grupo_id
+       JOIN materias m ON m.activa = TRUE AND ${condicionMateriaEnGrupo('m', 'g.id')}
+       JOIN docentes_materias dm ON dm.materia_id = m.id
+         AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
        JOIN usuarios e ON e.id = mt.estudiante_id AND e.activo = TRUE
-       WHERE dm.docente_id = ? AND e.id = ?
+       WHERE mt.estado = 'activa' AND dm.docente_id = ? AND e.id = ?
        UNION
        SELECT e.id FROM grupos g
        JOIN matriculas mt ON mt.grupo_id = g.id AND mt.estado = 'activa'
@@ -166,7 +177,9 @@ async function docenteDictaAlAcudido(docenteId, acudienteId) {
        SELECT u.id FROM acudientes_estudiantes ae
        JOIN matriculas mt ON mt.estudiante_id = ae.estudiante_id AND mt.estado = 'activa'
        JOIN grupos g ON g.id = mt.grupo_id
-       JOIN docentes_materias dm ON dm.grupo_id = g.id
+       JOIN materias m ON m.activa = TRUE AND ${condicionMateriaEnGrupo('m', 'g.id')}
+       JOIN docentes_materias dm ON dm.materia_id = m.id
+         AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
        JOIN usuarios u ON u.id = dm.docente_id AND u.rol = 'docente' AND u.activo = TRUE
        WHERE ae.acudiente_id = ? AND u.id = ?
        UNION

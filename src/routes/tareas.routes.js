@@ -8,7 +8,11 @@
 const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/tareas.controller');
+const archivosCtrl = require('../controllers/tareas-entrega-archivos.controller');
 const { authMiddleware, soloRoles } = require('../middleware/auth.middleware');
+const { crearUploaderEntregaTarea } = require('../middleware/upload.middleware');
+
+const uploadEntrega = crearUploaderEntregaTarea();
 
 router.use(authMiddleware);
 
@@ -17,10 +21,21 @@ router.use(authMiddleware);
 router.get('/estudiante',        soloRoles('estudiante'), ctrl.listarPorEstudiante);
 router.post('/:id/entrega',      soloRoles('estudiante'), ctrl.entregar);
 
-// Gestionar tareas por materia (docente/director/admin)
+// Archivos de la entrega (máx. 5 por entrega, ver upload.middleware.js).
+router.post(
+  '/:id/entrega/archivos',
+  soloRoles('estudiante'),
+  uploadEntrega.array('archivos', 5),
+  archivosCtrl.subir
+);
+router.delete('/:id/entrega/archivos/:archivoId', soloRoles('estudiante'), archivosCtrl.eliminar);
+router.get('/:id/entrega/archivos/:archivoId', archivosCtrl.descargar);
+
+// Gestionar tareas por materia (docente asignado/admin)
 router.get('/materia/:materiaId',            soloRoles('admin', 'superadmin', 'docente'), ctrl.listarPorMateria);
 router.post('/',                              soloRoles('admin', 'superadmin', 'docente'), ctrl.crear);
 router.put('/:id',                            soloRoles('admin', 'superadmin', 'docente'), ctrl.actualizar);
+router.put('/:id/publicar',                    soloRoles('admin', 'superadmin', 'docente'), ctrl.publicar);
 router.delete('/:id',                         soloRoles('admin', 'superadmin', 'docente'), ctrl.eliminar);
 router.get('/:id/entregas',                   soloRoles('admin', 'superadmin', 'docente'), ctrl.listarEntregas);
 router.put('/:id/entrega',                    soloRoles('admin', 'superadmin', 'docente'), ctrl.calificarEntrega);

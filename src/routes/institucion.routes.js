@@ -15,6 +15,8 @@ router.post('/:solicitudId/rechazar', authMiddleware, soloRoles('superadmin'), c
 
 // Logo de la institución (solo el admin puede subirlo/actualizarlo)
 router.post('/logo',                  authMiddleware, soloRoles('admin'), uploadLogo.single('imagen'), ctrl.subirLogo);
+router.get('/configuracion',          authMiddleware, soloRoles('admin'), ctrl.obtenerConfiguracion);
+router.put('/configuracion',          authMiddleware, soloRoles('admin'), ctrl.actualizarConfiguracion);
 
 // Gestión de instituciones ya existentes (superadmin)
 router.get('/',                       authMiddleware, soloRoles('superadmin'), ctrl.listarInstituciones);

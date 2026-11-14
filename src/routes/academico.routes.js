@@ -34,6 +34,10 @@ router.put('/grupos/:id',     soloRoles('admin', 'superadmin'), ctrl.actualizarG
 router.put('/grupos/:id/director', soloRoles('admin', 'superadmin'), ctrl.asignarDirector);
 router.delete('/grupos/:id',  soloRoles('admin', 'superadmin'), ctrl.eliminarGrupo);
 
+// Materias asignadas a un curso (catálogo de la institución + vínculo por curso)
+router.get('/grupos/:id/materias', soloRoles('admin', 'superadmin'), ctrl.listarMateriasCurso);
+router.put('/grupos/:id/materias', soloRoles('admin', 'superadmin'), ctrl.guardarMateriasCurso);
+
 // Director de curso (rol 'docente' + grupos.director_id — se valida dentro del controller)
 router.get('/mi-grupo',                    soloRoles('docente'), ctrl.miGrupoDirector);
 router.get('/mis-cursos',                  soloRoles('docente'), ctrl.misCursosDocente);
@@ -57,6 +61,7 @@ router.delete('/materias/:id/docentes/:docenteId', soloRoles('admin', 'superadmi
 
 // Periodos académicos (bloquea materias/notas hasta que existan)
 router.get('/periodos',            soloRoles('admin', 'superadmin'), ctrl.listarPeriodos);
+router.get('/ciclo',               soloRoles('admin', 'superadmin', 'docente'), ctrl.obtenerCicloLectivo);
 router.post('/periodos',           soloRoles('admin', 'superadmin'), ctrl.crearPeriodos);
 router.put('/periodos/:id',        soloRoles('admin', 'superadmin'), ctrl.actualizarPeriodo);
 router.put('/periodos/:id/activar',soloRoles('admin', 'superadmin'), ctrl.activarPeriodo);

@@ -1,7 +1,7 @@
 # SIA — Sistema de Información Académica
 
 > Proyecto académico SENA · Ficha 3407184 · Teleinformática y Bases de Datos  
-> Autores: Oscar Andrés Navarro Ochoa - Juan Sebastian Calderon - Giovanny Esteban Reyes Rodriguez - Jhon Harold Hoyos Pacheco - Romel Sneider Toquica Corredor 
+> Autor: Oscar Andrés Navarro Ochoa 
 
 ---
 

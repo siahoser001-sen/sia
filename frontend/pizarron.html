@@ -52,60 +52,17 @@
     html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
     html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
     </style>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background: linear-gradient(135deg, #f5f7ff 0%, #e5ecff 100%);
-        color: #1f2937;
-      }
-      .app-shell { display: flex; flex-direction: column; height: 100vh; }
-      .toolbar {
-        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-        padding: 14px 18px; background: rgba(255,255,255,0.95); border-bottom: 1px solid #dbe3f0;
-        box-shadow: 0 6px 20px rgba(15,23,42,0.06);
-      }
-      .tool-group { display: flex; gap: 10px; align-items: center; }
-      button, input { font: inherit; }
-      button {
-        border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155;
-        padding: 8px 12px; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-      button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.08); }
-      button.active { background: #2563eb; color: white; border-color: #2563eb; }
-      .color-field, .size-field { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
-      input[type="color"] { width: 42px; height: 34px; border: none; background: transparent; padding: 0; }
-      input[type="range"] { accent-color: #2563eb; }
-      .board-wrapper { flex: 1; padding: 18px; overflow: auto; background: #eef2ff; }
-      .board-surface {
-        position: relative; min-width: 1800px; min-height: 1200px; border-radius: 24px; background: white;
-        box-shadow: inset 0 0 0 1px #e2e8f0, 0 10px 40px rgba(15,23,42,0.08); overflow: hidden;
-      }
-      #boardCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
-      .text-node {
-        position: absolute; max-width: 440px; padding: 2px 6px; border-radius: 6px; font-size: 24px; line-height: 1.3;
-        color: #111827; white-space: pre-wrap; user-select: none; pointer-events: none;
-      }
-      .text-input {
-        position: absolute; border: 2px solid #2563eb; border-radius: 8px; padding: 6px 8px; font-size: 24px;
-        line-height: 1.3; min-width: 220px; outline: none; z-index: 5;
-      }
-    </style>
+    <link rel="stylesheet" href="static/css/pizarron.css">
   </head>
   <body>
     <div class="app-shell">
       <header class="toolbar">
-        <div class="tool-group">
+        <div class="tool-group" id="toolControls">
           <button class="tool-btn active" data-tool="pen">Lápiz</button>
           <button class="tool-btn" data-tool="eraser">Borrador</button>
           <button class="tool-btn" data-tool="text">Texto</button>
         </div>
-        <div class="tool-group">
+        <div class="tool-group" id="styleControls">
           <label class="color-field">
             Color
             <input type="color" id="colorPicker" value="#1f2937" />
@@ -115,18 +72,19 @@
             <input type="range" id="lineWidth" min="1" max="20" value="4" />
           </label>
         </div>
-        <div class="tool-group">
-          <button id="clearBoard">Limpiar</button>
-          <button id="saveBoard">Descargar</button>
+        <div class="tool-group" id="clearControls">
+          <button id="clearBoard" type="button">Borrar tablero</button>
         </div>
+        <span class="read-only-notice" id="readOnlyNotice" hidden>Modo solo ver</span>
+        <span class="board-status" id="boardStatus" role="status" aria-live="polite">Conectando al pizarrón…</span>
       </header>
       <main class="board-wrapper">
         <div class="board-surface" id="boardSurface">
-          <canvas id="boardCanvas"></canvas>
+          <canvas id="boardCanvas" draggable="false"></canvas>
         </div>
       </main>
     </div>
-    <script src="https://cdn.socket.io/4.8.3/socket.io.global.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="static/js/pizarron.js"></script>
   </body>
 </html>

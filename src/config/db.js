@@ -40,6 +40,16 @@ function verificarConexion(intento) {
         setTimeout(() => verificarConexion(intento + 1), CONEXION_ESPERA_MS);
       } else {
         console.error('❌ Error conectando a MySQL después de', CONEXION_INTENTOS, 'intentos:', err.message);
+
+        // Pistas para los fallos más comunes al arrancar en local.
+        if (err.code === 'ECONNREFUSED') {
+          console.error(`   → MySQL/MariaDB no está iniciado o no escucha en el puerto ${process.env.DB_PORT || 3306}.`);
+          console.error('     Inicia MySQL (por ejemplo, XAMPP → Start MySQL) y vuelve a ejecutar npm start.');
+        } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+          console.error('   → Revisa DB_USER y DB_PASSWORD en el archivo .env.');
+        } else if (err.code === 'ER_BAD_DB_ERROR') {
+          console.error(`   → La base de datos "${process.env.DB_NAME || 'sia_db'}" no existe. Créala o ejecuta las migraciones.`);
+        }
       }
     });
 }

@@ -249,10 +249,192 @@
     if (boton) boton.addEventListener('click', function () { if (input) input.click(); });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     Perfil profesional del docente (Ronda D · D4)
+     - En el modal "Mi perfil", el docente ve y edita sus campos
+       (cargo, título, áreas, hijos en la institución, biografía).
+     - SIAVerDocente(id) abre el perfil de un docente para quien
+       tenga permiso (admin y estudiantes/acudientes con vínculo).
+     ══════════════════════════════════════════════════════════════ */
+  var ultimoPerfilUsuario = null;
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function valor(v) {
+    return (v == null || v === '') ? '<span style="color:var(--text-3)">—</span>' : esc(v);
+  }
+  function fila(label, val) {
+    return '<div><div class="stat-label" style="margin-bottom:2px">' + label + '</div><div>' + valor(val) + '</div></div>';
+  }
+  function campo(id, label, val) {
+    return '<div><label class="stat-label" style="display:block;margin-bottom:4px">' + label + '</label>' +
+      '<input id="' + id + '" class="sia-input" style="width:100%" value="' + esc(val) + '"></div>';
+  }
+
+  function injectarPerfilProfesional() {
+    var overlay = document.getElementById('overlayPerfil');
+    if (!overlay || document.getElementById('perfilProfesional')) return;
+    var modal = overlay.querySelector('.modal');
+    if (!modal) return;
+    var box = document.createElement('div');
+    box.id = 'perfilProfesional';
+    box.style.cssText = 'display:none;border-top:1px solid var(--glass-border,rgba(255,255,255,0.15));margin-top:0.5rem;padding-top:0.9rem';
+    box.innerHTML = '<div id="perfilProfContenido"></div>';
+    var btns = modal.querySelector('.modal-btns');
+    if (btns) modal.insertBefore(box, btns);
+    else modal.appendChild(box);
+  }
+
+  function renderPerfilProfesional(u) {
+    var box = document.getElementById('perfilProfesional');
+    if (!box) return;
+    if (!u || u.rol !== 'docente') { box.style.display = 'none'; return; }
+    ultimoPerfilUsuario = u;
+    var cont = document.getElementById('perfilProfContenido');
+    cont.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
+        '<div style="font-family:var(--font-d,\'Nunito\',sans-serif);font-weight:700;font-size:0.86rem;color:var(--text-1)">Perfil profesional</div>' +
+        '<button type="button" id="btnEditarPerfilDoc" class="btn btn-ghost btn-sm" style="pointer-events:auto">Editar</button>' +
+      '</div>' +
+      '<div id="perfilProfLectura" style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.82rem;color:var(--text-1)">' +
+        fila('Cargo', u.cargo) +
+        fila('Título académico', u.titulo_academico) +
+        fila('Áreas', u.areas) +
+        fila('Hijos en la institución', u.hijos_institucion) +
+        fila('Biografía', u.biografia) +
+      '</div>' +
+      '<div id="perfilProfEdicion" style="display:none;flex-direction:column;gap:0.6rem">' +
+        campo('rpCargo', 'Cargo', u.cargo) +
+        campo('rpTitulo', 'Título académico', u.titulo_academico) +
+        campo('rpAreas', 'Áreas que enseña', u.areas) +
+        campo('rpHijos', 'Hijos en la institución', u.hijos_institucion) +
+        '<div><label class="stat-label" style="display:block;margin-bottom:4px">Biografía</label>' +
+        '<textarea id="rpBiografia" class="sia-input" rows="3" style="width:100%">' + esc(u.biografia) + '</textarea></div>' +
+        '<div id="rpMsg" style="font-size:0.78rem;min-height:1em"></div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+          '<button type="button" id="btnCancelarPerfilDoc" class="btn btn-ghost btn-sm" style="pointer-events:auto">Cancelar</button>' +
+          '<button type="button" id="btnGuardarPerfilDoc" class="btn btn-primary btn-sm" style="pointer-events:auto">Guardar</button>' +
+        '</div>' +
+      '</div>';
+    box.style.display = '';
+
+    var bEdit = document.getElementById('btnEditarPerfilDoc');
+    if (bEdit) bEdit.addEventListener('click', function () {
+      document.getElementById('perfilProfLectura').style.display = 'none';
+      document.getElementById('perfilProfEdicion').style.display = 'flex';
+      bEdit.style.display = 'none';
+    });
+    var bCancel = document.getElementById('btnCancelarPerfilDoc');
+    if (bCancel) bCancel.addEventListener('click', function () { renderPerfilProfesional(ultimoPerfilUsuario); });
+    var bGuardar = document.getElementById('btnGuardarPerfilDoc');
+    if (bGuardar) bGuardar.addEventListener('click', guardarPerfilDocente);
+  }
+
+  function guardarPerfilDocente() {
+    var u = ultimoPerfilUsuario || {};
+    var msg = document.getElementById('rpMsg');
+    var btn = document.getElementById('btnGuardarPerfilDoc');
+    var body = {
+      nombres:  u.nombres || '',
+      apellidos: u.apellidos || '',
+      email:    u.email || '',
+      telefono: u.telefono || '',
+      direccion: u.direccion || '',
+      cargo:             document.getElementById('rpCargo').value.trim(),
+      titulo_academico:  document.getElementById('rpTitulo').value.trim(),
+      areas:             document.getElementById('rpAreas').value.trim(),
+      hijos_institucion: document.getElementById('rpHijos').value.trim(),
+      biografia:         document.getElementById('rpBiografia').value.trim(),
+    };
+    if (btn) btn.disabled = true;
+    fetch(API + '/api/auth/perfil', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (btn) btn.disabled = false;
+        if (!data.ok) {
+          if (msg) { msg.textContent = data.mensaje || 'No se pudo guardar.'; msg.style.color = 'var(--red,#ef4444)'; }
+          return;
+        }
+        var actualizado = {};
+        for (var k in u) actualizado[k] = u[k];
+        for (var k2 in body) actualizado[k2] = body[k2];
+        renderPerfilProfesional(actualizado);
+      })
+      .catch(function () {
+        if (btn) btn.disabled = false;
+        if (msg) { msg.textContent = 'Error de conexión.'; msg.style.color = 'var(--red,#ef4444)'; }
+      });
+  }
+
+  function crearOverlayDocente() {
+    if (document.getElementById('overlayDocente')) return;
+    var ov = document.createElement('div');
+    ov.id = 'overlayDocente';
+    ov.className = 'overlay';
+    ov.innerHTML =
+      '<div class="glass glass-strong modal">' +
+        '<h3>Perfil del docente</h3>' +
+        '<div id="docModalCuerpo"></div>' +
+        '<div class="modal-btns"><button class="btn btn-ghost" id="docModalCerrar">Cerrar</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) { if (e.target === ov) cerrarDocente(); });
+    document.getElementById('docModalCerrar').addEventListener('click', cerrarDocente);
+  }
+  function cerrarDocente() {
+    var ov = document.getElementById('overlayDocente');
+    if (ov) ov.classList.remove('visible');
+  }
+
+  function SIAVerDocente(id) {
+    crearOverlayDocente();
+    var ov = document.getElementById('overlayDocente');
+    var cuerpo = document.getElementById('docModalCuerpo');
+    cuerpo.innerHTML = '<div style="color:var(--text-3);font-size:0.82rem">Cargando…</div>';
+    ov.classList.add('visible');
+    fetch(API + '/api/auth/docentes/' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) {
+          cuerpo.innerHTML = '<div style="color:var(--red,#ef4444);font-size:0.85rem">' + esc(data.mensaje || 'No disponible.') + '</div>';
+          return;
+        }
+        var d = data.docente;
+        var foto = d.foto_url
+          ? '<img src="' + urlCompleta(d.foto_url) + '" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--glass-border-hi,rgba(255,255,255,0.4))">'
+          : '<div style="width:72px;height:72px;border-radius:50%;background:rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;color:#93C5FD">' + esc((d.nombres || '?').charAt(0)) + '</div>';
+        var campos =
+          fila('Cargo', d.cargo) +
+          fila('Título académico', d.titulo_academico) +
+          fila('Áreas', d.areas) +
+          (data.completo ? fila('Hijos en la institución', d.hijos_institucion) : '') +
+          fila('Correo', d.email) +
+          fila('Teléfono', d.telefono) +
+          fila('Biografía', d.biografia);
+        cuerpo.innerHTML =
+          '<div style="display:flex;align-items:center;gap:0.9rem;margin-bottom:1rem">' + foto +
+            '<div><div style="font-family:var(--font-d,\'Nunito\',sans-serif);font-weight:800;font-size:1rem;color:var(--text-1)">' + esc(d.nombres + ' ' + d.apellidos) + '</div>' +
+            (d.cargo ? '<div style="font-size:0.78rem;color:var(--text-2)">' + esc(d.cargo) + '</div>' : '') + '</div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.82rem;color:var(--text-1)">' + campos + '</div>';
+      })
+      .catch(function () {
+        cuerpo.innerHTML = '<div style="color:var(--red,#ef4444);font-size:0.85rem">Error de conexión.</div>';
+      });
+  }
+  window.SIAVerDocente = SIAVerDocente;
+
   function init() {
     var u = leerUsuario();
     crearVisor();
     injectarFotoUI();
+    injectarPerfilProfesional();
     aplicarLogo(u.institucion_logo || null);
     aplicarAvatar(u.foto_url || null);
 
@@ -292,6 +474,7 @@
         guardarUsuario(actual);
         aplicarLogo(actual.institucion_logo);
         aplicarAvatar(actual.foto_url);
+        renderPerfilProfesional(data.usuario);
         var inst = document.getElementById('sidebarInst');
         if (inst && actual.institucion_nombre) inst.textContent = actual.institucion_nombre;
       })

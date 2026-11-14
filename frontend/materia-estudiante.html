@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIA — Mi materia</title>
+  <script>
+    try {
+      var claves = { scale:'sia_ui_scale', contrast:'sia_alto_contraste', motion:'sia_movimiento', density:'sia_densidad', accent:'sia_acento', radius:'sia_redondez' };
+      var atrs = { scale:'data-ui-scale', contrast:'data-ui-contrast', motion:'data-ui-motion', density:'data-ui-density', accent:'data-ui-accent', radius:'data-ui-radius' };
+      for (var k in claves) {
+        var v = localStorage.getItem(claves[k]);
+        if (v) document.documentElement.setAttribute(atrs[k], v);
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="sia-base.css">
+  <style>
+    :root {
+      --blue:#3B82F6; --blue-light:#93C5FD; --purple:#8B5CF6;
+      --text-1:#F1F5F9; --text-2:rgba(226,232,240,.72); --text-3:rgba(226,232,240,.48);
+      --glass-bg:rgba(15,23,58,.68); --glass-bg-strong:rgba(9,14,39,.94);
+      --glass-border:rgba(255,255,255,.13); --glass-border-hi:rgba(255,255,255,.25);
+      --glass-shadow:0 12px 40px rgba(0,0,0,.24); --sidebar-bg:rgba(8,13,38,.78);
+      --blur:blur(18px); --font-d:'Nunito',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
+      --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:26px;
+    }
+    html[data-ui-scale="2"]{zoom:1.15} html[data-ui-scale="3"]{zoom:1.3}
+    html[data-ui-contrast="1"]{--text-1:#fff;--text-2:rgba(255,255,255,.85);--text-3:rgba(255,255,255,.65);--glass-bg:rgba(14,22,56,.92);--glass-bg-strong:rgba(8,14,42,.98);--glass-border:rgba(255,255,255,.35);--glass-shadow:0 8px 32px rgba(0,0,0,.45);--blur:blur(0)}
+    html[data-ui-contrast="1"] .sia-fondo::after{background:linear-gradient(135deg,rgba(4,8,26,.90),rgba(10,5,30,.88),rgba(2,14,40,.90))}
+    html[data-ui-motion="1"] *,html[data-ui-motion="1"] *::before,html[data-ui-motion="1"] *::after{animation:none!important;transition:none!important}
+    html[data-ui-accent="verde"]{--blue:#10B981;--blue-light:#6EE7B7;--purple:#14B8A6}
+    html[data-ui-accent="ambar"]{--blue:#F59E0B;--blue-light:#FCD34D;--purple:#F97316}
+    html[data-ui-accent="rosa"]{--blue:#EC4899;--blue-light:#F9A8D4;--purple:#A855F7}
+    html[data-ui-radius="0"]{--r-sm:3px;--r-md:6px;--r-lg:10px;--r-xl:14px}
+    html[data-ui-radius="2"]{--r-sm:10px;--r-md:18px;--r-lg:26px;--r-xl:36px}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:#080e27;color:var(--text-1);font:15px var(--font-b);-webkit-font-smoothing:antialiased}
+    .sia-fondo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center}
+    .sia-fondo::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(8,16,50,.78),rgba(25,8,60,.68),rgba(5,28,72,.72))}
+    .main{position:relative;z-index:1;width:min(1120px,100%);margin:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem}
+    .glass{background:var(--glass-bg);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border);border-radius:var(--r-lg);box-shadow:var(--glass-shadow)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.25rem}
+    .topbar-titulo{font:800 1.35rem var(--font-d)} .topbar-sub{color:var(--text-2);font-size:.82rem;margin-top:.2rem}
+    .course-pill{display:inline-flex;align-items:center;gap:.45rem;margin-top:.55rem;padding:.32rem .7rem;border:1px solid rgba(147,197,253,.28);border-radius:999px;background:rgba(59,130,246,.13);color:var(--blue-light);font-size:.76rem;font-weight:700}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.58rem .9rem;border:0;border-radius:var(--r-md);font:700 .8rem var(--font-d);text-decoration:none;cursor:pointer;transition:all 150ms}
+    .btn-primary{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;box-shadow:0 4px 16px rgba(59,130,246,.28)}
+    .btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--glass-border);color:var(--text-1)}
+    .btn:hover:not(:disabled){transform:translateY(-1px);border-color:var(--glass-border-hi)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-sm{padding:.4rem .65rem;font-size:.74rem}
+    .tabs{display:flex;gap:.45rem;overflow:auto;padding:.45rem}
+    .tab{flex:0 0 auto;padding:.62rem .85rem;border:1px solid transparent;border-radius:var(--r-md);background:transparent;color:var(--text-2);font:700 .8rem var(--font-d);cursor:pointer}
+    .tab[aria-selected="true"]{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.36);color:var(--blue-light)}
+    .tab:disabled{opacity:.35;cursor:not-allowed}
+    .panel{padding:1.2rem}
+    .panel[hidden]{display:none}
+    .section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;margin-bottom:1rem}
+    .section-title{font:800 1rem var(--font-d)} .muted{color:var(--text-2)} .hint{color:var(--text-3);font-size:.76rem;line-height:1.5}
+    .msg{padding:.7rem .85rem;border-radius:var(--r-md);margin:.5rem 0;font-size:.82rem}
+    .msg.error{background:rgba(239,68,68,.13);border:1px solid rgba(248,113,113,.3);color:#fecaca}
+    .msg.success{background:rgba(16,185,129,.12);border:1px solid rgba(52,211,153,.28);color:#a7f3d0}
+    .msg.info{background:rgba(59,130,246,.12);border:1px solid rgba(147,197,253,.22);color:#bfdbfe}
+    .empty{text-align:center;padding:2rem;color:var(--text-3);font-size:.86rem}
+    .task-list{display:grid;gap:.8rem}
+    .task-card{padding:1rem;border:1px solid var(--glass-border);border-radius:var(--r-md);background:rgba(255,255,255,.035)}
+    .task-top{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start}
+    .task-title{font:800 .95rem var(--font-d);margin-bottom:.28rem}
+    .task-meta{font-size:.75rem;color:var(--text-2);line-height:1.5}
+    .task-description{margin:.65rem 0;color:var(--text-2);font-size:.84rem;line-height:1.55;white-space:pre-wrap}
+    .badge{display:inline-flex;padding:.28rem .58rem;border:1px solid var(--glass-border);border-radius:999px;font-size:.68rem;font-weight:800;white-space:nowrap}
+    .badge.pendiente{color:#fde68a;background:rgba(245,158,11,.12)} .badge.entregada,.badge.tarde{color:#a7f3d0;background:rgba(16,185,129,.12)} .badge.calificada{color:#bfdbfe;background:rgba(59,130,246,.14)}
+    .feedback{margin-top:.65rem;padding:.65rem .75rem;border-left:3px solid var(--blue);background:rgba(59,130,246,.08);font-size:.8rem;white-space:pre-wrap}
+    .file-list{display:grid;gap:.35rem;margin:.75rem 0}
+    .file-row{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;font-size:.77rem}
+    .submit-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--glass-border)}
+    input[type=file],input[type=month]{max-width:100%;padding:.45rem;border:1px solid var(--glass-border);border-radius:var(--r-sm);background:rgba(0,0,0,.18);color:var(--text-1);font:inherit;font-size:.78rem}
+    .calendar-controls{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.8rem}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.35rem}
+    .calendar-weekday{text-align:center;padding:.35rem;color:var(--text-3);font-size:.68rem;font-weight:800;text-transform:uppercase}
+    .calendar-day{min-height:82px;padding:.42rem;border:1px solid var(--glass-border);border-radius:var(--r-sm);background:rgba(255,255,255,.035);font-size:.74rem}
+    .calendar-day.empty{min-height:0;padding:0;border:0;background:transparent}
+    .calendar-day.weekend{background:rgba(148,163,184,.08)}
+    .calendar-day.today{border-color:rgba(147,197,253,.65)}
+    .day-number{font-weight:800;color:var(--text-2)}
+    .day-status{display:block;margin-top:.45rem;padding:.25rem .3rem;border-radius:6px;font-size:.65rem;line-height:1.25;font-weight:700;overflow-wrap:anywhere}
+    .state-asistio,.state-presente{background:rgba(16,185,129,.18);color:#a7f3d0}
+    .state-falta,.state-ausente{background:rgba(239,68,68,.18);color:#fecaca}
+    .state-tarde{background:rgba(245,158,11,.18);color:#fde68a}
+    .state-justificada,.state-excusado{background:rgba(59,130,246,.18);color:#bfdbfe}
+    .state-multiple{background:rgba(139,92,246,.18);color:#ddd6fe}
+    .legend{display:flex;gap:.6rem;flex-wrap:wrap;margin:.85rem 0;font-size:.71rem;color:var(--text-2)}
+    .legend span{display:inline-flex;align-items:center;gap:.32rem}
+    .legend i{width:9px;height:9px;border-radius:50%;background:currentColor}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:.6rem;margin:1rem 0}
+    .stat{padding:.7rem;border:1px solid var(--glass-border);border-radius:var(--r-md);background:rgba(255,255,255,.035)}
+    .stat-label{color:var(--text-3);font-size:.68rem}.stat-value{margin-top:.2rem;font:800 1.15rem var(--font-d)}
+    .history{margin-top:1.2rem;overflow:auto}
+    .history table,.grades-table{width:100%;border-collapse:collapse;font-size:.78rem}
+    .history th,.history td,.grades-table th,.grades-table td{text-align:left;padding:.65rem;border-bottom:1px solid var(--glass-border)}
+    .history th,.grades-table th{color:var(--text-2);font-size:.7rem}
+    .grades-table-wrap{overflow:auto}
+    .average-card{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:1rem;padding:1rem;border:1px solid rgba(147,197,253,.22);border-radius:var(--r-md);background:rgba(59,130,246,.09)}
+    .average-number{font:800 1.7rem var(--font-d);color:var(--blue-light)}
+    .action-box{max-width:650px;margin:1rem auto;padding:1.2rem;text-align:center}
+    .action-box .btn{margin-top:.8rem}
+    #toast{position:fixed;right:1rem;bottom:1rem;z-index:10;max-width:min(400px,calc(100vw - 2rem));display:none}
+    @media(max-width:680px){.main{padding:.8rem}.topbar{align-items:flex-start}.topbar .btn{padding:.48rem .6rem}.panel{padding:.85rem}.calendar-grid{gap:.2rem}.calendar-day{min-height:68px;padding:.3rem}.day-status{font-size:.58rem;padding:.2rem}}
+  </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
+</head>
+<body>
+  <div class="sia-fondo" id="siaFondo"></div>
+  <main class="main">
+    <header class="glass topbar">
+      <div>
+        <div class="topbar-titulo" id="tituloMateria">Mi materia</div>
+        <div class="topbar-sub" id="subtituloMateria">Actividades, asistencia y notas</div>
+        <div class="course-pill" id="cursoEstudiante">Cargando curso…</div>
+      </div>
+      <a class="btn btn-ghost" href="mis-materias.html">← Mis materias</a>
+    </header>
+
+    <nav class="glass tabs" role="tablist" aria-label="Secciones de la materia">
+      <button class="tab" id="tab-actividades" role="tab" aria-selected="true" aria-controls="panel-actividades" data-tab="actividades">Actividades y evaluaciones</button>
+      <button class="tab" id="tab-asistencia" role="tab" aria-selected="false" aria-controls="panel-asistencia" data-tab="asistencia">Asistencia</button>
+      <button class="tab" id="tab-notas" role="tab" aria-selected="false" aria-controls="panel-notas" data-tab="notas">Notas</button>
+      <button class="tab" id="tab-tablero" role="tab" aria-selected="false" aria-controls="panel-tablero" data-tab="tablero">Tablero</button>
+      <button class="tab" id="tab-videollamada" role="tab" aria-selected="false" aria-controls="panel-videollamada" data-tab="videollamada">Videollamada</button>
+    </nav>
+
+    <section class="glass panel" id="panel-actividades" role="tabpanel" aria-labelledby="tab-actividades">
+      <div class="section-heading">
+        <div><div class="section-title">Actividades y evaluaciones</div><div class="hint">Consulta las instrucciones, la fecha límite y el estado de cada entrega.</div></div>
+      </div>
+      <div id="mensajeActividades" aria-live="polite"></div>
+      <div class="task-list" id="listaTareas"><div class="empty">Cargando actividades…</div></div>
+    </section>
+
+    <section class="glass panel" id="panel-asistencia" role="tabpanel" aria-labelledby="tab-asistencia" hidden>
+      <div class="section-heading">
+        <div><div class="section-title">Mi asistencia del curso</div><div class="hint">Calendario personal de solo lectura. Las marcas diarias corresponden al curso, no a una materia.</div></div>
+      </div>
+      <div class="calendar-controls">
+        <div style="display:flex;gap:.4rem">
+          <button type="button" class="btn btn-ghost btn-sm" id="mesAnterior" aria-label="Mes anterior">←</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="mesSiguiente" aria-label="Mes siguiente">→</button>
+        </div>
+        <label class="muted" for="mesAsistencia">Mes <input type="month" id="mesAsistencia"></label>
+      </div>
+      <div id="mensajeAsistencia" aria-live="polite"></div>
+      <div class="calendar-grid" id="calendarioAsistencia" aria-label="Calendario mensual de asistencia"></div>
+      <div class="legend" aria-label="Estados de asistencia">
+        <span class="state-asistio"><i></i>Asistió</span><span class="state-tarde"><i></i>Tarde</span><span class="state-falta"><i></i>Falta</span><span class="state-justificada"><i></i>Justificada</span>
+      </div>
+      <div id="resumenAsistencia"></div>
+      <div id="historialAsistencia"></div>
+    </section>
+
+    <section class="glass panel" id="panel-notas" role="tabpanel" aria-labelledby="tab-notas" hidden>
+      <div class="section-heading"><div><div class="section-title">Notas de la materia</div><div class="hint">El promedio se calcula con las notas registradas y sus porcentajes de peso.</div></div></div>
+      <div id="mensajeNotas" aria-live="polite"></div>
+      <div id="resumenNotas"></div>
+      <div class="grades-table-wrap" id="tablaNotas"><div class="empty">Cargando notas…</div></div>
+    </section>
+
+    <section class="glass panel" id="panel-tablero" role="tabpanel" aria-labelledby="tab-tablero" hidden>
+      <div class="action-box">
+        <div class="section-title">Tablero de la clase</div>
+        <p class="hint">Puedes ver en tiempo real el pizarrón compartido. El modo de estudiante no permite dibujar ni borrar.</p>
+        <button type="button" class="btn btn-primary" id="abrirTablero">Abrir tablero en modo solo ver</button>
+      </div>
+    </section>
+
+    <section class="glass panel" id="panel-videollamada" role="tabpanel" aria-labelledby="tab-videollamada" hidden>
+      <div class="action-box">
+        <div class="section-title">Videollamada de la materia</div>
+        <p class="hint" id="estadoVideollamada">Abre la sala para consultar si el docente inició una llamada.</p>
+        <button type="button" class="btn btn-primary" id="abrirVideollamada">Abrir videollamada</button>
+      </div>
+    </section>
+  </main>
+  <div class="msg info" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+    const API = window.location.origin;
+    const token = sessionStorage.getItem('sia_token');
+    const usuario = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
+    const headers = { Authorization: `Bearer ${token}` };
+    const paramsPagina = new URLSearchParams(location.search);
+    const materiaId = paramsPagina.get('materia');
+    const pestañasPermitidas = new Set(['actividades', 'asistencia', 'notas', 'tablero', 'videollamada']);
+    const tabSolicitada = paramsPagina.get('tab');
+    const tabInicial = pestañasPermitidas.has(tabSolicitada)
+      ? tabSolicitada
+      : (materiaId ? 'actividades' : 'asistencia');
+    const MAX_ARCHIVOS = 5;
+    const MAX_BYTES = 5 * 1024 * 1024;
+    const EXTENSIONES = new Set(['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'pptx', 'zip']);
+    let matricula = null;
+    let materias = [];
+    let materia = null;
+    let tareas = [];
+    let tareasCargadas = false;
+    let asistenciaCargada = false;
+    let notasCargadas = false;
+
+    if (!token) location.replace('login.html');
+    const fondo = localStorage.getItem('sia_fondo_src');
+    if (fondo) document.getElementById('siaFondo').style.backgroundImage = `url("${fondo}")`;
+
+    function escapar(valor) {
+      return String(valor == null ? '' : valor).replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]
+      );
+    }
+    function escaparArg(valor) {
+      return window.SIAarg ? window.SIAarg(valor) : escapar(valor);
+    }
+    function mostrarMensaje(elemento, texto, tipo) {
+      const cont = document.getElementById(elemento);
+      cont.innerHTML = texto ? `<div class="msg ${tipo || 'info'}">${escapar(texto)}</div>` : '';
+    }
+    function mostrarToast(texto, tipo) {
+      const toast = document.getElementById('toast');
+      toast.className = `msg ${tipo || 'info'}`;
+      toast.textContent = texto;
+      toast.style.display = 'block';
+      window.setTimeout(() => { toast.style.display = 'none'; }, 4500);
+    }
+    async function pedir(url, opciones) {
+      const config = opciones || {};
+      const response = await fetch(`${API}${url}`, {
+        ...config,
+        headers: { ...headers, ...(config.headers || {}) },
+      });
+      let data;
+      try { data = await response.json(); } catch (err) {
+        throw new Error('El servidor devolvió una respuesta inválida.');
+      }
+      if (!response.ok || data.ok === false) throw new Error(data.mensaje || 'No se pudo completar la solicitud.');
+      return data;
+    }
+    function formatoFecha(valor) {
+      if (!valor) return 'Sin fecha';
+      const fecha = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
+      return Number.isNaN(fecha.getTime()) ? String(valor) : fecha.toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' });
+    }
+    function fechaISO(fecha) {
+      return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+    }
+    function etiquetaEstado(estado) {
+      return ({ pendiente:'Pendiente', entregada:'Entregada', tarde:'Entregada tarde', calificada:'Calificada', asistio:'Asistió', presente:'Presente', falta:'Falta', ausente:'Ausente', justificada:'Justificada', excusado:'Excusada' })[estado] || estado || 'Pendiente';
+    }
+
+    async function iniciar() {
+      try {
+        const [cursoData, materiasData] = await Promise.all([
+          pedir('/api/matriculas/mi-curso'),
+          pedir('/api/clases/mis-materias-estudiante'),
+        ]);
+        matricula = cursoData.matricula;
+        materias = Array.isArray(materiasData.materias) ? materiasData.materias : [];
+        if (!matricula) {
+          document.getElementById('cursoEstudiante').textContent = 'Sin matrícula activa';
+          document.getElementById('tituloMateria').textContent = 'Mi curso';
+          document.getElementById('subtituloMateria').textContent = 'No encontramos una matrícula activa para cargar el contenido académico.';
+          document.getElementById('listaTareas').innerHTML = '<div class="empty">Únete a un curso para consultar sus actividades.</div>';
+          document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">No tienes un curso activo para consultar la asistencia.</div>';
+          document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
+          seleccionarPestana('asistencia');
+          return;
+        }
+        document.getElementById('cursoEstudiante').textContent = `Curso: ${matricula.grado || ''} ${matricula.grupo || ''}`.trim();
+        if (materiaId) materia = materias.find(item => String(item.materia_id) === String(materiaId)) || null;
+        if (materiaId && !materia) {
+          document.getElementById('tituloMateria').textContent = 'Materia no disponible';
+          document.getElementById('subtituloMateria').textContent = 'Esta materia no pertenece a tu curso actual.';
+          document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
+          mostrarMensaje('mensajeActividades', 'No se pudo verificar esta materia dentro de tu curso.', 'error');
+        } else if (materia) {
+          document.getElementById('tituloMateria').textContent = materia.materia;
+          document.getElementById('subtituloMateria').textContent = `${materia.grado || matricula.grado || ''} ${materia.grupo || matricula.grupo || ''}`.trim();
+          configurarAccesos();
+        } else {
+          document.getElementById('tituloMateria').textContent = 'Asistencia del curso';
+          document.getElementById('subtituloMateria').textContent = 'Consulta tu calendario mensual de asistencia.';
+          document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
+        }
+        seleccionarPestana(materia ? tabInicial : 'asistencia');
+      } catch (err) {
+        document.getElementById('cursoEstudiante').textContent = 'No se pudo cargar el curso';
+        document.getElementById('subtituloMateria').textContent = err.message;
+        document.getElementById('listaTareas').innerHTML = '<div class="empty">No se pudo cargar la información del curso.</div>';
+        console.error('Error cargando el contexto de la materia:', err);
+      }
+    }
+
+    function configurarAccesos() {
+      const asignacion = materias.find(item => String(item.materia_id) === String(materiaId) && item.docente_materia_id);
+      const tablero = document.getElementById('abrirTablero');
+      const videollamada = document.getElementById('abrirVideollamada');
+      tablero.addEventListener('click', () => {
+        const destino = asignacion
+          ? `pizarron.html?materia=${encodeURIComponent(asignacion.docente_materia_id)}&modo=ver`
+          : `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&modo=ver`;
+        window.open(destino, '_blank', 'noopener');
+      });
+      if (!asignacion) {
+        videollamada.disabled = true;
+        document.getElementById('estadoVideollamada').textContent = 'Esta materia aún no tiene un docente asignado.';
+      } else {
+        videollamada.addEventListener('click', () => {
+          window.open(`llamadas-estudiante.html?materia=${encodeURIComponent(asignacion.docente_materia_id)}`, '_blank', 'noopener');
+        });
+      }
+    }
+
+    function seleccionarPestana(nombre) {
+      const disponible = Array.from(document.querySelectorAll('.tab'))
+        .some(tab => tab.dataset.tab === nombre && !tab.disabled);
+      const objetivo = disponible
+        ? nombre
+        : (materia ? 'actividades' : 'asistencia');
+      document.querySelectorAll('.tab').forEach(tab => {
+        const seleccionado = tab.dataset.tab === objetivo;
+        tab.setAttribute('aria-selected', String(seleccionado));
+        tab.tabIndex = seleccionado ? 0 : -1;
+      });
+      document.querySelectorAll('[role="tabpanel"]').forEach(panel => {
+        panel.hidden = panel.id !== `panel-${objetivo}`;
+      });
+      if (objetivo === 'actividades') cargarTareas();
+      if (objetivo === 'asistencia' && !asistenciaCargada) iniciarAsistencia();
+      if (objetivo === 'notas' && !notasCargadas) cargarNotas();
+    }
+    document.querySelectorAll('.tab').forEach((tab, indice, tabs) => {
+      tab.addEventListener('click', () => seleccionarPestana(tab.dataset.tab));
+      tab.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        const direccion = event.key === 'ArrowRight' ? 1 : -1;
+        let siguiente = (indice + direccion + tabs.length) % tabs.length;
+        while (tabs[siguiente].disabled) siguiente = (siguiente + direccion + tabs.length) % tabs.length;
+        tabs[siguiente].focus();
+        seleccionarPestana(tabs[siguiente].dataset.tab);
+      });
+    });
+
+    function validarSeleccion(files, existentes) {
+      if (files.length + existentes > MAX_ARCHIVOS) return `La entrega admite máximo ${MAX_ARCHIVOS} archivos. Quita uno antes de agregar más.`;
+      for (const archivo of files) {
+        if (archivo.size > MAX_BYTES) return `“${archivo.name}” supera el máximo de 5 MB por archivo.`;
+        const extension = archivo.name.split('.').pop().toLowerCase();
+        if (!EXTENSIONES.has(extension)) return `“${archivo.name}” tiene un formato no permitido. Usa PDF, JPG, PNG, DOCX, XLSX, PPTX o ZIP.`;
+      }
+      return '';
+    }
+    function mensajeArchivo(tareaId, texto, error) {
+      const nodo = document.getElementById(`archivo-msg-${tareaId}`);
+      if (!nodo) return;
+      nodo.textContent = texto;
+      nodo.className = error ? 'hint' : 'hint';
+      nodo.style.color = error ? '#fecaca' : '';
+      nodo.setAttribute('role', error ? 'alert' : 'status');
+    }
+    function renderizarTareas() {
+      const cont = document.getElementById('listaTareas');
+      if (!tareas.length) {
+        cont.innerHTML = '<div class="empty">No hay actividades o evaluaciones publicadas para esta materia.</div>';
+        return;
+      }
+      cont.innerHTML = tareas.map(tarea => {
+        const calificable = tarea.estado === 'calificada';
+        const archivos = Array.isArray(tarea.archivos) ? tarea.archivos : [];
+        const idArg = escaparArg(tarea.id);
+        const archivosHtml = archivos.length ? `<div class="file-list"><div class="hint">Archivos de tu entrega (${archivos.length}/${MAX_ARCHIVOS}):</div>${archivos.map(archivo => `
+          <div class="file-row">
+            <button type="button" class="btn btn-ghost btn-sm" data-descargar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">⬇ ${escapar(archivo.nombre_original)}</button>
+            ${calificable ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-quitar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">Quitar</button>`}
+          </div>`).join('')}</div>` : '';
+        const controles = calificable ? '' : `
+          <div class="submit-row">
+            <label class="hint" for="files-${escapar(tarea.id)}">Adjuntar archivos (máx. 5 archivos, 5 MB cada uno)</label>
+            <input type="file" id="files-${escapar(tarea.id)}" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip" data-existentes="${archivos.length}">
+            <button type="button" class="btn btn-primary btn-sm" data-entregar="${idArg}">${tarea.estado === 'pendiente' ? 'Marcar como entregado' : 'Reentregar'}</button>
+            <span class="hint" id="archivo-msg-${escapar(tarea.id)}" aria-live="polite">Puedes quitar y reemplazar archivos mientras la entrega no esté calificada.</span>
+          </div>`;
+        return `<article class="task-card">
+          <div class="task-top"><div><div class="task-title">${escapar(tarea.titulo)}</div><div class="task-meta">Fecha límite: ${escapar(formatoFecha(tarea.fecha_limite || tarea.fecha_entrega))} · Valor máximo: ${escapar(tarea.valor_max)}</div></div><span class="badge ${escapar(tarea.estado || 'pendiente')}">${escapar(etiquetaEstado(tarea.estado))}</span></div>
+          ${tarea.descripcion ? `<div class="task-description">${escapar(tarea.descripcion)}</div>` : ''}
+          ${tarea.nota != null ? `<div class="task-meta"><strong>Nota:</strong> ${escapar(tarea.nota)} / ${escapar(tarea.valor_max)}</div>` : ''}
+          ${tarea.feedback_doc ? `<div class="feedback"><strong>Retroalimentación:</strong> ${escapar(tarea.feedback_doc)}</div>` : ''}
+          ${archivosHtml}${controles}
+        </article>`;
+      }).join('');
+      cont.querySelectorAll('input[type="file"]').forEach(input => input.addEventListener('change', () => {
+        const error = validarSeleccion(Array.from(input.files || []), Number(input.dataset.existentes || 0));
+        if (error) {
+          input.value = '';
+          mensajeArchivo(input.id.slice(6), error, true);
+        } else {
+          mensajeArchivo(input.id.slice(6), 'Archivos listos para adjuntar al entregar.', false);
+        }
+      }));
+      cont.querySelectorAll('[data-entregar]').forEach(button => button.addEventListener('click', () => entregar(button.dataset.entregar, button)));
+      cont.querySelectorAll('[data-quitar]').forEach(button => button.addEventListener('click', () => quitarArchivo(button.dataset.quitar, button.dataset.archivo)));
+      cont.querySelectorAll('[data-descargar]').forEach(button => button.addEventListener('click', () => descargarArchivo(button.dataset.descargar, button.dataset.archivo)));
+    }
+    async function cargarTareas() {
+      if (!materiaId || !materia || tareasCargadas) return;
+      document.getElementById('listaTareas').innerHTML = '<div class="empty">Cargando actividades…</div>';
+      try {
+        const data = await pedir(`/api/tareas/estudiante?materia=${encodeURIComponent(materiaId)}`);
+        tareas = Array.isArray(data.tareas) ? data.tareas : [];
+        tareasCargadas = true;
+        renderizarTareas();
+      } catch (err) {
+        document.getElementById('listaTareas').innerHTML = `<div class="msg error">${escapar(err.message)}</div>`;
+      }
+    }
+    async function entregar(tareaId, boton) {
+      const tarea = tareas.find(item => String(item.id) === String(tareaId));
+      const input = document.getElementById(`files-${tareaId}`);
+      const archivos = Array.from(input?.files || []);
+      const error = validarSeleccion(archivos, tarea?.archivos?.length || 0);
+      if (error) {
+        mensajeArchivo(tareaId, error, true);
+        input?.focus();
+        return;
+      }
+      boton.disabled = true;
+      try {
+        if (archivos.length) {
+          const form = new FormData();
+          archivos.forEach(archivo => form.append('archivos', archivo));
+          await pedir(`/api/tareas/${encodeURIComponent(tareaId)}/entrega/archivos`, { method:'POST', body:form });
+        } else {
+          await pedir(`/api/tareas/${encodeURIComponent(tareaId)}/entrega`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({}) });
+        }
+        mostrarToast('Tu entrega se guardó correctamente.', 'success');
+        await recargarTareas();
+      } catch (err) {
+        mostrarMensaje('mensajeActividades', err.message, 'error');
+      } finally {
+        boton.disabled = false;
+      }
+    }
+    async function quitarArchivo(tareaId, archivoId) {
+      if (!window.confirm('¿Quitar este archivo de tu entrega?')) return;
+      try {
+        await pedir(`/api/tareas/${encodeURIComponent(tareaId)}/entrega/archivos/${encodeURIComponent(archivoId)}`, { method:'DELETE' });
+        await recargarTareas();
+        mostrarToast('Archivo quitado. Ya puedes reemplazarlo.', 'success');
+      } catch (err) { mostrarMensaje('mensajeActividades', err.message, 'error'); }
+    }
+    async function descargarArchivo(tareaId, archivoId) {
+      try {
+        const response = await fetch(`${API}/api/tareas/${encodeURIComponent(tareaId)}/entrega/archivos/${encodeURIComponent(archivoId)}`, { headers });
+        if (!response.ok) {
+          let data = {};
+          try { data = await response.json(); } catch (err) {}
+          throw new Error(data.mensaje || 'No se pudo descargar el archivo.');
+        }
+        const archivo = tareas.find(item => String(item.id) === String(tareaId))?.archivos?.find(item => String(item.id) === String(archivoId));
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url; link.download = archivo?.nombre_original || 'archivo';
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      } catch (err) { mostrarMensaje('mensajeActividades', err.message, 'error'); }
+    }
+    async function recargarTareas() {
+      tareas = [];
+      tareasCargadas = false;
+      await cargarTareas();
+    }
+
+    function estadoAsistencia(estado) {
+      return ({ asistio:'asistio', falta:'falta', tarde:'tarde', justificada:'justificada', presente:'presente', ausente:'ausente', excusado:'excusado' })[estado] || '';
+    }
+    function iniciarAsistencia() {
+      const ahora = new Date();
+      const input = document.getElementById('mesAsistencia');
+      input.value = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+      input.addEventListener('change', cargarAsistencia);
+      document.getElementById('mesAnterior').addEventListener('click', () => moverMes(-1));
+      document.getElementById('mesSiguiente').addEventListener('click', () => moverMes(1));
+      asistenciaCargada = true;
+      cargarAsistencia();
+    }
+    function moverMes(delta) {
+      const input = document.getElementById('mesAsistencia');
+      const [anio, mes] = input.value.split('-').map(Number);
+      const nuevo = new Date(anio, mes - 1 + delta, 1);
+      input.value = `${nuevo.getFullYear()}-${String(nuevo.getMonth() + 1).padStart(2, '0')}`;
+      cargarAsistencia();
+    }
+    async function cargarAsistencia() {
+      if (!matricula?.grupo_id) return;
+      const mes = document.getElementById('mesAsistencia').value;
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) return;
+      const [anio, mesNum] = mes.split('-').map(Number);
+      const desde = `${mes}-01`;
+      const hasta = fechaISO(new Date(anio, mesNum, 0));
+      document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">Cargando calendario…</div>';
+      mostrarMensaje('mensajeAsistencia', '', '');
+      try {
+        const historialParams = new URLSearchParams({ desde, hasta });
+        if (materiaId && materia) historialParams.set('materia_id', materiaId);
+        const peticiones = [
+          pedir(`/api/asistencia-dia?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${encodeURIComponent(mes)}`),
+          pedir(`/api/asistencia/estudiante/${encodeURIComponent(usuario.id)}?${historialParams}`),
+        ];
+        if (materiaId && materia) peticiones.push(pedir(`/api/asistencia/resumen/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(materiaId)}`));
+        const respuestas = await Promise.all(peticiones);
+        const persona = (respuestas[0].estudiantes || []).find(item => String(item.estudiante_id) === String(usuario.id));
+        dibujarCalendario(mes, persona?.registros || {}, respuestas[1].asistencia || []);
+        dibujarResumenAsistencia(respuestas[2] || null);
+        dibujarHistorialAsistencia(respuestas[1].asistencia || []);
+      } catch (err) {
+        mostrarMensaje('mensajeAsistencia', err.message, 'error');
+        document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">No se pudo cargar el calendario de asistencia.</div>';
+      }
+    }
+    function dibujarCalendario(mes, registrosDiarios, historial) {
+      const [anio, mesNum] = mes.split('-').map(Number);
+      const diasMes = new Date(anio, mesNum, 0).getDate();
+      const inicio = new Date(anio, mesNum - 1, 1).getDay();
+      const porFecha = {};
+      historial.forEach(registro => {
+        const fecha = String(registro.fecha).slice(0, 10);
+        (porFecha[fecha] ||= []).push(registro);
+      });
+      const semana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(dia => `<div class="calendar-weekday">${dia}</div>`).join('');
+      const espacios = Array.from({ length:inicio }, () => '<div class="calendar-day empty" aria-hidden="true"></div>').join('');
+      const hoy = fechaISO(new Date());
+      const celdas = Array.from({ length:diasMes }, (_, indice) => {
+        const fecha = `${mes}-${String(indice + 1).padStart(2, '0')}`;
+        const diario = registrosDiarios[fecha];
+        const anteriores = porFecha[fecha] || [];
+        let estado = diario?.estado || '';
+        let multiple = false;
+        if (!estado && anteriores.length) {
+          const estados = [...new Set(anteriores.map(item => item.estado))];
+          estado = estados[0];
+          multiple = estados.length > 1;
+        }
+        const clase = multiple ? 'multiple' : estadoAsistencia(estado);
+        const titulo = diario ? 'Asistencia del curso' : (materia ? 'Asistencia histórica de la materia' : 'Asistencia histórica por materia');
+        const estadoHtml = estado ? `<span class="day-status state-${clase}" title="${escapar(titulo)}">${escapar(multiple ? 'Varios registros' : etiquetaEstado(estado))}</span>` : '<span class="hint">Sin registro</span>';
+        const diaSemana = new Date(anio, mesNum - 1, indice + 1).getDay();
+        return `<div class="calendar-day${diaSemana === 0 || diaSemana === 6 ? ' weekend' : ''}${fecha === hoy ? ' today' : ''}" aria-label="${escapar(fecha)}: ${escapar(estado ? etiquetaEstado(estado) : 'sin registro')}"><span class="day-number">${indice + 1}</span>${estadoHtml}</div>`;
+      }).join('');
+      const nombreMes = new Date(anio, mesNum - 1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' });
+      document.getElementById('calendarioAsistencia').innerHTML = `${semana}${espacios}${celdas}`;
+      document.getElementById('calendarioAsistencia').setAttribute('aria-label', `Asistencia de ${nombreMes}`);
+    }
+    function dibujarResumenAsistencia(resumen) {
+      const cont = document.getElementById('resumenAsistencia');
+      if (!resumen) { cont.innerHTML = ''; return; }
+      const conteo = resumen.conteo || {};
+      cont.innerHTML = `<h3 class="section-title">Resumen histórico de esta materia</h3><div class="stats">
+        <div class="stat"><div class="stat-label">Clases registradas</div><div class="stat-value">${escapar(resumen.total_clases || 0)}</div></div>
+        <div class="stat"><div class="stat-label">Asistencia</div><div class="stat-value">${resumen.porcentaje_asistencia == null ? '—' : `${escapar(resumen.porcentaje_asistencia)}%`}</div></div>
+        <div class="stat"><div class="stat-label">Presentes</div><div class="stat-value">${escapar(conteo.presente || 0)}</div></div>
+        <div class="stat"><div class="stat-label">Tardes</div><div class="stat-value">${escapar(conteo.tarde || 0)}</div></div>
+        <div class="stat"><div class="stat-label">Ausencias</div><div class="stat-value">${escapar(conteo.ausente || 0)}</div></div>
+        <div class="stat"><div class="stat-label">Excusadas</div><div class="stat-value">${escapar(conteo.excusa || conteo.excused || conteo.excusado || 0)}</div></div>
+      </div>`;
+    }
+    function dibujarHistorialAsistencia(registros) {
+      const cont = document.getElementById('historialAsistencia');
+      if (!registros.length) {
+        cont.innerHTML = '<div class="hint">No hay registros históricos de esta materia en el mes seleccionado.</div>';
+        return;
+      }
+      const nombresMateria = Object.fromEntries(materias.map(item => [item.materia_id, item.materia]));
+      cont.innerHTML = `<div class="history"><h3 class="section-title">Registros históricos del mes</h3><table><thead><tr><th>Fecha</th>${materia ? '' : '<th>Materia</th>'}<th>Estado</th><th>Observación</th></tr></thead><tbody>${registros.map(registro => `<tr><td>${escapar(formatoFecha(registro.fecha))}</td>${materia ? '' : `<td>${escapar(nombresMateria[registro.materia_id] || 'Materia')}</td>`}<td>${escapar(etiquetaEstado(registro.estado))}</td><td>${escapar(registro.observacion || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    async function cargarNotas() {
+      if (!materiaId || !materia) return;
+      document.getElementById('tablaNotas').innerHTML = '<div class="empty">Cargando notas…</div>';
+      mostrarMensaje('mensajeNotas', '', '');
+      try {
+        const data = await pedir(`/api/notas/estudiante/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(materiaId)}`);
+        const notas = Array.isArray(data.notas) ? data.notas : [];
+        const pesoTotal = notas.reduce((suma, nota) => suma + Number(nota.peso_pct || 0), 0);
+        const ponderado = notas.reduce((suma, nota) => {
+          const valorMax = Number(nota.valor_max);
+          if (nota.valor == null || valorMax <= 0) return suma;
+          return suma + (Number(nota.valor) / valorMax) * Number(nota.peso_pct || 0);
+        }, 0);
+        const promedio = pesoTotal > 0 ? (ponderado / pesoTotal) * 10 : null;
+        document.getElementById('resumenNotas').innerHTML = `<div class="average-card"><div><div class="section-title">Promedio ponderado</div><div class="hint">${notas.length} ítem${notas.length === 1 ? '' : 's'} · ${pesoTotal.toFixed(1)}% del peso registrado</div></div><div class="average-number">${promedio == null ? '—' : promedio.toFixed(2)}</div></div>`;
+        if (!notas.length) {
+          document.getElementById('tablaNotas').innerHTML = '<div class="empty">Aún no tienes notas registradas en esta materia.</div>';
+        } else {
+          document.getElementById('tablaNotas').innerHTML = `<table class="grades-table"><thead><tr><th>Actividad</th><th>Fecha</th><th>Porcentaje</th><th>Nota</th><th>Observación</th></tr></thead><tbody>${notas.map(nota => `<tr><td>${escapar(nota.descripcion || nota.tipo_nota || 'Evaluación')}</td><td>${escapar(formatoFecha(nota.fecha_eval))}</td><td>${escapar(Number(nota.peso_pct || 0))}%</td><td>${nota.valor == null ? 'Pendiente' : `${escapar(nota.valor)} / ${escapar(nota.valor_max)}`}</td><td>${escapar(nota.observacion || '—')}</td></tr>`).join('')}</tbody></table>`;
+        }
+        notasCargadas = true;
+      } catch (err) {
+        mostrarMensaje('mensajeNotas', err.message, 'error');
+        document.getElementById('tablaNotas').innerHTML = '<div class="empty">No se pudieron cargar las notas.</div>';
+      }
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

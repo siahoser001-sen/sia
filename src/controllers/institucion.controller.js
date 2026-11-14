@@ -438,3 +438,53 @@ exports.cambiarEstadoInstitucion = async (req, res) => {
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };
+
+// ── GET /api/instituciones/configuracion (admin institucional) ──
+exports.obtenerConfiguracion = async (req, res) => {
+  const institucionId = req.usuario.institucion_id;
+  if (!institucionId) {
+    return res.status(400).json({ ok: false, mensaje: 'Tu cuenta no pertenece a una institución.' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT nota_minima_aprobacion FROM configuracion WHERE institucion_id = ?`,
+      [institucionId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, mensaje: 'No existe configuración para esta institución.' });
+    }
+    return res.json({
+      ok: true,
+      configuracion: { nota_minima_aprobacion: Number(rows[0].nota_minima_aprobacion) },
+    });
+  } catch (err) {
+    console.error('obtenerConfiguracion institucional:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// ── PUT /api/instituciones/configuracion (admin institucional) ──
+exports.actualizarConfiguracion = async (req, res) => {
+  const institucionId = req.usuario.institucion_id;
+  const notaMinima = req.body.nota_minima_aprobacion;
+  if (!institucionId) {
+    return res.status(400).json({ ok: false, mensaje: 'Tu cuenta no pertenece a una institución.' });
+  }
+  if (typeof notaMinima !== 'number' || !Number.isFinite(notaMinima) || notaMinima < 0 || notaMinima > 10) {
+    return res.status(400).json({ ok: false, mensaje: 'La nota mínima aprobatoria debe estar entre 0 y 10.' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO configuracion (id, institucion_id, nota_minima_aprobacion)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE nota_minima_aprobacion = VALUES(nota_minima_aprobacion)`,
+      [randomUUID(), institucionId, notaMinima]
+    );
+    return res.json({ ok: true, mensaje: 'Nota mínima aprobatoria actualizada.', nota_minima_aprobacion: notaMinima });
+  } catch (err) {
+    console.error('actualizarConfiguracion institucional:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};

@@ -369,8 +369,13 @@ exports.definirPassword = async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
+    // Ronda F (F4): esta es la PRIMERA contraseña de la cuenta (quedó sin
+    // hash al unirse con código). NO se incrementa token_version para no
+    // revocar el token que el flujo de registro está usando: así el
+    // estudiante entra directo al panel con sesión válida. Los cambios de
+    // contraseña posteriores (actualizarPerfil) sí la incrementan.
     await pool.query(
-      `UPDATE usuarios SET password_hash = ?, token_version = token_version + 1 WHERE id = ?`,
+      `UPDATE usuarios SET password_hash = ? WHERE id = ?`,
       [hash, req.usuario.id]
     );
 
@@ -386,8 +391,11 @@ exports.obtenerPerfil = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT u.id, u.nombres, u.apellidos, u.email, u.rol, u.telefono,
+              u.direccion, u.cargo, u.titulo_academico, u.areas,
+              u.hijos_institucion, u.biografia,
               u.foto_url, u.ultimo_acceso, i.nombre AS institucion_nombre,
-              i.logo_url AS institucion_logo
+              i.logo_url AS institucion_logo,
+              (u.password_hash IS NOT NULL AND u.password_hash <> '') AS tiene_password
        FROM usuarios u
        LEFT JOIN instituciones i ON i.id = u.institucion_id
        WHERE u.id = ? LIMIT 1`,
@@ -396,7 +404,10 @@ exports.obtenerPerfil = async (req, res) => {
     if (!rows.length) {
       return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado.' });
     }
-    return res.json({ ok: true, usuario: rows[0] });
+    const usuario = rows[0];
+    // MySQL devuelve 1/0 para el booleano derivado
+    usuario.tiene_password = !!usuario.tiene_password;
+    return res.json({ ok: true, usuario });
   } catch (err) {
     console.error('obtenerPerfil error:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
@@ -406,6 +417,12 @@ exports.obtenerPerfil = async (req, res) => {
 // ── PUT /api/auth/perfil (usuario autenticado) ──────────────────
 exports.actualizarPerfil = async (req, res) => {
   const { nombres, apellidos, email, telefono, password_actual, password_nueva } = req.body;
+  const direccion         = (req.body.direccion         || '').trim() || null;
+  const cargo             = (req.body.cargo             || '').trim() || null;
+  const titulo_academico  = (req.body.titulo_academico  || '').trim() || null;
+  const areas             = (req.body.areas             || '').trim() || null;
+  const hijos_institucion = (req.body.hijos_institucion || '').trim() || null;
+  const biografia         = (req.body.biografia         || '').trim() || null;
 
   if (!nombres || !apellidos || !email) {
     return res.status(400).json({ ok: false, mensaje: 'Nombres, apellidos y correo son obligatorios.' });
@@ -448,15 +465,20 @@ exports.actualizarPerfil = async (req, res) => {
 
     if (nuevoHash) {
       await pool.query(
-        `UPDATE usuarios SET nombres=?, apellidos=?, email=?, telefono=?, password_hash=?,
-                token_version = token_version + 1
+        `UPDATE usuarios SET nombres=?, apellidos=?, email=?, telefono=?, direccion=?,
+                cargo=?, titulo_academico=?, areas=?, hijos_institucion=?, biografia=?,
+                password_hash=?, token_version = token_version + 1
          WHERE id=?`,
-        [nombres, apellidos, email.toLowerCase().trim(), telefono || null, nuevoHash, req.usuario.id]
+        [nombres, apellidos, email.toLowerCase().trim(), telefono || null, direccion,
+         cargo, titulo_academico, areas, hijos_institucion, biografia, nuevoHash, req.usuario.id]
       );
     } else {
       await pool.query(
-        `UPDATE usuarios SET nombres=?, apellidos=?, email=?, telefono=? WHERE id=?`,
-        [nombres, apellidos, email.toLowerCase().trim(), telefono || null, req.usuario.id]
+        `UPDATE usuarios SET nombres=?, apellidos=?, email=?, telefono=?, direccion=?,
+                cargo=?, titulo_academico=?, areas=?, hijos_institucion=?, biografia=?
+         WHERE id=?`,
+        [nombres, apellidos, email.toLowerCase().trim(), telefono || null, direccion,
+         cargo, titulo_academico, areas, hijos_institucion, biografia, req.usuario.id]
       );
     }
 
@@ -505,6 +527,90 @@ exports.subirFoto = async (req, res) => {
     return res.json({ ok: true, mensaje: 'Foto de perfil actualizada.', foto_url: rutaRelativa });
   } catch (err) {
     console.error('subirFoto error:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
+  }
+};
+
+// ── Helper: ¿el estudiante tiene vínculo con este docente? ─────
+// Hay vínculo si el docente le dicta alguna materia en su curso
+// actual (docentes_materias) o si es el director de ese curso.
+async function estudianteTieneDocente(estudianteId, docenteId) {
+  const [porMateria] = await pool.query(
+    `SELECT 1
+     FROM matriculas mt
+     JOIN docentes_materias dm ON dm.grupo_id = mt.grupo_id
+     WHERE mt.estudiante_id = ? AND mt.estado = 'activa' AND dm.docente_id = ?
+     LIMIT 1`,
+    [estudianteId, docenteId]
+  );
+  if (porMateria.length) return true;
+
+  const [porDirector] = await pool.query(
+    `SELECT 1
+     FROM matriculas mt
+     JOIN grupos g ON g.id = mt.grupo_id
+     WHERE mt.estudiante_id = ? AND mt.estado = 'activa' AND g.director_id = ?
+     LIMIT 1`,
+    [estudianteId, docenteId]
+  );
+  return porDirector.length > 0;
+}
+
+// ── GET /api/auth/docentes/:id (perfil de un docente) ───────────
+// Visibilidad (decisión Ronda D · D4):
+//   • El propio docente y los admin/superadmin de su institución → completo.
+//   • Estudiantes/acudientes con vínculo académico con el docente → versión
+//     reducida (contacto): sin dirección ni hijos.
+//   • Cualquier otro → 403.
+exports.obtenerDocentePublico = async (req, res) => {
+  const yo = req.usuario;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, institucion_id, rol, nombres, apellidos, foto_url, email, telefono,
+              direccion, cargo, titulo_academico, areas, hijos_institucion, biografia
+       FROM usuarios WHERE id = ? LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows.length || rows[0].rol !== 'docente') {
+      return res.status(404).json({ ok: false, mensaje: 'Docente no encontrado.' });
+    }
+    const d = rows[0];
+
+    const esPropio = yo.id === d.id;
+    const esAdmin  = (yo.rol === 'admin' || yo.rol === 'superadmin') &&
+                     (yo.rol === 'superadmin' || yo.institucion_id === d.institucion_id);
+
+    if (esPropio || esAdmin) {
+      return res.json({ ok: true, completo: true, docente: d });
+    }
+
+    let vinculado = false;
+    if (yo.rol === 'estudiante') {
+      vinculado = await estudianteTieneDocente(yo.id, d.id);
+    } else if (yo.rol === 'acudiente') {
+      const [hijos] = await pool.query(
+        `SELECT estudiante_id FROM acudientes_estudiantes WHERE acudiente_id = ?`,
+        [yo.id]
+      );
+      for (const h of hijos) {
+        if (await estudianteTieneDocente(h.estudiante_id, d.id)) { vinculado = true; break; }
+      }
+    }
+    if (!vinculado) {
+      return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este perfil.' });
+    }
+
+    return res.json({
+      ok: true,
+      completo: false,
+      docente: {
+        id: d.id, nombres: d.nombres, apellidos: d.apellidos, foto_url: d.foto_url,
+        email: d.email, telefono: d.telefono, cargo: d.cargo,
+        titulo_academico: d.titulo_academico, areas: d.areas, biografia: d.biografia
+      }
+    });
+  } catch (err) {
+    console.error('obtenerDocentePublico error:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
   }
 };

@@ -30,6 +30,6 @@ CREATE TABLE IF NOT EXISTS `horario_horas` (
   CONSTRAINT `fk_hh_inst` FOREIGN KEY (`institucion_id`) REFERENCES `instituciones` (`id`) ON DELETE CASCADE,
   CONSTRAINT `chk_hh_dia` CHECK (`dia_semana` BETWEEN 1 AND 7),
   CONSTRAINT `chk_hh_horas` CHECK (`hora_fin` > `hora_inicio`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 COMMIT;

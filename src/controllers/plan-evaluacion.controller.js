@@ -13,8 +13,7 @@
 //    backend manda cuántas notas tiene cada ítem (conteo_notas) para
 //    que el frontend muestre una advertencia antes de guardar/borrar.
 //  - Gestionar el plan (crear/editar/eliminar ítems, ver la hoja):
-//    cualquier co-docente de la materia, sin importar el periodo en el
-//    que esté, o admin/superadmin de la institución.
+//    docente asignado a la materia en el curso, o admin/superadmin.
 //  - Calificar (guardar una celda): solo el docente que dicta ESA
 //    materia EN ESE periodo puntual, o admin/superadmin.
 //  - Las celdas se guardan como filas normales de `notas`
@@ -26,70 +25,51 @@
 
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const {
+  condicionDocenteEnGrupo,
+  parametrosDocenteEnGrupo,
+  materiaPerteneceAlGrupo,
+  docenteAsignadoEnGrupo,
+  gruposDocenteMateria,
+  materiasConDocentesDeGrupo,
+} = require('../utils/materias-curso.util');
 
 // Trae la materia + su grupo_id + institucion_id, o null si no existe.
 async function _datosMateria(materiaId) {
   const [rows] = await pool.query(
-    `SELECT m.id, m.grupo_id, gr.institucion_id
-     FROM materias m
-     JOIN grados gr ON gr.id = m.grado_id
-     WHERE m.id = ?`,
+    `SELECT m.id, m.grupo_id, m.institucion_id
+     FROM materias m WHERE m.id = ?`,
     [materiaId]
   );
   return rows.length ? rows[0] : null;
 }
 
-// Gestionar el plan: cualquier co-docente de la materia (en cualquier
-// periodo) o admin/superadmin de la institución de esa materia.
-async function _puedeGestionarPlan(req, materia) {
+// Gestionar el plan: docente asignado a la materia en el curso, o
+// admin/superadmin de la institución de esa materia.
+async function _puedeGestionarPlan(req, materia, grupoId = null) {
   if (!materia) return false;
+  if (grupoId && !(await materiaPerteneceAlGrupo(pool, materia.id, grupoId))) return false;
   if (req.usuario.rol === 'superadmin') return true;
   if (req.usuario.rol === 'admin') return materia.institucion_id === req.usuario.institucion_id;
   if (req.usuario.rol === 'docente') {
-    const [rows] = await pool.query(
-      `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND docente_id = ? LIMIT 1`,
-      [materia.id, req.usuario.id]
-    );
-    return rows.length > 0;
+    if (grupoId) return docenteAsignadoEnGrupo(pool, materia.id, req.usuario.id, grupoId);
+    return (await gruposDocenteMateria(pool, materia.id, req.usuario.id)).length > 0;
   }
   return false;
 }
 
-// Ver el plan/hoja: cualquier co-docente de la materia (en cualquier
-// periodo), el docente director del curso al que pertenece (aunque no la
-// dicte), o admin/superadmin de la institución. EDITAR el plan y guardar
-// notas siguen siendo permisos aparte (ver _puedeGestionarPlan y
-// _puedeCalificar).
-async function _puedeVerPlan(req, materia) {
-  if (!materia) return false;
-  if (req.usuario.rol === 'superadmin') return true;
-  if (req.usuario.rol === 'admin') return materia.institucion_id === req.usuario.institucion_id;
-  if (req.usuario.rol === 'docente') {
-    const [dicta] = await pool.query(
-      `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND docente_id = ? LIMIT 1`,
-      [materia.id, req.usuario.id]
-    );
-    if (dicta.length > 0) return true;
-    const [director] = await pool.query(
-      `SELECT 1 FROM grupos WHERE id = ? AND director_id = ? LIMIT 1`,
-      [materia.grupo_id, req.usuario.id]
-    );
-    return director.length > 0;
-  }
-  return false;
+async function _puedeVerPlan(req, materia, grupoId = null) {
+  return _puedeGestionarPlan(req, materia, grupoId);
 }
 
 // Calificar: solo el docente que dicta ESA materia EN ESE periodo
 // puntual, o admin/superadmin.
-async function _puedeCalificar(req, materiaId, periodoId) {
+async function _puedeCalificar(req, materiaId, periodoId, grupoId = null) {
   if (req.usuario.rol === 'superadmin') return true;
   if (req.usuario.rol === 'admin') return true; // institución ya se valida antes de llamar
   if (req.usuario.rol === 'docente') {
-    const [rows] = await pool.query(
-      `SELECT 1 FROM docentes_materias WHERE materia_id = ? AND periodo_id = ? AND docente_id = ? LIMIT 1`,
-      [materiaId, periodoId, req.usuario.id]
-    );
-    return rows.length > 0;
+    if (grupoId) return docenteAsignadoEnGrupo(pool, materiaId, req.usuario.id, grupoId, periodoId);
+    return (await gruposDocenteMateria(pool, materiaId, req.usuario.id, periodoId)).length > 0;
   }
   return false;
 }
@@ -140,7 +120,7 @@ exports.listarItems = async (req, res) => {
   try {
     const materia = await _materiaDeLaInstitucion(req, materiaId);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
-    if (!(await _puedeVerPlan(req, materia))) {
+    if (!(await _puedeVerPlan(req, materia, req.query.grupo_id || materia.grupo_id))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver el plan de esta materia.' });
     }
 
@@ -188,7 +168,7 @@ exports.crearItem = async (req, res) => {
   try {
     const materia = await _materiaDeLaInstitucion(req, materia_id);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
-    if (!(await _puedeGestionarPlan(req, materia))) {
+    if (!(await _puedeGestionarPlan(req, materia, req.body.grupo_id || materia.grupo_id))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
     }
 
@@ -237,7 +217,7 @@ exports.actualizarItem = async (req, res) => {
     const item = itemRows[0];
 
     const materia = await _materiaDeLaInstitucion(req, item.materia_id);
-    if (!materia || !(await _puedeGestionarPlan(req, materia))) {
+    if (!materia || !(await _puedeGestionarPlan(req, materia, req.query.grupo_id || materia.grupo_id))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
     }
 
@@ -285,7 +265,7 @@ exports.eliminarItem = async (req, res) => {
     const item = itemRows[0];
 
     const materia = await _materiaDeLaInstitucion(req, item.materia_id);
-    if (!materia || !(await _puedeGestionarPlan(req, materia))) {
+    if (!materia || !(await _puedeGestionarPlan(req, materia, req.query.grupo_id || materia.grupo_id))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
     }
 
@@ -312,14 +292,28 @@ exports.hojaCalificacion = async (req, res) => {
   try {
     const materia = await _materiaDeLaInstitucion(req, materiaId);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
-    if (!(await _puedeVerPlan(req, materia))) {
+    const grupoId = req.query.grupo_id || materia.grupo_id;
+    if (!(await _puedeVerPlan(req, materia, grupoId))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver esta hoja de calificación.' });
+    }
+    if (!grupoId) return res.status(400).json({ ok: false, mensaje: 'grupo_id es obligatorio para esta materia.' });
+    if (!(await materiaPerteneceAlGrupo(pool, materia.id, grupoId))) {
+      return res.status(404).json({ ok: false, mensaje: 'La materia no pertenece a ese curso.' });
     }
 
     const periodoId = await _resolverPeriodoId(req.query.periodo_id, materia.institucion_id);
     if (!periodoId) {
       return res.status(409).json({ ok: false, mensaje: 'No hay ningún periodo académico activo ni creado. Pide al administrador que cree uno.' });
     }
+
+    const [configuracion] = await pool.query(
+      `SELECT nota_minima_aprobacion FROM configuracion WHERE institucion_id = ?`,
+      [materia.institucion_id]
+    );
+    if (!configuracion.length) {
+      return res.status(409).json({ ok: false, mensaje: 'No existe configuración para esta institución.' });
+    }
+    const notaMinimaAprobacion = Number(configuracion[0].nota_minima_aprobacion);
 
     const [items] = await pool.query(
       `SELECT id, nombre, peso_pct, orden FROM plan_evaluacion_items
@@ -333,7 +327,7 @@ exports.hojaCalificacion = async (req, res) => {
        FROM matriculas mt JOIN usuarios u ON u.id = mt.estudiante_id
        WHERE mt.grupo_id = ? AND mt.estado = 'activa'
        ORDER BY u.apellidos, u.nombres`,
-      [materia.grupo_id]
+      [grupoId]
     );
 
     const [notas] = await pool.query(
@@ -346,22 +340,54 @@ exports.hojaCalificacion = async (req, res) => {
       celdas[`${n.estudiante_id}|${n.plan_item_id}`] = { valor: Number(n.valor), valor_max: Number(n.valor_max) };
     }
 
+    const pesoTotalPlan = items.reduce((total, it) => total + Number(it.peso_pct), 0);
+    const planCompleto = Math.abs(pesoTotalPlan - 100) < 0.001;
     const filas = estudiantes.map(e => {
       const valores = {};
-      let ponderada = 0, pesos = 0;
+      let ponderada = 0, pesos = 0, sumaPonderada = 0, pesoPendiente = 0;
       for (const it of items) {
+        const peso = Number(it.peso_pct);
         const celda = celdas[`${e.id}|${it.id}`];
         valores[it.id] = celda ? celda.valor : null;
         if (celda) {
-          ponderada += (celda.valor / celda.valor_max) * Number(it.peso_pct);
-          pesos += Number(it.peso_pct);
+          ponderada += (celda.valor / celda.valor_max) * peso;
+          sumaPonderada += peso * celda.valor;
+          pesos += peso;
+        } else {
+          pesoPendiente += peso;
         }
       }
       const promedio = pesos > 0 ? Number(((ponderada / pesos) * 10).toFixed(2)) : null;
-      return { estudiante_id: e.id, nombres: e.nombres, apellidos: e.apellidos, valores, promedio };
+      const minimoNecesario = pesoPendiente > 0
+        ? (notaMinimaAprobacion * 100 - sumaPonderada) / pesoPendiente
+        : null;
+      let estado;
+      if (!planCompleto) estado = 'plan_incompleto';
+      else if (pesoPendiente === 0) estado = 'completo';
+      else if (minimoNecesario <= 0) estado = 'aprobado';
+      else if (minimoNecesario > 10) estado = 'imposible';
+      else estado = 'en_juego';
+
+      return {
+        estudiante_id: e.id,
+        nombres: e.nombres,
+        apellidos: e.apellidos,
+        valores,
+        promedio,
+        acumulado: Number((sumaPonderada / 100).toFixed(2)),
+        peso_pendiente: Number(pesoPendiente.toFixed(2)),
+        minimo_necesario: minimoNecesario === null ? null : Number(minimoNecesario.toFixed(2)),
+        estado,
+      };
     });
 
-    return res.json({ ok: true, periodo_id: periodoId, items, filas });
+    return res.json({
+      ok: true,
+      periodo_id: periodoId,
+      nota_minima_aprobacion: notaMinimaAprobacion,
+      items,
+      filas,
+    });
   } catch (err) {
     console.error('hojaCalificacion plan-evaluacion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
@@ -392,9 +418,8 @@ exports.guardarCelda = async (req, res) => {
     const item = itemRows[0];
 
     const [materiaRows] = await conn.query(
-      `SELECT m.id, m.grupo_id, gr.institucion_id
-       FROM materias m JOIN grados gr ON gr.id = m.grado_id
-       WHERE m.id = ?`,
+      `SELECT m.id, m.grupo_id, m.institucion_id
+       FROM materias m WHERE m.id = ?`,
       [item.materia_id]
     );
     const materia = materiaRows.length ? materiaRows[0] : null;
@@ -402,14 +427,23 @@ exports.guardarCelda = async (req, res) => {
       await conn.rollback();
       return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
     }
-    if (!(await _puedeCalificar(req, item.materia_id, item.periodo_id))) {
+    const grupoId = req.body.grupo_id || materia.grupo_id;
+    if (!grupoId) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, mensaje: 'grupo_id es obligatorio para esta materia.' });
+    }
+    if (!(await materiaPerteneceAlGrupo(conn, item.materia_id, grupoId))) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, mensaje: 'La materia no pertenece a ese curso.' });
+    }
+    if (!(await _puedeCalificar(req, item.materia_id, item.periodo_id, grupoId))) {
       await conn.rollback();
       return res.status(403).json({ ok: false, mensaje: 'No dictas esta materia en este periodo.' });
     }
 
     const [matriculado] = await conn.query(
       `SELECT id FROM matriculas WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'activa'`,
-      [estudiante_id, materia.grupo_id]
+      [estudiante_id, grupoId]
     );
     if (!matriculado.length) {
       await conn.rollback();
@@ -436,8 +470,12 @@ exports.guardarCelda = async (req, res) => {
     let docenteId = req.usuario.rol === 'docente' ? req.usuario.id : null;
     if (!docenteId) {
       const [dRows] = await conn.query(
-        `SELECT docente_id FROM docentes_materias WHERE materia_id = ? AND periodo_id = ? LIMIT 1`,
-        [item.materia_id, item.periodo_id]
+        `SELECT dm.docente_id FROM docentes_materias dm
+         JOIN materias m ON m.id = dm.materia_id
+         WHERE dm.materia_id = ? AND dm.periodo_id = ?
+           AND ${condicionDocenteEnGrupo()}
+         LIMIT 1`,
+        [item.materia_id, item.periodo_id, ...parametrosDocenteEnGrupo(grupoId)]
       );
       docenteId = dRows.length ? dRows[0].docente_id : req.usuario.id;
     }
@@ -469,10 +507,8 @@ exports.guardarCelda = async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 //  GET /api/plan-evaluacion/materias-curso/:grupoId
-//  Materias del curso para elegir una y ver su plan/hoja desde la
-//  card "Trabajos" del director de curso (o un co-docente). Acceso:
-//  admin/superadmin de la institución, director del grupo, o docente
-//  que dicta alguna materia de ese grupo.
+//  Materias activas del curso. Acceso: admin/superadmin de la institución
+//  o docente asignado a alguna materia de ese grupo.
 // ────────────────────────────────────────────────────────────
 exports.listarMateriasDeCurso = async (req, res) => {
   const { grupoId } = req.params;
@@ -487,37 +523,31 @@ exports.listarMateriasDeCurso = async (req, res) => {
     const grupo = grupos.length ? grupos[0] : null;
     if (!grupo) return res.status(404).json({ ok: false, mensaje: 'Curso no encontrado.' });
 
-    let puede = false;
-    if (req.usuario.rol === 'superadmin') puede = true;
-    else if (req.usuario.rol === 'admin') puede = grupo.institucion_id === req.usuario.institucion_id;
-    else if (req.usuario.rol === 'docente') {
-      const [esDirector] = await pool.query(
-        `SELECT 1 FROM grupos WHERE id = ? AND director_id = ? LIMIT 1`,
-        [grupoId, req.usuario.id]
-      );
-      if (esDirector.length > 0) {
-        puede = true;
-      } else {
-        const [dicta] = await pool.query(
-          `SELECT 1 FROM docentes_materias WHERE grupo_id = ? AND docente_id = ? LIMIT 1`,
-          [grupoId, req.usuario.id]
-        );
-        puede = dicta.length > 0;
-      }
-    }
-    if (!puede) {
+    const esAdmin = req.usuario.rol === 'superadmin'
+      || (req.usuario.rol === 'admin' && grupo.institucion_id === req.usuario.institucion_id);
+    const asignaciones = await materiasConDocentesDeGrupo(pool, grupoId);
+    const propias = req.usuario.rol === 'docente'
+      ? asignaciones.filter(m => m.docente_id === req.usuario.id)
+      : asignaciones;
+    if (!esAdmin && !propias.length) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver las materias de este curso.' });
     }
 
-    const [materias] = await pool.query(
-      `SELECT m.id, m.nombre, COUNT(dm.id) AS tiene_docente
-       FROM materias m
-       LEFT JOIN docentes_materias dm ON dm.materia_id = m.id
-       WHERE m.grupo_id = ? AND m.activa = TRUE
-       GROUP BY m.id, m.nombre
-       ORDER BY m.nombre ASC`,
-      [grupoId]
-    );
+    const visibles = esAdmin ? asignaciones : propias;
+    const porMateria = new Map();
+    for (const asignacion of visibles) {
+      if (!porMateria.has(asignacion.materia_id)) {
+        porMateria.set(asignacion.materia_id, {
+          id: asignacion.materia_id,
+          nombre: asignacion.materia,
+          docentes: new Set(),
+        });
+      }
+      if (asignacion.docente_id) porMateria.get(asignacion.materia_id).docentes.add(asignacion.docente_id);
+    }
+    const materias = [...porMateria.values()]
+      .map(m => ({ id: m.id, nombre: m.nombre, tiene_docente: m.docentes.size }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
     return res.json({ ok: true, materias });
   } catch (err) {

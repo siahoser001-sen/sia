@@ -9,6 +9,10 @@ const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
+const {
+  condicionMateriaEnGrupo,
+  parametrosMateriaEnGrupo,
+} = require('../utils/materias-curso.util');
 
 // Helper: ¿estos datos (documento + nombre completo) están bloqueados
 // para este grupo específico? Ocurre cuando el director/admin eliminó
@@ -21,6 +25,73 @@ async function _estaBloqueado(conn, grupoId, tipo_documento, numero_documento, n
     [grupoId, tipo_documento, numero_documento, nombres.trim(), apellidos.trim()]
   );
   return rows.length > 0;
+}
+
+// Snapshot D7: congela el promedio por materia/periodo de un estudiante
+// que sale de un curso (traslado). Así su promedio anual combina los
+// periodos cursados en el curso anterior con los del nuevo. Las notas se
+// calculan (no se guardan), así que al salir del curso se pierden: esta
+// tabla las congela con la identidad de materia por NOMBRE (mismo grado).
+async function _generarSnapshotNotas(conn, estudianteId, grupoId, institucionId, anioLectivo) {
+  const [periodos] = await conn.query(
+    `SELECT id FROM periodos_academicos
+     WHERE institucion_id = ? AND anio_lectivo = ?
+     ORDER BY numero_periodo`,
+    [institucionId, anioLectivo]
+  );
+  if (!periodos.length) return;
+  const periodoIds = periodos.map(p => p.id);
+
+  const [materias] = await conn.query(
+    `SELECT m.id, m.nombre, a.nombre AS area_nombre
+     FROM materias m LEFT JOIN areas a ON a.id = m.area_id
+     WHERE ${condicionMateriaEnGrupo()} AND m.activa = TRUE`,
+    parametrosMateriaEnGrupo(grupoId)
+  );
+  if (!materias.length) return;
+  const matIds = materias.map(m => m.id);
+
+  const [notas] = await conn.query(
+    `SELECT materia_id, periodo_id, valor, valor_max, peso_pct FROM notas
+     WHERE estudiante_id = ?
+       AND materia_id IN (${matIds.map(() => '?').join(',')})
+       AND periodo_id IN (${periodoIds.map(() => '?').join(',')})`,
+    [estudianteId, ...matIds, ...periodoIds]
+  );
+  if (!notas.length) return;
+
+  // Promedio por materia+periodo (mismo criterio que resumen.controller.js).
+  const porKey = {};
+  for (const n of notas) {
+    const key = `${n.materia_id}|${n.periodo_id}`;
+    if (!porKey[key]) porKey[key] = [];
+    porKey[key].push(n);
+  }
+  const promedios = {};
+  for (const key of Object.keys(porKey)) {
+    let ponderada = 0, pesos = 0;
+    for (const n of porKey[key]) {
+      ponderada += (Number(n.valor) / Number(n.valor_max)) * Number(n.peso_pct);
+      pesos += Number(n.peso_pct);
+    }
+    if (pesos > 0) promedios[key] = Number(((ponderada / pesos) * 10).toFixed(2));
+  }
+
+  for (const m of materias) {
+    for (const p of periodos) {
+      const prom = promedios[`${m.id}|${p.id}`];
+      if (prom === undefined) continue;
+      await conn.query(
+        `INSERT INTO notas_periodo_cierre
+           (id, estudiante_id, periodo_id, grupo_id, materia_nombre, area_nombre, promedio_periodo, anio_lectivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           promedio_periodo = VALUES(promedio_periodo),
+           area_nombre      = VALUES(area_nombre)`,
+        [randomUUID(), estudianteId, p.id, grupoId, m.nombre, m.area_nombre || null, prom, anioLectivo]
+      );
+    }
+  }
 }
 
 function _emitirToken(usuario) {
@@ -167,7 +238,7 @@ exports.misHijos = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT u.id AS estudiante_id, u.nombres, u.apellidos, ae.parentesco, ae.es_principal,
-              mt.id AS matricula_id, mt.estado AS estado_matricula,
+              mt.id AS matricula_id, mt.estado AS estado_matricula, mt.grupo_id,
               g.nombre AS grupo, gr.nombre AS grado
        FROM acudientes_estudiantes ae
        JOIN usuarios u ON u.id = ae.estudiante_id
@@ -180,6 +251,47 @@ exports.misHijos = async (req, res) => {
     return res.json({ ok: true, hijos: rows });
   } catch (err) {
     console.error('misHijos:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+//  GET /api/matriculas/mi-curso  (estudiante)
+//  Devuelve la matrícula ACTIVA del estudiante logueado. Lo usa el
+//  dashboard del estudiante para montar el chat de su curso (antes
+//  el frontend pedía esta ruta y no existía → 404 y el chat nunca
+//  cargaba, ni antes ni después de un traslado).
+// ────────────────────────────────────────────────────────────
+exports.miCurso = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT mt.id AS matricula_id, mt.estado, mt.anio_lectivo, mt.fecha_ingreso,
+              mt.codigo_confirmado,
+              g.id AS grupo_id, g.nombre AS grupo, g.codigo_matricula, g.codigo_activo,
+              gr.nombre AS grado
+       FROM matriculas mt
+       JOIN grupos g ON g.id = mt.grupo_id
+       JOIN grados gr ON gr.id = g.grado_id
+       WHERE mt.estudiante_id = ? AND mt.estado = 'activa'
+       ORDER BY mt.fecha_ingreso DESC
+       LIMIT 1`,
+      [req.usuario.id]
+    );
+
+    if (!rows.length) {
+      return res.json({ ok: true, matricula: null });
+    }
+
+    // Misma bandera que en obtenerPorEstudiante para que el frontend
+    // pueda decidir si debe pedir revalidación del código.
+    rows[0].requiere_revalidacion =
+      !!rows[0].codigo_confirmado &&
+      rows[0].codigo_activo === 1 &&
+      rows[0].codigo_confirmado !== rows[0].codigo_matricula;
+
+    return res.json({ ok: true, matricula: rows[0] });
+  } catch (err) {
+    console.error('miCurso:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };
@@ -331,7 +443,7 @@ exports.trasladar = async (req, res) => {
     await conn.beginTransaction();
 
     const [actual] = await conn.query(
-      `SELECT mt.id, mt.estudiante_id, mt.anio_lectivo
+      `SELECT mt.id, mt.estudiante_id, mt.anio_lectivo, mt.grupo_id
        FROM matriculas mt
        JOIN grupos g ON g.id = mt.grupo_id
        JOIN grados gr ON gr.id = g.grado_id
@@ -363,6 +475,16 @@ exports.trasladar = async (req, res) => {
       await conn.rollback();
       return res.status(409).json({ ok: false, mensaje: 'El grupo destino ya alcanzó su capacidad máxima.' });
     }
+
+    // D7: antes de marcar la matrícula como trasladada, congelar las notas
+    // de los periodos cursados en el curso anterior (promedio anual luego).
+    await _generarSnapshotNotas(
+      conn,
+      actual[0].estudiante_id,
+      actual[0].grupo_id,
+      req.usuario.institucion_id,
+      actual[0].anio_lectivo
+    );
 
     await conn.query(
       `UPDATE matriculas SET estado = 'trasladada', fecha_retiro = CURRENT_DATE WHERE id = ?`,
@@ -399,7 +521,7 @@ exports.trasladar = async (req, res) => {
 //  desde Mis clases (ver unirseAClase más abajo).
 // ────────────────────────────────────────────────────────────
 exports.unirseConCodigo = async (req, res) => {
-  let { tipo_documento, numero_documento, nombres, apellidos, codigo } = req.body;
+  let { tipo_documento, numero_documento, nombres, apellidos, codigo, email } = req.body;
 
   if (!numero_documento || !nombres || !apellidos || !codigo) {
     return res.status(400).json({ ok: false, mensaje: 'Documento, nombres, apellidos y código son obligatorios.' });
@@ -409,6 +531,12 @@ exports.unirseConCodigo = async (req, res) => {
   nombres          = nombres.trim();
   apellidos        = apellidos.trim();
   codigo           = codigo.trim().toUpperCase();
+  // H2 (Prefase 2): el correo es obligatorio desde el registro. Sin él el
+  // estudiante no puede recuperar su contraseña ni recibir notificaciones.
+  email            = String(email || '').trim().toLowerCase();
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ ok: false, mensaje: 'El correo electrónico es obligatorio y debe ser válido (ej: nombre@correo.com).' });
+  }
 
   const conn = await pool.getConnection();
   try {
@@ -437,12 +565,15 @@ exports.unirseConCodigo = async (req, res) => {
 
     // 3) ¿Ya existe una cuenta con este documento?
     const [existente] = await conn.query(
-      `SELECT id, password_hash, nombres, apellidos, rol FROM usuarios
+      `SELECT id, email, password_hash, nombres, apellidos, rol FROM usuarios
        WHERE tipo_documento = ? AND numero_documento = ? LIMIT 1`,
       [tipo_documento, numero_documento]
     );
 
     let estudianteId;
+    let crearMatricula = true;
+    let registroReanudado = false;
+    const anioActual = new Date().getFullYear();
 
     if (existente.length) {
       const cuenta = existente[0];
@@ -458,18 +589,50 @@ exports.unirseConCodigo = async (req, res) => {
         });
       }
       // Cuenta a medias (se registró antes pero nunca definió
-      // contraseña): se reutiliza y se le permite continuar.
+      // contraseña): se reutiliza y se le permite continuar (Ronda F, F4).
       estudianteId = cuenta.id;
+      registroReanudado = true;
+
+      // H2: si la cuenta ya tiene correo, el del registro debe coincidir;
+      // si todavía no tiene, se completa aquí (queda único en el sistema).
+      if (cuenta.email && String(cuenta.email).toLowerCase() !== email) {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          mensaje: `Este documento ya está registrado con el correo ${cuenta.email}. Usa ese correo o contacta a tu director de curso.`,
+        });
+      }
+      if (!cuenta.email) {
+        const [correoOcupado] = await conn.query(
+          `SELECT id FROM usuarios WHERE email = ? AND id != ? LIMIT 1`,
+          [email, cuenta.id]
+        );
+        if (correoOcupado.length) {
+          await conn.rollback();
+          return res.status(409).json({ ok: false, mensaje: 'Ese correo electrónico ya está registrado con otra cuenta. Usa otro correo.' });
+        }
+        await conn.query(`UPDATE usuarios SET email = ? WHERE id = ?`, [email, cuenta.id]);
+      }
 
       const [matriculaPrevia] = await conn.query(
-        `SELECT id FROM matriculas WHERE estudiante_id = ? AND estado = 'activa' LIMIT 1`,
+        `SELECT id, grupo_id, anio_lectivo FROM matriculas WHERE estudiante_id = ? AND estado = 'activa' LIMIT 1`,
         [estudianteId]
       );
-      if (matriculaPrevia.length) {
+      // Si la matrícula activa es del MISMO curso y año, se REUTILIZA:
+      // retirarla y crear otra violaba la UNIQUE (estudiante, grupo, año)
+      // y devolvía un 500 "Error interno." al reintentar el registro.
+      const mismaMatricula = matriculaPrevia.length > 0
+        && String(matriculaPrevia[0].grupo_id) === String(grupo.grupo_id)
+        && Number(matriculaPrevia[0].anio_lectivo) === anioActual;
+      if (matriculaPrevia.length && !mismaMatricula) {
         await conn.query(
           `UPDATE matriculas SET estado = 'retirada', fecha_retiro = CURRENT_DATE WHERE id = ?`,
           [matriculaPrevia[0].id]
         );
+        crearMatricula = true;
+      } else if (mismaMatricula) {
+        // Mismo curso y mismo año: se conserva la matrícula existente.
+        crearMatricula = false;
       }
     } else {
       // 4) Cupo del grupo (solo cuando se va a crear una matrícula nueva)
@@ -483,19 +646,30 @@ exports.unirseConCodigo = async (req, res) => {
       }
 
       estudianteId = randomUUID();
+      // H2: el correo debe ser único en todo el sistema.
+      const [correoOcupado] = await conn.query(
+        `SELECT id FROM usuarios WHERE email = ? LIMIT 1`,
+        [email]
+      );
+      if (correoOcupado.length) {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, mensaje: 'Ese correo electrónico ya está registrado con otra cuenta. Usa otro correo.' });
+      }
       await conn.query(
-        `INSERT INTO usuarios (id, institucion_id, rol, nombres, apellidos, tipo_documento, numero_documento, activo)
-         VALUES (?, ?, 'estudiante', ?, ?, ?, ?, TRUE)`,
-        [estudianteId, grupo.institucion_id, nombres, apellidos, tipo_documento, numero_documento]
+        `INSERT INTO usuarios (id, institucion_id, rol, nombres, apellidos, tipo_documento, numero_documento, email, activo)
+         VALUES (?, ?, 'estudiante', ?, ?, ?, ?, ?, TRUE)`,
+        [estudianteId, grupo.institucion_id, nombres, apellidos, tipo_documento, numero_documento, email]
       );
     }
 
-    const matriculaId = randomUUID();
-    await conn.query(
-      `INSERT INTO matriculas (id, estudiante_id, grupo_id, anio_lectivo, codigo_confirmado)
-       VALUES (?, ?, ?, ?, ?)`,
-      [matriculaId, estudianteId, grupo.grupo_id, new Date().getFullYear(), codigo]
-    );
+    if (crearMatricula) {
+      const matriculaId = randomUUID();
+      await conn.query(
+        `INSERT INTO matriculas (id, estudiante_id, grupo_id, anio_lectivo, codigo_confirmado)
+         VALUES (?, ?, ?, ?, ?)`,
+        [matriculaId, estudianteId, grupo.grupo_id, anioActual, codigo]
+      );
+    }
 
     await conn.commit();
 
@@ -510,7 +684,9 @@ exports.unirseConCodigo = async (req, res) => {
 
     return res.status(201).json({
       ok: true,
-      mensaje: 'Quedaste inscrito. Ahora crea tu contraseña para poder entrar la próxima vez.',
+      mensaje: registroReanudado
+        ? 'Ya habías empezado tu registro con este documento. Solo te falta crear la contraseña.'
+        : 'Quedaste inscrito. Ahora crea tu contraseña para poder entrar la próxima vez.',
       token,
       usuario: {
         id: usuario.id, nombres: usuario.nombres, apellidos: usuario.apellidos,
@@ -716,5 +892,73 @@ exports.eliminarEstudiante = async (req, res) => {
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   } finally {
     conn.release();
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+//  GET /api/matriculas/grupo/:grupoId/con-acudientes
+//  (admin, superadmin, docente)
+//  Igual que listarPorGrupo pero adjunta los acudientes de cada
+//  estudiante. El docente solo accede a grupos donde dirige o dicta.
+// ────────────────────────────────────────────────────────────
+exports.listarPorGrupoConAcudientes = async (req, res) => {
+  const { grupoId } = req.params;
+
+  try {
+    if (req.usuario.rol === 'docente') {
+      const [acceso] = await pool.query(
+        `SELECT g.id FROM grupos g
+         WHERE g.id = ? AND g.director_id = ?
+         UNION
+         SELECT grupo_id FROM docentes_materias WHERE grupo_id = ? AND docente_id = ?`,
+        [grupoId, req.usuario.id, grupoId, req.usuario.id]
+      );
+      if (!acceso.length) {
+        return res.status(403).json({ ok: false, mensaje: 'No diriges ni dictas ninguna materia en ese grupo.' });
+      }
+    }
+
+    const [estudiantes] = await pool.query(
+      `SELECT mt.id AS matricula_id, mt.estado, mt.anio_lectivo,
+              u.id AS estudiante_id, u.nombres, u.apellidos,
+              u.tipo_documento, u.numero_documento, u.foto_url
+       FROM matriculas mt
+       JOIN usuarios u ON u.id = mt.estudiante_id
+       JOIN grupos g ON g.id = mt.grupo_id
+       JOIN grados gr ON gr.id = g.grado_id
+       WHERE mt.grupo_id = ? AND mt.estado = 'activa' AND gr.institucion_id = ?
+       ORDER BY u.apellidos, u.nombres`,
+      [grupoId, req.usuario.institucion_id]
+    );
+
+    let acudientes = [];
+    if (estudiantes.length) {
+      const ids = estudiantes.map(e => e.estudiante_id);
+      const [ac] = await pool.query(
+        `SELECT ae.estudiante_id, ae.parentesco, ae.es_principal,
+                a.id AS acudiente_id, a.nombres, a.apellidos,
+                a.tipo_documento, a.numero_documento, a.email, a.telefono
+         FROM acudientes_estudiantes ae
+         JOIN usuarios a ON a.id = ae.acudiente_id
+         WHERE ae.estudiante_id IN (?)
+         ORDER BY ae.es_principal DESC, a.apellidos, a.nombres`,
+        [ids]
+      );
+      acudientes = ac;
+    }
+
+    const porEstudiante = {};
+    for (const a of acudientes) {
+      (porEstudiante[a.estudiante_id] ||= []).push(a);
+    }
+
+    return res.json({
+      ok: true,
+      total: estudiantes.length,
+      estudiantes: estudiantes.map(e => ({ ...e, acudientes: porEstudiante[e.estudiante_id] || [] })),
+    });
+  } catch (err) {
+    console.error('listarPorGrupoConAcudientes:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };

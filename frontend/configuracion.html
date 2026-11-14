@@ -108,7 +108,19 @@
       { id: 'f03', nombre: 'Océano',        src: 'static/fondos/fondo-03.jpg' },
       { id: 'f04', nombre: 'Bosque',        src: 'static/fondos/fondo-04.jpg' },
       { id: 'f05', nombre: 'Galaxia',       src: 'static/fondos/fondo-05.jpg' },
-      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' }
+      { id: 'f06', nombre: 'Desierto',      src: 'static/fondos/fondo-06.jpg' },
+      { id: 'f07', nombre: 'Fondo 07',      src: 'static/fondos/fondo-07.jpg' },
+      { id: 'f08', nombre: 'Fondo 08',      src: 'static/fondos/fondo-08.jpg' },
+      { id: 'f09', nombre: 'Fondo 09',      src: 'static/fondos/fondo-09.jpg' },
+      { id: 'f10', nombre: 'Fondo 10',      src: 'static/fondos/fondo-10.jpg' }
+    ];
+    var COLORES_AJ = [
+      { id: 'c01', nombre: 'Azul noche',    color: '#0b1230' },
+      { id: 'c02', nombre: 'Grafito',       color: '#15171d' },
+      { id: 'c03', nombre: 'Negro',         color: '#000000' },
+      { id: 'c04', nombre: 'Azul petróleo', color: '#0d2b3e' },
+      { id: 'c05', nombre: 'Verde profundo',color: '#0c2a22' },
+      { id: 'c06', nombre: 'Vino',          color: '#2a1219' },
     ];
     function inyectarAjustes() {
       if (document.getElementById('overlayAjustes')) return;
@@ -121,6 +133,10 @@ var miniFondos = '';
         miniFondos += '<div class="aj-mf" data-ajf="' + f.id + '" style="background-image:url(\'' + f.src + '\')" onclick="ajSelFondo(\'' + f.id + '\',\'' + f.src + '\')"></div>';
       }
       miniFondos += '<div class="aj-mf" data-ajf="custom" onclick="ajSubirFondo()" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));border:2px solid var(--glass-border)"><span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3)"><span style="font-size:15px;line-height:1">⬆</span>Subir imagen</span></div>';
+      for (var k = 0; k < COLORES_AJ.length; k++) {
+        var co = COLORES_AJ[k];
+        miniFondos += '<div class="aj-mf aj-mf-color" data-ajf="' + co.id + '" title="' + co.nombre + '" style="background:' + co.color + '" onclick="ajSelColor(\'' + co.id + '\',\'' + co.color + '\')"></div>';
+      }
       o.innerHTML =
         '<div class="glass glass-strong modal">' +
         '<h3 style="margin-bottom:0.3rem">Ajustes y personalización</h3>' +
@@ -150,7 +166,7 @@ var miniFondos = '';
         '<button type="button" class="opc-btn ancho" id="ajDensidad" onclick="ajToggle(\'densidad\')"><span class="tam-texto" id="ajTxtDensidad">Desactivado</span></button></div>' +
         '<div class="aj-bloque"><div class="aj-titulo">Restablecer preferencias</div><div class="aj-sub">Vuelve al tamaño, color, fondo y forma originales. La sesión no se cierra.</div>' +
         '<button type="button" class="btn btn-ghost btn-sm" onclick="ajRestablecer()">Restablecer por defecto</button></div>' +
-        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una para aplicarla.</div>' +
+        '<div class="aj-bloque"><div class="aj-titulo">Fondo de pantalla</div><div class="aj-sub">La imagen que se ve detrás de todas las ventanas. Toca una imagen o un color para aplicarlo.</div>' +
         '<div class="fila-fondo"><div style="display:flex;align-items:center;gap:0.7rem;min-width:0"><div class="fondo-mini" id="ajFondoMini"></div><div style="min-width:0"><div class="aj-sub" style="margin:0 0 3px;color:var(--text-3)">Fondo actual</div><div id="ajFondoNombre" style="font-size:0.76rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div></div></div></div>' +
         '<div class="aj-minifondo">' + miniFondos + '</div></div>' +
         '</div>' +
@@ -186,17 +202,24 @@ var miniFondos = '';
     }
     function pintarFondo() {
       var actual = localStorage.getItem('sia_fondo') || 'f01';
+      var col = colorFondo(actual);
       var mini = document.getElementById('ajFondoMini');
       if (mini) {
-        var fund = null;
-        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
-        mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        if (col) {
+          mini.style.backgroundImage = 'none';
+          mini.style.backgroundColor = col.color;
+        } else {
+          mini.style.backgroundColor = '';
+          var fund = null;
+          for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === actual) fund = FONDOS_AJ[i];
+          mini.style.backgroundImage = fund ? 'url(\'' + fund.src + '\')' : (localStorage.getItem('sia_fondo_src') ? 'url(' + localStorage.getItem('sia_fondo_src') + ')' : 'url(\'static/fondos/fondo-01.jpg\')');
+        }
       }
       var nombre = document.getElementById('ajFondoNombre');
       if (nombre) {
         var nf = null;
         for (var j = 0; j < FONDOS_AJ.length; j++) if (FONDOS_AJ[j].id === actual) nf = FONDOS_AJ[j];
-        nombre.textContent = nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal');
+        nombre.textContent = col ? ('Color plano · ' + col.nombre) : (nf ? nf.nombre : (localStorage.getItem('sia_fondo_src') ? 'Fondo personalizado' : 'Aurora boreal'));
       }
       var el = document.getElementById('overlayAjustes');
       if (el) el.querySelectorAll('.aj-mf').forEach(function (t) { t.classList.toggle('sel', t.dataset.ajf === actual); });
@@ -238,11 +261,20 @@ var miniFondos = '';
       else { localStorage.setItem('sia_redondez', String(v)); document.documentElement.setAttribute('data-ui-radius', String(v)); }
       var e = document.getElementById('overlayAjustes'); if (e) pintarRedondez(e);
     };
-window.ajSelFondo = function (id, src) {
+    window.ajSelFondo = function (id, src) {
       var sf = document.getElementById('siaFondo');
-      if (sf) sf.style.backgroundImage = 'url(\'' + src + '\')';
+      if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(\'' + src + '\')'; }
+      localStorage.removeItem('sia_fondo_color');
       localStorage.setItem('sia_fondo', id);
       localStorage.setItem('sia_fondo_src', src);
+      pintarFondo();
+    };
+    window.ajSelColor = function (id, color) {
+      var sf = document.getElementById('siaFondo');
+      if (sf) { sf.style.backgroundImage = 'none'; sf.style.backgroundColor = color; sf.classList.add('sia-fondo-plano'); }
+      localStorage.setItem('sia_fondo', id);
+      localStorage.setItem('sia_fondo_color', color);
+      localStorage.removeItem('sia_fondo_src');
       pintarFondo();
     };
     window.ajSubirFondo = function () {
@@ -257,7 +289,8 @@ window.ajSelFondo = function (id, src) {
         var rd = new FileReader();
         rd.onload = function () {
           var sf = document.getElementById('siaFondo');
-          if (sf) sf.style.backgroundImage = 'url(' + rd.result + ')';
+          if (sf) { sf.classList.remove('sia-fondo-plano'); sf.style.backgroundColor = ''; sf.style.backgroundImage = 'url(' + rd.result + ')'; }
+          localStorage.removeItem('sia_fondo_color');
           localStorage.setItem('sia_fondo', 'custom');
           localStorage.setItem('sia_fondo_src', rd.result);
           pintarFondo();
@@ -268,14 +301,40 @@ window.ajSelFondo = function (id, src) {
     };
     window.ajRestablecer = function () {
       if (!confirm('¿Restablecer todas las preferencias de apariencia al valor original?')) return;
-      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
+      ['sia_ui_scale', 'sia_fondo', 'sia_fondo_src', 'sia_fondo_color', 'sia_alto_contraste', 'sia_movimiento', 'sia_densidad', 'sia_acento', 'sia_redondez', 'sia_avatar'].forEach(function (k) { localStorage.removeItem(k); });
       window.location.reload();
     };
-    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); });
+    function colorFondo(id) {
+      for (var i = 0; i < COLORES_AJ.length; i++) if (COLORES_AJ[i].id === id) return COLORES_AJ[i];
+      return null;
+    }
+    function aplicarFondoGuardadoAJ() {
+      var sf = document.getElementById('siaFondo');
+      if (!sf) return;
+      var modo = localStorage.getItem('sia_fondo') || '';
+      var col = colorFondo(modo);
+      if (col) {
+        sf.style.backgroundImage = 'none';
+        sf.style.backgroundColor = col.color;
+        sf.classList.add('sia-fondo-plano');
+      } else {
+        sf.style.backgroundColor = '';
+        sf.classList.remove('sia-fondo-plano');
+        var src = localStorage.getItem('sia_fondo_src');
+        var fund = null;
+        for (var i = 0; i < FONDOS_AJ.length; i++) if (FONDOS_AJ[i].id === modo) fund = FONDOS_AJ[i];
+        if (fund) sf.style.backgroundImage = 'url(\'' + fund.src + '\')';
+        else if (src) sf.style.backgroundImage = 'url(' + src + ')';
+      }
+    }
+    window.aplicarFondoGuardadoAJ = aplicarFondoGuardadoAJ;
+    document.addEventListener('DOMContentLoaded', function () { inyectarAjustes(); aplicarFondoGuardadoAJ(); });
+    window.addEventListener('load', aplicarFondoGuardadoAJ);
   })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sia-base.css" />
   <style>
     :root {
       --glass-bg:        rgba(255,255,255,0.11);
@@ -736,6 +795,8 @@ window.ajSelFondo = function (id, src) {
       .grid-stats { grid-template-columns: 1fr 1fr; }
     }
   </style>
+  <script src="sia-sesion.js"></script>
+  <script src="sia-utils.js"></script>
 </head>
 <body>
 
@@ -982,6 +1043,10 @@ const FONDOS = [
   { id:'f04', nombre:'Bosque',        src:'static/fondos/fondo-04.jpg' },
   { id:'f05', nombre:'Galaxia',       src:'static/fondos/fondo-05.jpg' },
   { id:'f06', nombre:'Desierto',      src:'static/fondos/fondo-06.jpg' },
+    { id:'f07', nombre:'Fondo 07',      src:'static/fondos/fondo-07.jpg' },
+    { id:'f08', nombre:'Fondo 08',      src:'static/fondos/fondo-08.jpg' },
+    { id:'f09', nombre:'Fondo 09',      src:'static/fondos/fondo-09.jpg' },
+    { id:'f10', nombre:'Fondo 10',      src:'static/fondos/fondo-10.jpg' },
 ];
 
 function aplicarFondo(id) {

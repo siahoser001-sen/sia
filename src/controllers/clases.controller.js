@@ -1,5 +1,11 @@
 const pool = require('../config/db');
 const { randomUUID, randomBytes } = require('crypto');
+const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+  materiasConDocentesDeGrupo,
+} = require('../utils/materias-curso.util');
 
 // ── GET /api/clases/mis-materias (docente) ─────────────────────
 // Devuelve las materias que dicta el docente logueado, con su
@@ -7,13 +13,14 @@ const { randomUUID, randomBytes } = require('crypto');
 exports.misMateriasDocente = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT dm.id AS docente_materia_id, dm.grupo_id, m.id AS materia_id, m.nombre AS materia, g.nombre AS grupo,
+      `SELECT dm.id AS docente_materia_id, g.id AS grupo_id, m.id AS materia_id, m.nombre AS materia, g.nombre AS grupo,
               gr.nombre AS grado, dm.periodo_id
        FROM docentes_materias dm
        JOIN materias m ON m.id = dm.materia_id
-       JOIN grupos   g ON g.id = dm.grupo_id
+       JOIN grupos   g ON ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
+                        AND ${condicionMateriaEnGrupo('m', 'g.id')}
        JOIN grados   gr ON gr.id = g.grado_id
-       WHERE dm.docente_id = ?
+       WHERE dm.docente_id = ? AND m.activa = TRUE
        ORDER BY gr.orden, g.nombre, m.nombre`,
       [req.usuario.id]
     );
@@ -26,20 +33,18 @@ exports.misMateriasDocente = async (req, res) => {
 
 // ── GET /api/clases/mis-materias-estudiante (estudiante) ──────
 // Devuelve las materias del estudiante según su matrícula activa
-// del grupo actual (cruzando matriculas -> grupos -> docentes_materias).
+// del grupo actual, con docente opcional para cada materia del curso.
 exports.misMateriasEstudiante = async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT dm.id AS docente_materia_id, m.nombre AS materia,
-              CONCAT(u.nombres, ' ', u.apellidos) AS docente
-       FROM matriculas mt
-       JOIN docentes_materias dm ON dm.grupo_id = mt.grupo_id
-       JOIN materias m ON m.id = dm.materia_id
-       JOIN usuarios u ON u.id = dm.docente_id
-       WHERE mt.estudiante_id = ? AND mt.estado = 'activa'
-       ORDER BY m.nombre`,
+    const [matriculas] = await pool.query(
+      `SELECT grupo_id FROM matriculas
+       WHERE estudiante_id = ? AND estado = 'activa'
+       LIMIT 1`,
       [req.usuario.id]
     );
+    if (!matriculas.length) return res.json({ ok: true, materias: [] });
+
+    const rows = await materiasConDocentesDeGrupo(pool, matriculas[0].grupo_id);
     return res.json({ ok: true, materias: rows });
   } catch (err) {
     console.error('misMateriasEstudiante error:', err.message);
@@ -85,7 +90,10 @@ exports.iniciarLlamada = async (req, res) => {
 
     // Verificar que la materia sea del docente que hace la petición
     const [dm] = await conn.query(
-      `SELECT id FROM docentes_materias WHERE id = ? AND docente_id = ?`,
+      `SELECT dm.id, dm.grupo_id, m.nombre AS materia
+         FROM docentes_materias dm
+         JOIN materias m ON m.id = dm.materia_id
+        WHERE dm.id = ? AND dm.docente_id = ?`,
       [docenteMateriaId, req.usuario.id]
     );
     if (!dm.length) {
@@ -114,6 +122,17 @@ exports.iniciarLlamada = async (req, res) => {
 
     await conn.commit();
 
+    // Chat del curso (Ronda F, F5): el sistema comparte el código de la
+    // videollamada y el enlace directo en el chat del grupo.
+    if (dm[0].grupo_id) {
+      const url = `https://meet.jit.si/${sala}`;
+      await publicarMensajeSistema(dm[0].grupo_id, {
+        evento: 'videollamada',
+        texto: `🎥 El profesor inició una videollamada de ${dm[0].materia}. Entra con el código ${sala}.`,
+        datos: { sala, url },
+      });
+    }
+
     // Notificar en vivo a todos los conectados a esta materia
     const io = req.app.get('io');
     if (io) {
@@ -140,6 +159,15 @@ exports.iniciarLlamada = async (req, res) => {
 exports.finalizarLlamada = async (req, res) => {
   const { docenteMateriaId } = req.params;
   try {
+    // Materia y grupo, para avisar en el chat del curso (Ronda F, F5).
+    const [info] = await pool.query(
+      `SELECT dm.grupo_id, m.nombre AS materia
+         FROM docentes_materias dm
+         JOIN materias m ON m.id = dm.materia_id
+        WHERE dm.id = ?`,
+      [docenteMateriaId]
+    );
+
     const [result] = await pool.query(
       `UPDATE sesiones_clase
        SET estado = 'finalizada', finalizada_at = NOW()
@@ -149,6 +177,13 @@ exports.finalizarLlamada = async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'No hay llamada activa tuya para esta materia.' });
+    }
+
+    if (info.length && info[0].grupo_id) {
+      await publicarMensajeSistema(info[0].grupo_id, {
+        evento: 'videollamada',
+        texto: `⏹ La videollamada de ${info[0].materia} ha terminado.`,
+      });
     }
 
     const io = req.app.get('io');

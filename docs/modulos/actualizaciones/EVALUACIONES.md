@@ -13,8 +13,8 @@ pensamiento crítico, comunicación, colaboración, creatividad y resolución de
 Sustenta los pilares de la visión: **competencias**, **proyectos/retos**, **evaluación
 formativa continua** y una base para el **aprendizaje personalizado**.
 
-El flujo central promovido (punto 3 del usuario): cada docente/director arma al inicio
-del **periodo** una **plantilla de actividades/evaluaciones** para su curso con el
+El flujo central promovido (punto 3 del usuario): cada docente asignado arma al inicio
+del **periodo** una **plantilla de actividades/evaluaciones** para su materia con el
 **porcentaje** que vale cada una; el sistema **calcula y actualiza las notas en tiempo
 real** dentro de esa plantilla y mantiene **edición manual** por parte del docente.
 
@@ -22,7 +22,7 @@ real** dentro de esa plantilla y mantiene **edición manual** por parte del doce
 
 **Incluye:**
 - Una **plantilla por materia + periodo** (ya existe: `plan_evaluacion_items`) con
-  **% de peso**, creada por el docente o el director del curso.
+  **% de peso**, gestionada por el docente asignado a esa materia o por admin.
 - Cada **ítem de la plantilla** es una "actividad/evaluación" de uno de estos **tipos**:
   - **Manual:** el docente asigna la nota directamente en la hoja.
   - **Entrega (PDF):** el docente sube/diseña una actividad; el estudiante entrega
@@ -59,7 +59,8 @@ resuelve/cuenta cada ítem:
   Con `UNIQUE(evaluacion_id)` para garantizar **1 actividad ⇔ 1 evaluación**.
 
 Reglas de negocio:
-- El docente **o** el director de curso pueden crear/editar la plantilla de su curso.
+- Solo el docente asignado a la materia puede ver y gestionar su plan y calificar sus
+  estudiantes. Ser director del curso no concede acceso a las actividades de la materia.
 - La suma de `peso_pct` de la plantilla es **flexible pero no puede superar 100**
   (decisión del usuario, 2026-09-02). El sistema debe impedir que la suma exceda 100.
 - En la hoja de calificación, cada **celda**:
@@ -67,6 +68,10 @@ Reglas de negocio:
   - `entrega` → nota de la entrega calificada (también editable).
   - `evaluacion` → **NO editable mientras esté enlazada** (la escribe el sistema), salvo
     excepción explícita pedida por el usuario.
+- La hoja muestra, por estudiante, el acumulado ponderado, el peso que falta por calificar
+  y la nota mínima requerida en las actividades pendientes para alcanzar la nota aprobatoria.
+  El umbral es configurable por institución (por defecto 6.0 en escala 0–10); el cálculo
+  solo se presenta como alcanzable cuando los pesos del plan suman 100%.
 
 ## 2. Crear o subir actividad/evaluación (punto 3)
 
@@ -164,7 +169,8 @@ Nuevas propuestas:
       directamente el módulo** (es un tema amplio y se abordará con calma).
 - [ ] ¿`plan_evaluacion_items` nuevo campo: se agrega `tipo` + `evaluacion_id UNIQUE` a la tabla existente (migración 20) — de acuerdo?
 - [ ] El tipo neurocientífico: ¿traes ya el listado de tipos verificados por neurociencia, o lo definimos juntos como primer hito del constructor?
-- [ ] ¿El director de curso arma la plantilla solo de su curso (ya visto en `hojaCalificacion`) o también puede crear evaluaciones de una materia que no dicta (hoy solo puede VER)?
+- [x] El director de curso no gestiona ni consulta el plan de una materia por ser director;
+      el acceso docente depende de la asignación a esa materia.
 
 ## 8. Integración
 
@@ -175,6 +181,17 @@ Nuevas propuestas:
 - `boletin.controller.js` / `resumen.controller.js` → niveles por competencia.
 - `mis-clases.html` / `dashboard.html` → pantalla del estudiante para presentar evaluaciones.
 - `publicaciones` (catálogo global) → importar evaluaciones/preguntas modelo.
+
+**Vista del estudiante por materia:** `frontend/materia-estudiante.html?materia=<id>`
+reúne actividades publicadas, notas ponderadas, asistencia del curso y accesos al
+pizarrón/videollamada. Las actividades usan `GET /api/tareas/estudiante?materia=`,
+`POST /api/tareas/:id/entrega` y las rutas existentes de archivos de entrega; cada
+archivo se valida en cliente hasta 5 MB y puede quitarse/reemplazarse antes de calificar.
+Las notas se consultan con `GET /api/notas/estudiante/:estudianteId/materia/:materiaId`.
+`mis-materias.html` enlaza cada materia a esta vista.
+El pizarrón persiste trazos y textos por materia o curso, carga el historial al entrar
+y sincroniza los cambios por socket; el servidor valida quién puede modificarlo y el
+estudiante lo consulta en solo lectura.
 
 ## 9. Criterio de hecho (DoD)
 
@@ -194,7 +211,7 @@ Por hito (ver `GUIA_DE_AVANCE.md` §5) — p. ej. "constructor + autocorrección
 
 1. **Competencias:** fijas (catálogo estándar) **+** extras por institución.
 2. **Niveles de logro:** Bajo · Medio · Alto · Superior.
-3. **Flujo de notas/actividades:** plantilla por periodo con % (docente/director), tipos
+3. **Flujo de notas/actividades:** plantilla por periodo con % (docente asignado), tipos
    manual / PDF-entrega / enlazada a evaluación; **Enlazar** con restricción **1 a 1**;
    el sistema **calcula y actualiza la nota en vivo** y el docente **puede editarla**.
 4. **Constructor:** plantilla propia o **parámetros avanzados** sobre un tema según

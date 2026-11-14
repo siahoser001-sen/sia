@@ -23,7 +23,12 @@
 // ============================================================
 
 const pool = require('../config/db');
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+} = require('../utils/materias-curso.util');
 const { randomUUID } = require('crypto');
+const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
 
 const TIPOS_VALIDOS = ['general', 'cierre_periodo', 'otro'];
 
@@ -73,10 +78,15 @@ async function gruposDelDocente(docenteId) {
   const [rows] = await pool.query(
     `SELECT DISTINCT g.id
      FROM grupos g
-     LEFT JOIN materias m ON m.grupo_id = g.id
-     LEFT JOIN docentes_materias dm ON dm.materia_id = m.id AND dm.docente_id = ?
-     WHERE g.director_id = ? OR dm.docente_id = ?`,
-    [docenteId, docenteId, docenteId]
+     WHERE g.director_id = ? OR EXISTS (
+       SELECT 1
+       FROM docentes_materias dm
+       JOIN materias m ON m.id = dm.materia_id AND m.activa = TRUE
+       WHERE dm.docente_id = ?
+         AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
+         AND ${condicionMateriaEnGrupo('m', 'g.id')}
+     )`,
+    [docenteId, docenteId]
   );
   return rows.map(r => r.id);
 }
@@ -205,6 +215,26 @@ exports.crearEvento = async (req, res) => {
       [id, institucionId, grupo_id || null, periodo_id || null, req.usuario.id,
        titulo.trim(), descripcion?.trim() || null, fecha, tipoFinal, color_hex || null]
     );
+
+    // Chat del curso (Ronda F, F5): el cierre de periodo avisa en el chat
+    // del curso (o de todos los cursos si el evento es institucional) que
+    // las actividades de ese periodo ya no aceptan entregas.
+    if (tipoFinal === 'cierre_periodo') {
+      const fechaTxt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-CO');
+      const texto = `🔒 Cierre de periodo: "${titulo.trim()}" (${fechaTxt}). Las actividades de ese periodo ya no aceptan entregas.`;
+      if (grupo_id) {
+        await publicarMensajeSistema(grupo_id, { evento: 'actividad_cerrada', texto });
+      } else {
+        const [todos] = await pool.query(
+          `SELECT g.id FROM grupos g JOIN grados gr ON gr.id = g.grado_id
+            WHERE gr.institucion_id = ? AND g.activo = TRUE`,
+          [institucionId]
+        );
+        for (const g of todos) {
+          await publicarMensajeSistema(g.id, { evento: 'actividad_cerrada', texto });
+        }
+      }
+    }
 
     return res.status(201).json({ ok: true, mensaje: 'Evento creado.', id });
   } catch (err) {

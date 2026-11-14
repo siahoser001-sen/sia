@@ -22,8 +22,11 @@ router.post('/promocion',       soloRoles('admin', 'superadmin'), promocionCtrl.
 
 router.post('/',                          soloRoles('admin', 'superadmin'), ctrl.matricular);
 router.get('/grupo/:grupoId',             soloRoles('admin', 'superadmin', 'docente'), ctrl.listarPorGrupo);
+router.get('/grupo/:grupoId/con-acudientes', soloRoles('admin', 'superadmin', 'docente'), ctrl.listarPorGrupoConAcudientes);
 router.get('/estudiantes-buscar',         soloRoles('admin', 'superadmin'), ctrl.buscarEstudiantes);
 router.get('/mis-hijos',                  soloRoles('acudiente'), ctrl.misHijos);
+// Matrícula activa del propio estudiante (dashboard → chat del curso).
+router.get('/mi-curso',                   soloRoles('estudiante'), ctrl.miCurso);
 router.get('/estudiante/:estudianteId',   ctrl.obtenerPorEstudiante); // valida rol internamente
 router.put('/:id/retirar',                soloRoles('admin', 'superadmin'), ctrl.retirar);
 router.post('/:id/trasladar',             soloRoles('admin', 'superadmin'), ctrl.trasladar);

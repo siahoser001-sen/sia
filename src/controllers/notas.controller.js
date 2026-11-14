@@ -8,17 +8,26 @@
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
 const { crearNotificacion } = require('../services/notificacion.service');
+const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
+const {
+  materiaPerteneceAlGrupo,
+  docenteAsignadoEnGrupo,
+  gruposDocenteMateria,
+  gruposActivosEstudianteEnMateria,
+} = require('../utils/materias-curso.util');
 
 // Verifica que el docente autenticado dicte esa materia en ese periodo,
 // y devuelve el grupo_id correspondiente (lo necesitamos para validar
 // que el estudiante esté matriculado ahí).
-async function obtenerGrupoDeDocente(conn, docenteId, materiaId, periodoId) {
-  const [rows] = await conn.query(
-    `SELECT grupo_id FROM docentes_materias
-     WHERE docente_id = ? AND materia_id = ? AND periodo_id = ?`,
-    [docenteId, materiaId, periodoId]
+async function obtenerGrupoDeDocente(conn, docenteId, materiaId, periodoId, estudianteId) {
+  const grupos = await gruposDocenteMateria(conn, materiaId, docenteId, periodoId);
+  if (!grupos.length) return null;
+  const [matriculas] = await conn.query(
+    `SELECT grupo_id FROM matriculas
+     WHERE estudiante_id = ? AND estado = 'activa'`,
+    [estudianteId]
   );
-  return rows.length ? rows[0].grupo_id : null;
+  return grupos.find(grupoId => matriculas.some(m => m.grupo_id === grupoId)) || null;
 }
 
 async function sumaPesoActual(conn, estudianteId, materiaId, periodoId, excluirNotaId = null) {
@@ -59,7 +68,7 @@ exports.crear = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const grupoId = await obtenerGrupoDeDocente(conn, req.usuario.id, materia_id, periodo_id);
+    const grupoId = await obtenerGrupoDeDocente(conn, req.usuario.id, materia_id, periodo_id, estudiante_id);
     if (!grupoId) {
       await conn.rollback();
       return res.status(403).json({ ok: false, mensaje: 'No dictas esta materia en este periodo.' });
@@ -104,6 +113,13 @@ exports.crear = async (req, res) => {
       ref_tabla:    'notas',
     });
 
+    // Chat del curso (Ronda F, F5): aviso de notas publicadas.
+    const [[mat]] = await pool.query(`SELECT nombre FROM materias WHERE id = ? LIMIT 1`, [materia_id]);
+    await publicarMensajeSistema(grupoId, {
+      evento: 'nota_publicada',
+      texto: `📝 Notas publicadas de ${mat ? mat.nombre : 'la materia'}: "${descripcion || tipo_nota}" (${valor}/${valor_max || 10}).`,
+    });
+
     return res.status(201).json({ ok: true, mensaje: 'Nota registrada.', id });
 
   } catch (err) {
@@ -137,9 +153,16 @@ exports.actualizar = async (req, res) => {
       await conn.rollback();
       return res.status(404).json({ ok: false, mensaje: 'Nota no encontrada o no te pertenece.' });
     }
+    const nota = notaActual[0];
+    const grupos = await gruposDocenteMateria(conn, nota.materia_id, req.usuario.id, nota.periodo_id);
+    const gruposActivos = await gruposActivosEstudianteEnMateria(conn, nota.estudiante_id, nota.materia_id);
+    if (!grupos.some(grupoId => gruposActivos.includes(grupoId))) {
+      await conn.rollback();
+      return res.status(403).json({ ok: false, mensaje: 'Ya no dictas esta materia en el curso activo del estudiante.' });
+    }
 
     if (peso_pct !== undefined) {
-      const { estudiante_id, materia_id, periodo_id } = notaActual[0];
+      const { estudiante_id, materia_id, periodo_id } = nota;
       const pesoActual = await sumaPesoActual(conn, estudiante_id, materia_id, periodo_id, id);
       if (pesoActual + Number(peso_pct) > 100) {
         await conn.rollback();
@@ -179,6 +202,20 @@ exports.actualizar = async (req, res) => {
 // ────────────────────────────────────────────────────────────
 exports.eliminar = async (req, res) => {
   try {
+    const [notas] = await pool.query(
+      `SELECT estudiante_id, materia_id, periodo_id
+       FROM notas WHERE id = ? AND docente_id = ?`,
+      [req.params.id, req.usuario.id]
+    );
+    if (!notas.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Nota no encontrada o no te pertenece.' });
+    }
+    const nota = notas[0];
+    const grupos = await gruposDocenteMateria(pool, nota.materia_id, req.usuario.id, nota.periodo_id);
+    const gruposActivos = await gruposActivosEstudianteEnMateria(pool, nota.estudiante_id, nota.materia_id);
+    if (!grupos.some(grupoId => gruposActivos.includes(grupoId))) {
+      return res.status(403).json({ ok: false, mensaje: 'Ya no dictas esta materia en el curso activo del estudiante.' });
+    }
     const [result] = await pool.query(
       `DELETE FROM notas WHERE id = ? AND docente_id = ?`,
       [req.params.id, req.usuario.id]
@@ -206,6 +243,10 @@ exports.listarPorEstudianteMateria = async (req, res) => {
     if (rol === 'estudiante' && usuarioId !== estudianteId) {
       return res.status(403).json({ ok: false, mensaje: 'No puedes ver notas de otro estudiante.' });
     }
+    const gruposActivos = await gruposActivosEstudianteEnMateria(pool, estudianteId, materiaId);
+    if ((rol === 'estudiante' || rol === 'acudiente') && !gruposActivos.length) {
+      return res.status(403).json({ ok: false, mensaje: 'El estudiante no tiene matrícula activa en el curso de esta materia.' });
+    }
     if (rol === 'acudiente') {
       const [rel] = await pool.query(
         `SELECT 1 FROM acudientes_estudiantes WHERE acudiente_id = ? AND estudiante_id = ?`,
@@ -216,11 +257,13 @@ exports.listarPorEstudianteMateria = async (req, res) => {
       }
     }
     if (rol === 'docente') {
-      const [dicta] = await pool.query(
-        `SELECT 1 FROM docentes_materias WHERE docente_id = ? AND materia_id = ?`,
-        [usuarioId, materiaId]
-      );
-      if (!dicta.length) {
+      const gruposEstudiante = await gruposActivosEstudianteEnMateria(pool, estudianteId, materiaId);
+      let autorizado = false;
+      for (const grupoId of gruposEstudiante) {
+        autorizado = await docenteAsignadoEnGrupo(pool, materiaId, usuarioId, grupoId, periodo_id || null);
+        if (autorizado) break;
+      }
+      if (!autorizado) {
         return res.status(403).json({ ok: false, mensaje: 'No dictas esta materia.' });
       }
     }
@@ -255,6 +298,10 @@ exports.promedioEstudiante = async (req, res) => {
     if (rol === 'estudiante' && usuarioId !== estudianteId) {
       return res.status(403).json({ ok: false, mensaje: 'No puedes ver el promedio de otro estudiante.' });
     }
+    const gruposActivos = await gruposActivosEstudianteEnMateria(pool, estudianteId, materiaId);
+    if ((rol === 'estudiante' || rol === 'acudiente') && !gruposActivos.length) {
+      return res.status(403).json({ ok: false, mensaje: 'El estudiante no tiene matrícula activa en el curso de esta materia.' });
+    }
     if (rol === 'acudiente') {
       const [rel] = await pool.query(
         `SELECT 1 FROM acudientes_estudiantes WHERE acudiente_id = ? AND estudiante_id = ?`,
@@ -265,12 +312,13 @@ exports.promedioEstudiante = async (req, res) => {
       }
     }
     if (rol === 'docente') {
-      const [dicta] = await pool.query(
-        `SELECT 1 FROM docentes_materias WHERE docente_id = ? AND materia_id = ? AND grupo_id IN
-         (SELECT grupo_id FROM matriculas WHERE estudiante_id = ?)`,
-        [usuarioId, materiaId, estudianteId]
-      );
-      if (!dicta.length) {
+      const gruposEstudiante = await gruposActivosEstudianteEnMateria(pool, estudianteId, materiaId);
+      let autorizado = false;
+      for (const grupoId of gruposEstudiante) {
+        autorizado = await docenteAsignadoEnGrupo(pool, materiaId, usuarioId, grupoId, periodoId);
+        if (autorizado) break;
+      }
+      if (!autorizado) {
         return res.status(403).json({ ok: false, mensaje: 'No dictas esta materia para este estudiante.' });
       }
     }
@@ -311,12 +359,11 @@ exports.promediosGrupo = async (req, res) => {
   const { grupoId, materiaId, periodoId } = req.params;
 
   try {
+    if (!(await materiaPerteneceAlGrupo(pool, materiaId, grupoId))) {
+      return res.status(404).json({ ok: false, mensaje: 'La materia no pertenece a ese curso.' });
+    }
     if (req.usuario.rol === 'docente') {
-      const [dicta] = await pool.query(
-        `SELECT 1 FROM docentes_materias WHERE docente_id = ? AND materia_id = ? AND grupo_id = ? AND periodo_id = ?`,
-        [req.usuario.id, materiaId, grupoId, periodoId]
-      );
-      if (!dicta.length) {
+      if (!(await docenteAsignadoEnGrupo(pool, materiaId, req.usuario.id, grupoId, periodoId))) {
         return res.status(403).json({ ok: false, mensaje: 'No dictas esta materia en este grupo/periodo.' });
       }
     }

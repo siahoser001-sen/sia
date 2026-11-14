@@ -66,4 +66,4 @@ CREATE TABLE IF NOT EXISTS certificados (
     CONSTRAINT fk_cert_estudiante  FOREIGN KEY (estudiante_id)  REFERENCES usuarios(id) ON DELETE CASCADE,
     CONSTRAINT fk_cert_generado    FOREIGN KEY (generado_por)   REFERENCES usuarios(id),
     CONSTRAINT fk_cert_archivo     FOREIGN KEY (archivo_id)     REFERENCES archivos(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

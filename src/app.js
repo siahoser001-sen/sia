@@ -67,10 +67,15 @@ app.use('/frontend', express.static(path.join(__dirname, '../frontend'), {
   // cacheControl:false evita que serve-static pise el header con max-age=0.
   cacheControl: false,
   setHeaders(res, filePath) {
-    // .html, .js, .css y .svg cambian con cada deploy: revalidar siempre
-    // en vez de servirlos desde la caché del navegador (deja imágenes
-    // pesadas como los fondos con la caché del navegador).
-    if (['.html', '.js', '.css', '.svg'].includes(path.extname(filePath))) {
+    // El código del frontend (html/js/css) cambia con cada ajuste: no se
+    // sirve desde la caché del navegador. Un documento guardado en caché
+    // puede traer un JS viejo cuyos botones ya no coinciden con el HTML
+    // y se quedan "sin hacer nada".
+    const ext = path.extname(filePath);
+    if (['.html', '.js', '.css'].includes(ext)) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else if (ext === '.svg') {
+      // Los SVG (logos) son estables: se revalidan, pero se pueden cachear.
       res.setHeader('Cache-Control', 'no-cache');
     }
   },
@@ -90,6 +95,7 @@ app.use('/api/matriculas',    require('./routes/matriculas.routes'));
 app.use('/api/acudientes',    require('./routes/acudientes.routes'));
 app.use('/api/notas',         require('./routes/notas.routes'));
 app.use('/api/asistencia',    require('./routes/asistencia.routes'));
+app.use('/api/asistencia-dia', require('./routes/asistencia-dia.routes'));
 app.use('/api/resumen',       require('./routes/resumen.routes'));
 app.use('/api/publicaciones', require('./routes/publicaciones.routes'));
 app.use('/api/sistema',       require('./routes/sistema.routes'));
@@ -102,6 +108,7 @@ app.use('/api/calendario',    require('./routes/calendario.routes'));
 app.use('/api/notificaciones', require('./routes/notificaciones.routes'));
 app.use('/api/chat',           require('./routes/chat.routes'));
 app.use('/api/reportes',       require('./routes/reportes.routes'));
+app.use('/api/informe-didactico', require('./routes/informe-didactico.routes'));
 
 // Raíz: redirige a la pantalla de login del frontend en vez de
 // dejar al usuario viendo un JSON pelado.
@@ -130,4 +137,16 @@ server.listen(PORT, HOST, () => {
   console.log(`\n🚀 SIA corriendo en http://localhost:${PORT}`);
   console.log(`   Desde otros dispositivos de la misma red: http://<IP-de-este-equipo>:${PORT}`);
   console.log(`   (ver README para cómo encontrar esa IP)\n`);
+});
+
+// Mensaje claro si el puerto ya está ocupado por otro servidor anterior.
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`\n❌ El puerto ${PORT} ya está en uso (EADDRINUSE).`);
+    console.error('   Normalmente quedó otro servidor (node/nodemon) corriendo.');
+    console.error('   Arranca con  npm start  (libera el puerto antes de iniciar)');
+    console.error('   o ejecuta  node scripts/libre-puerto.js  para liberarlo a mano.\n');
+    process.exit(1);
+  }
+  throw err;
 });

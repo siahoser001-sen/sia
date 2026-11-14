@@ -4,6 +4,11 @@ require('dotenv').config();
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  // Algunos antivirus/firewalls/proxy locales interceptan la conexión SMTP
+  // a Gmail con un certificado propio (error "self-signed certificate in
+  // certificate chain"). En despliegue local se tolera para que el correo
+  // funcione de todas formas; en producción quitar este bloque.
+  tls: { rejectUnauthorized: false },
 });
 
 const correoNuevaSolicitudInstitucion = ({ nombre, codigo_dane, admin_nombre, admin_email }) => ({

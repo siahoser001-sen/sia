@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS reporte_compromisos (
     FOREIGN KEY (creado_por)     REFERENCES usuarios(id),
     INDEX idx_rc_estudiante (estudiante_id),
     INDEX idx_rc_institucion (institucion_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reporte_observaciones (
     id               CHAR(36)     PRIMARY KEY DEFAULT (UUID()),
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS reporte_observaciones (
     FOREIGN KEY (creado_por)     REFERENCES usuarios(id),
     INDEX idx_ro_estudiante (estudiante_id),
     INDEX idx_ro_institucion (institucion_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reporte_paginas_personalizadas (
     id               CHAR(36)     PRIMARY KEY DEFAULT (UUID()),
@@ -66,4 +66,4 @@ CREATE TABLE IF NOT EXISTS reporte_paginas_personalizadas (
     FOREIGN KEY (estudiante_id)  REFERENCES usuarios(id) ON DELETE CASCADE,
     FOREIGN KEY (creado_por)     REFERENCES usuarios(id),
     INDEX idx_rpp_estudiante (estudiante_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

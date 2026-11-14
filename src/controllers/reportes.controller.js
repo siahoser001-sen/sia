@@ -34,6 +34,10 @@ const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+} = require('../utils/materias-curso.util');
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -56,8 +60,12 @@ async function accesoDocenteAlEstudiante(req, estudianteId) {
      FROM matriculas mt JOIN grupos g ON g.id = mt.grupo_id
      WHERE mt.estudiante_id = ? AND mt.estado = 'activa'
        AND (g.director_id = ?
-            OR EXISTS (SELECT 1 FROM docentes_materias dm
-                       WHERE dm.grupo_id = g.id AND dm.docente_id = ?))
+            OR EXISTS (SELECT 1
+                       FROM docentes_materias dm
+                       JOIN materias m ON m.id = dm.materia_id
+                       WHERE dm.docente_id = ? AND m.activa = TRUE
+                         AND ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
+                         AND ${condicionMateriaEnGrupo('m', 'g.id')}))
      LIMIT 1`,
     [estudianteId, req.usuario.id, req.usuario.id]
   );
@@ -167,21 +175,17 @@ async function reunirDatosReporte(estudianteId) {
   const periodo = await datosPeriodo(periodoId);
   const anioLectivo = matricula ? matricula.anio_lectivo : (periodo ? periodo.anio_lectivo : new Date().getFullYear());
 
-  // Materias del curso del estudiante: las del grupo + las generales de
-  // la institución que estén asignadas a ESTE curso vía docentes_materias.
+  // Materias activas del curso del estudiante, incluidas las vinculadas
+  // mediante materias_curso.
   let materias = [];
   if (matricula) {
     const [mRows] = await pool.query(
       `SELECT m.id AS materia_id, m.nombre AS materia_nombre, a.nombre AS area_nombre, a.color_hex
        FROM materias m
        JOIN areas a ON a.id = m.area_id
-       WHERE m.activa = TRUE
-         AND (m.grupo_id = ?
-              OR (m.grado_id IS NULL AND m.institucion_id = ?
-                  AND EXISTS (SELECT 1 FROM docentes_materias dm
-                              WHERE dm.materia_id = m.id AND dm.grupo_id = ?)))
+       WHERE m.activa = TRUE AND ${condicionMateriaEnGrupo()} AND m.institucion_id = ?
        ORDER BY a.nombre, m.nombre`,
-      [matricula.grupo_id, est.institucion_id, matricula.grupo_id]
+      [matricula.grupo_id, matricula.grupo_id, est.institucion_id]
     );
     materias = mRows;
   }

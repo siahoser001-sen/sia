@@ -8,6 +8,10 @@ const router  = express.Router();
 const pool    = require('../config/db');
 const ctrl    = require('../controllers/clases.controller');
 const { authMiddleware, soloRoles } = require('../middleware/auth.middleware');
+const {
+  condicionMateriaEnGrupo,
+  condicionDocenteEnGrupo,
+} = require('../utils/materias-curso.util');
 
 router.use(authMiddleware);
 
@@ -33,9 +37,12 @@ async function perteneceAMateria(req, res, next) {
       const [rows] = await pool.query(
         `SELECT dm.id
          FROM docentes_materias dm
-         JOIN matriculas mt ON mt.grupo_id = dm.grupo_id
-         WHERE dm.id = ? AND mt.estudiante_id = ? AND mt.estado = 'activa'`,
-        [docenteMateriaId, usuarioId]
+         JOIN materias m ON m.id = dm.materia_id
+         JOIN matriculas mt ON mt.estudiante_id = ? AND mt.estado = 'activa'
+         WHERE dm.id = ? AND m.activa = TRUE
+           AND ${condicionDocenteEnGrupo('dm', 'm', 'mt.grupo_id')}
+           AND ${condicionMateriaEnGrupo('m', 'mt.grupo_id')}`,
+        [usuarioId, docenteMateriaId]
       );
       if (!rows.length) {
         return res.status(403).json({ ok: false, mensaje: 'No estás matriculado en esta materia.' });
