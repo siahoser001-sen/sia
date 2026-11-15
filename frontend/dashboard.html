@@ -500,6 +500,9 @@ var miniFondos = '';
     .notif-lista { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 1.5rem 1.5rem; }
     .notif-card { display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.85rem 1rem; border-radius: var(--r-md); background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); }
     .notif-card.no-leida { border-color: rgba(59,130,246,0.45); background: rgba(59,130,246,0.08); }
+    .notif-card[data-notificacion-id] { cursor: pointer; }
+    .notif-card[data-notificacion-id]:hover,.notif-card[data-notificacion-id]:focus-visible { border-color: var(--blue-light); outline: 2px solid rgba(147,197,253,0.35); outline-offset: 2px; }
+    .notif-card[aria-disabled="true"] { cursor: progress; opacity: 0.75; }
     .notif-icono { font-size: 1.25rem; flex-shrink: 0; margin-top: 1px; }
     .notif-titulo { font-size: 0.86rem; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
     .notif-msg { font-size: 0.80rem; color: var(--text-2); line-height: 1.4; }
@@ -650,6 +653,8 @@ var miniFondos = '';
   <div class="glass glass-strong modal">
     <h3>Mi perfil</h3>
     <p>Datos de tu cuenta en SIA.</p>
+    <div id="perfilError" role="alert" aria-live="assertive"
+      style="display:none;color:var(--red-light,#fca5a5);font-size:0.8rem;margin-bottom:0.75rem"></div>
     <div style="display:flex;flex-direction:column;gap:0.85rem;margin-bottom:1.25rem">
       <div>
         <div class="stat-label" style="margin-bottom:3px">Nombre completo</div>
@@ -766,6 +771,8 @@ var miniFondos = '';
     ],
     estudiante: [
       { icon:'📖', label:'Mis materias', href:'mis-materias.html' },
+      { icon:'📂', label:'Tareas',       href:'#cardMisTareas' },
+      { icon:'📅', label:'Asistencia',   href:'materia-estudiante.html?tab=asistencia' },
       { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
       { icon:'📅', label:'Calendario',   href:'calendario.html' },
     ],
@@ -795,7 +802,7 @@ acudiente: [
 estudiante: [
       { icon:'📊', nombre:'Mis notas',   desc:'Ver calificaciones', href:'reporte-estudiante.html' },
       { icon:'📅', nombre:'Asistencia',  desc:'Ver mi asistencia',  href:'materia-estudiante.html?tab=asistencia' },
-      { icon:'📂', nombre:'Tareas',      desc:'Ver entregas',       href:'#' },
+      { icon:'📂', nombre:'Tareas',      desc:'Ver entregas',       href:'#cardMisTareas' },
       { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio', href:'comunicados.html' },
       { icon:'🗓️', nombre:'Calendario',  desc:'Eventos de tu curso', href:'calendario.html' },
     ],
@@ -832,6 +839,62 @@ acudiente: [
       </a>`;
   });
 
+  function urlActividadNotificacion(notificacion) {
+    if (!notificacion.actividad_id) return null;
+    const parametros = new URLSearchParams({
+      tab: 'actividades',
+      actividad: String(notificacion.actividad_id),
+    });
+    const esActividadDirector = Number(notificacion.es_actividad_director) === 1;
+    if (esActividadDirector && notificacion.grupo_id) {
+      parametros.set('curso', notificacion.grupo_id);
+    } else if (notificacion.materia_id) {
+      parametros.set('materia', notificacion.materia_id);
+    } else if (notificacion.grupo_id) {
+      parametros.set('curso', notificacion.grupo_id);
+    } else {
+      return null;
+    }
+    return `materia-estudiante.html?${parametros.toString()}`;
+  }
+
+  function mostrarErrorNotificacion(tarjeta, mensaje) {
+    tarjeta.querySelector('[data-error-notificacion]')?.remove();
+    const aviso = document.createElement('div');
+    aviso.className = 'notif-msg';
+    aviso.dataset.errorNotificacion = 'true';
+    aviso.setAttribute('role', 'alert');
+    aviso.textContent = mensaje;
+    tarjeta.appendChild(aviso);
+  }
+
+  async function abrirNotificacionActividad(notificacion, tarjeta) {
+    if (tarjeta.getAttribute('aria-disabled') === 'true') return;
+    tarjeta.setAttribute('aria-disabled', 'true');
+    try {
+      const res = await fetch(`${API}/api/notificaciones/${encodeURIComponent(notificacion.id)}/leida`, {
+        method: 'PATCH',
+        headers,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.mensaje || 'No se pudo marcar la notificación como leída.');
+      notificacion.leida = true;
+      tarjeta.classList.remove('no-leida');
+
+      const destino = urlActividadNotificacion(notificacion);
+      if (!destino) {
+        mostrarErrorNotificacion(tarjeta, 'No se encontró la materia o curso de esta actividad.');
+        return;
+      }
+      window.location.href = destino;
+    } catch (err) {
+      console.error('Error abriendo actividad desde notificación:', err);
+      mostrarErrorNotificacion(tarjeta, err.message);
+    } finally {
+      tarjeta.removeAttribute('aria-disabled');
+    }
+  }
+
   async function cargarNotificaciones() {
     const lista = document.getElementById('notifLista');
     try {
@@ -846,15 +909,33 @@ acudiente: [
         aprobacion: '✅', rechazo: '❌', comunicado: '📢',
         nota_publicada: '📊', tarea_asignada: '📂', entrega_calificada: '📝',
       };
-      lista.innerHTML = data.notificaciones.slice(0, 5).map(n => `
-        <div class="notif-card ${n.leida ? '' : 'no-leida'}">
+      const notificaciones = data.notificaciones.slice(0, 5);
+      lista.innerHTML = notificaciones.map(n => {
+        const accionable = Boolean(n.actividad_id && (n.materia_id || n.grupo_id));
+        const atributosAccion = accionable
+          ? `role="button" tabindex="0" data-notificacion-id="${escaparHtml(n.id)}" aria-label="Abrir actividad: ${escaparHtml(n.titulo)}"`
+          : '';
+        return `
+        <div class="notif-card ${n.leida ? '' : 'no-leida'}" ${atributosAccion}>
           <div class="notif-icono">${iconos[n.tipo] || '🔔'}</div>
           <div>
-            <div class="notif-titulo">${n.titulo}</div>
-            <div class="notif-msg">${n.mensaje}</div>
-            <div class="notif-fecha">${new Date(n.created_at).toLocaleString('es-CO')}</div>
+            <div class="notif-titulo">${escaparHtml(n.titulo)}</div>
+            <div class="notif-msg">${escaparHtml(n.mensaje)}</div>
+            <div class="notif-fecha">${escaparHtml(new Date(n.created_at).toLocaleString('es-CO'))}</div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
+      lista.querySelectorAll('[data-notificacion-id]').forEach(tarjeta => {
+        const notificacion = notificaciones.find(n => String(n.id) === tarjeta.dataset.notificacionId);
+        if (!notificacion) return;
+        tarjeta.addEventListener('click', () => abrirNotificacionActividad(notificacion, tarjeta));
+        tarjeta.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            abrirNotificacionActividad(notificacion, tarjeta);
+          }
+        });
+      });
     } catch {
       lista.innerHTML = '<div class="empty">No se pudieron cargar las notificaciones.</div>';
     }
@@ -862,18 +943,40 @@ acudiente: [
 
   async function abrirModalPerfil() {
     document.getElementById('overlayPerfil').classList.add('visible');
+    const error = document.getElementById('perfilError');
+    error.textContent = '';
+    error.style.display = 'none';
+    document.getElementById('perfilModalNombre').textContent = 'Cargando…';
+    document.getElementById('perfilModalEmail').textContent = 'Cargando…';
+    document.getElementById('perfilModalRol').textContent = 'Cargando…';
+    document.getElementById('perfilModalAcceso').textContent = 'Cargando…';
     try {
       const res  = await fetch(`${API}/api/auth/perfil`, { headers });
-      const data = await res.json();
-      if (data.ok) {
-        const u = data.usuario;
-        document.getElementById('perfilModalNombre').textContent = `${u.nombres} ${u.apellidos}`;
-        document.getElementById('perfilModalEmail').textContent  = u.email;
-        document.getElementById('perfilModalRol').textContent    = u.rol;
-        document.getElementById('perfilModalAcceso').textContent =
-          u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CO') : 'Primer acceso';
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`El servidor devolvió una respuesta inválida (HTTP ${res.status}).`);
       }
-    } catch { /* silencioso: la modal ya muestra "—" por defecto */ }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.mensaje || `No se pudo cargar el perfil (HTTP ${res.status}).`);
+      }
+      if (!data.usuario) throw new Error('La respuesta del servidor no contiene los datos del perfil.');
+      const u = data.usuario;
+      document.getElementById('perfilModalNombre').textContent = `${u.nombres} ${u.apellidos}`;
+      document.getElementById('perfilModalEmail').textContent  = u.email;
+      document.getElementById('perfilModalRol').textContent    = u.rol;
+      document.getElementById('perfilModalAcceso').textContent =
+        u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CO') : 'Primer acceso';
+    } catch (err) {
+      error.textContent = err.message || 'No se pudo cargar el perfil. Intenta de nuevo.';
+      error.style.display = 'block';
+      document.getElementById('perfilModalNombre').textContent = '—';
+      document.getElementById('perfilModalEmail').textContent = '—';
+      document.getElementById('perfilModalRol').textContent = '—';
+      document.getElementById('perfilModalAcceso').textContent = '—';
+      console.error('abrirModalPerfil error:', err);
+    }
   }
   function cerrarModalPerfil() { document.getElementById('overlayPerfil').classList.remove('visible'); }
   document.getElementById('btnPerfil').addEventListener('click', abrirModalPerfil);
@@ -1009,7 +1112,10 @@ function cerrarSesion() {
     try {
       const res  = await fetch(`${API}/api/tareas/estudiante`, { headers });
       const data = await res.json();
-      if (!data.ok || !data.tareas?.length) {
+      if (!res.ok || !data.ok) {
+        throw new Error(data.mensaje || `No se pudieron cargar tus tareas (HTTP ${res.status}).`);
+      }
+      if (!Array.isArray(data.tareas) || !data.tareas.length) {
         cont.innerHTML = '<div class="empty">No tienes tareas asignadas todavía.</div>';
         return;
       }
@@ -1051,8 +1157,8 @@ function cerrarSesion() {
       `;
       }).join('');
     } catch (err) {
-      cont.innerHTML = '<div class="empty">No se pudieron cargar tus tareas.</div>';
-      console.error(err);
+      cont.innerHTML = `<div class="empty">No se pudieron cargar tus tareas: ${escaparHtml(err.message || 'error desconocido')}</div>`;
+      console.error('cargarMisTareas error:', err);
     }
   }
 

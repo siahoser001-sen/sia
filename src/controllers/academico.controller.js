@@ -9,7 +9,11 @@ const pool = require('../config/db');
 const {
   condicionMateriaEnGrupo,
   condicionDocenteEnGrupo,
+  condicionDocenteDictaMateriaEnGrupo,
+  condicionDocentePerteneceAlGrupo,
+  parametrosDocentePerteneceAlGrupo,
   parametrosMateriaEnGrupo,
+  docentePerteneceAlGrupo,
 } = require('../utils/materias-curso.util');
 const { randomUUID, randomBytes } = require('crypto');
 const { obtenerCiclo } = require('../utils/ciclo.util');
@@ -586,24 +590,17 @@ exports.misCursosDocente = async (req, res) => {
        FROM grupos g
        JOIN grados gr ON gr.id = g.grado_id
        WHERE gr.institucion_id = ?
-         AND (g.director_id = ? OR EXISTS (
-               SELECT 1 FROM docentes_materias dm2
-               JOIN materias m2 ON m2.id = dm2.materia_id
-               WHERE dm2.docente_id = ? AND m2.activa = TRUE
-                 AND ${condicionDocenteEnGrupo('dm2', 'm2', 'g.id')}
-                 AND ${condicionMateriaEnGrupo('m2', 'g.id')}
-             ))
+         AND ${condicionDocentePerteneceAlGrupo('g')}
          AND g.activo = TRUE
        ORDER BY (g.director_id = ?) DESC, gr.orden ASC, g.nombre ASC`,
-      [institucionId, usuarioId, usuarioId, usuarioId]
+      [institucionId, ...parametrosDocentePerteneceAlGrupo(usuarioId), usuarioId]
     );
 
     const [mats] = await pool.query(
       `SELECT g.id AS grupo_id, m.id AS materia_id, m.nombre AS materia_nombre
        FROM docentes_materias dm
        JOIN materias m ON m.id = dm.materia_id
-       JOIN grupos g   ON ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
-                        AND ${condicionMateriaEnGrupo('m', 'g.id')}
+      JOIN grupos g   ON ${condicionDocenteDictaMateriaEnGrupo('dm', 'm', 'g.id')}
        JOIN grados gr  ON gr.id = g.grado_id
        WHERE dm.docente_id = ? AND m.activa = TRUE AND gr.institucion_id = ?
        GROUP BY g.id, m.id, m.nombre
@@ -1498,6 +1495,28 @@ async function _esMiGrupo(poolRef, grupoId, usuario) {
   return g;
 }
 
+async function _grupoVisibleEnHorario(poolRef, grupoId, usuario) {
+  const [rows] = await poolRef.query(
+    `SELECT g.*, gr.nombre AS grado_nombre, gr.institucion_id
+     FROM grupos g
+     JOIN grados gr ON gr.id = g.grado_id
+     WHERE g.id = ?`,
+    [grupoId]
+  );
+  if (!rows.length) return { ok: false, code: 404 };
+  const grupo = rows[0];
+  if (['admin', 'superadmin'].includes(usuario.rol)) {
+    if (grupo.institucion_id !== usuario.institucion_id) return { ok: false, code: 404 };
+    return { ok: true, grupo };
+  }
+  if (grupo.institucion_id !== usuario.institucion_id) return { ok: false, code: 403 };
+  if (grupo.director_id === usuario.id) return { ok: true, grupo };
+  if (usuario.rol === 'docente' && await docentePerteneceAlGrupo(poolRef, usuario.id, grupoId)) {
+    return { ok: true, grupo };
+  }
+  return { ok: false, code: 403 };
+}
+
 // Autorización para ver/editar un horario: admin/superadmin o el
 // director del curso. Devuelve el grupo o null con el motivo.
 function _autorizarHorario(grupo, usuario) {
@@ -1528,8 +1547,14 @@ exports.listarHorario = async (req, res) => {
   if (!grupo_id) return res.status(400).json({ ok: false, mensaje: 'grupo_id es obligatorio.' });
 
   try {
-    const grupo = await _esMiGrupo(pool, grupo_id, req.usuario);
-    if (!grupo) return res.status(404).json({ ok: false, mensaje: 'Curso no encontrado en tu institución.' });
+    const acceso = await _grupoVisibleEnHorario(pool, grupo_id, req.usuario);
+    if (!acceso.ok) {
+      return res.status(acceso.code).json({
+        ok: false,
+        mensaje: acceso.code === 404 ? 'Curso no encontrado en tu institución.' : 'No tienes acceso a este horario.',
+      });
+    }
+    const grupo = acceso.grupo;
 
     const [rows] = await pool.query(
       `SELECT h.id, h.grupo_id, h.dia_semana, h.hora_inicio, h.hora_fin, h.aula,
@@ -1561,8 +1586,14 @@ exports.listarMateriasHorario = async (req, res) => {
   if (!grupo_id) return res.status(400).json({ ok: false, mensaje: 'grupo_id es obligatorio.' });
 
   try {
-    const grupo = await _esMiGrupo(pool, grupo_id, req.usuario);
-    if (!grupo) return res.status(404).json({ ok: false, mensaje: 'Curso no encontrado en tu institución.' });
+    const acceso = await _grupoVisibleEnHorario(pool, grupo_id, req.usuario);
+    if (!acceso.ok) {
+      return res.status(acceso.code).json({
+        ok: false,
+        mensaje: acceso.code === 404 ? 'Curso no encontrado en tu institución.' : 'No tienes acceso a este horario.',
+      });
+    }
+    const grupo = acceso.grupo;
 
     const [materias] = await pool.query(
       `SELECT m.id, m.nombre, a.color_hex, m.grupo_id

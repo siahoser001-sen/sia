@@ -8,6 +8,7 @@
 const { randomUUID } = require('crypto');
 const pool = require('../config/db');
 const { chatDeGrupo } = require('../services/chat-curso.service');
+const { docentePerteneceAlGrupo } = require('../utils/materias-curso.util');
 
 // Resuelve el acceso de un usuario al chat de un grupo.
 // Devuelve { ok, puede_escribir, grupo } o { ok:false, code, mensaje }.
@@ -34,13 +35,9 @@ async function _accesoCurso(grupoId, usuario) {
 
   // Docente: escribe si dicta alguna materia en el curso o lo dirige.
   if (rol === 'docente') {
-    if (grupo.director_id === usuarioId) return { ok: true, puede_escribir: true, grupo };
-    const [dm] = await pool.query(
-      `SELECT 1 FROM docentes_materias
-        WHERE docente_id = ? AND grupo_id = ? LIMIT 1`,
-      [usuarioId, grupoId]
-    );
-    if (dm.length) return { ok: true, puede_escribir: true, grupo };
+    if (await docentePerteneceAlGrupo(pool, usuarioId, grupoId)) {
+      return { ok: true, puede_escribir: true, grupo };
+    }
     return { ok: false, code: 403, mensaje: 'Solo los profesores del curso pueden usar este chat.' };
   }
 

@@ -8,6 +8,7 @@ const uploadArchivo = crearUploaderArchivoAsistencia();
 
 router.use(authMiddleware);
 
+router.get('/totales', ctrl.listarTotales);
 router.get('/', ctrl.listarMes);
 router.put('/', soloRoles('docente'), ctrl.guardarCelda);
 router.post(

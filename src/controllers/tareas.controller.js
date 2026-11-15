@@ -17,6 +17,8 @@
 
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const { crearNotificacion, crearNotificacionLote } = require('../services/notificacion.service');
 const { notificarReporte } = require('../services/reporte-update.service');
 const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
@@ -29,6 +31,8 @@ const {
   archivosPorEstudianteGrupo,
   archivosPorTarea,
 } = require('../utils/tareas-entrega.util');
+
+const RAIZ_ENTREGAS = path.resolve(__dirname, '../../storage_privado/entregas-tareas');
 
 // Trae la materia + su grupo_id + institucion_id, o null si no existe.
 // OJO: las materias GENERALES (Ronda E) tienen grado_id NULL, por eso se
@@ -51,10 +55,27 @@ async function _puedeVerTareas(req, materia, grupoId = null) {
   if (req.usuario.rol === 'superadmin') return true;
   if (req.usuario.rol === 'admin') return materia.institucion_id === req.usuario.institucion_id;
   if (req.usuario.rol === 'docente') {
+    const [director] = await pool.query(
+      `SELECT 1 FROM grupos WHERE id = ? AND director_id = ? LIMIT 1`,
+      [grupoId, req.usuario.id]
+    );
+    if (director.length) return true;
     if (grupoId) return docenteAsignadoEnGrupo(pool, materia.id, req.usuario.id, grupoId);
     return (await gruposDocenteMateria(pool, materia.id, req.usuario.id)).length > 0;
   }
   return false;
+}
+
+function _valorBooleano(valor, predeterminado) {
+  if (valor === undefined || valor === null || valor === '') return predeterminado;
+  return valor === true || valor === 1 || valor === '1' || valor === 'true';
+}
+
+function _limpiarArchivoTemporal(file) {
+  if (!file?.path) return;
+  fs.promises.unlink(file.path).catch(err => {
+    if (err.code !== 'ENOENT') console.error('No se pudo limpiar el archivo temporal de actividad:', err.message);
+  });
 }
 
 async function _puedeGestionar(req, materia, grupoId = null) {
@@ -173,10 +194,15 @@ exports.listarPorMateria = async (req, res) => {
     }
 
     const [tareas] = await pool.query(
-      `SELECT t.id, t.titulo, t.descripcion, t.fecha_asig, t.fecha_entrega, t.valor_max, t.estado,
+      `SELECT t.id, t.plan_item_id, t.titulo, t.descripcion, t.fecha_asig, t.fecha_entrega,
+              t.valor_max, t.estado, t.permitir_tardias, t.recibir_entregas,
+              t.archivo_id, a.nombre_original AS archivo_nombre,
+              pi.peso_pct,
               (SELECT COUNT(*) FROM entregas_tareas e WHERE e.tarea_id = t.id AND e.estado <> 'pendiente') AS con_entrega,
               (SELECT COUNT(*) FROM entregas_tareas e WHERE e.tarea_id = t.id) AS total_entregas
        FROM tareas t
+       LEFT JOIN archivos a ON a.id = t.archivo_id
+       LEFT JOIN plan_evaluacion_items pi ON pi.id = t.plan_item_id
        WHERE t.materia_id = ? AND t.periodo_id = ? ${grupoId ? 'AND t.grupo_id = ?' : ''}
        ORDER BY t.fecha_entrega ASC, t.created_at ASC`,
       grupoId ? [materiaId, periodoId, grupoId] : [materiaId, periodoId]
@@ -194,18 +220,24 @@ exports.listarPorMateria = async (req, res) => {
 //  `fecha_asig` = hoy. `periodo_id` se resuelve al activo si no llega.
 // ────────────────────────────────────────────────────────────
 exports.crear = async (req, res) => {
-  const { materia_id, titulo, descripcion, fecha_entrega, valor_max } = req.body;
+  const {
+    materia_id, titulo, descripcion, fecha_entrega, valor_max,
+    plan_item_id, permitir_tardias, recibir_entregas,
+  } = req.body;
   const grupo_body = req.body.grupo_id || null;
   let { periodo_id } = req.body;
-  if (!materia_id || !titulo || !fecha_entrega) {
-    return res.status(400).json({ ok: false, mensaje: 'materia_id, titulo y fecha_entrega son obligatorios.' });
+  if (!materia_id || !titulo || !fecha_entrega || !plan_item_id) {
+    _limpiarArchivoTemporal(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'Crea la tarea desde una actividad del plan con porcentaje asignado.' });
   }
 
+  let conn;
+  let archivoGuardado = false;
   try {
     const materia = await _materiaDeLaInstitucion(req, materia_id);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
 
-    if (new Date(fecha_entrega) < new Date(new Date().toDateString())) {
+    if (_soloFecha(fecha_entrega) < _hoyISO()) {
       return res.status(400).json({ ok: false, mensaje: 'La fecha de entrega no puede ser anterior a hoy.' });
     }
 
@@ -240,6 +272,28 @@ exports.crear = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para asignar tareas en esta materia.' });
     }
 
+    let planItem = null;
+    if (plan_item_id) {
+      const [items] = await pool.query(
+        `SELECT id, materia_id, periodo_id, nombre, peso_pct FROM plan_evaluacion_items WHERE id = ? LIMIT 1`,
+        [plan_item_id]
+      );
+      if (!items.length || items[0].materia_id !== materia_id || items[0].periodo_id !== periodo_id) {
+        return res.status(400).json({ ok: false, mensaje: 'La actividad no pertenece a esta materia y periodo.' });
+      }
+      planItem = items[0];
+      if (planItem.peso_pct === null) {
+        return res.status(409).json({ ok: false, mensaje: 'Asigna un porcentaje a esta actividad antes de crear su entrega.' });
+      }
+      const [tareasVinculadas] = await pool.query(
+        `SELECT id FROM tareas WHERE plan_item_id = ? LIMIT 1`,
+        [plan_item_id]
+      );
+      if (tareasVinculadas.length) {
+        return res.status(409).json({ ok: false, mensaje: 'Esta actividad ya tiene una tarea creada.' });
+      }
+    }
+
     const periodo = await _obtenerPeriodo(periodo_id);
     if (!periodo) {
       return res.status(404).json({ ok: false, mensaje: 'Periodo académico no encontrado.' });
@@ -247,18 +301,43 @@ exports.crear = async (req, res) => {
     // Si el periodo no está abierto HOY, la tarea queda como borrador (D6).
     const abierta = _periodoAbierto(periodo, _hoyISO());
     const estado  = abierta ? 'publicada' : 'borrador';
+    const tituloActividad = planItem ? planItem.nombre : titulo.trim();
 
     const id = randomUUID();
-    await pool.query(
-      `INSERT INTO tareas (id, docente_id, materia_id, grupo_id, periodo_id, titulo, descripcion, valor_max, fecha_entrega, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await conn.query(
+      `INSERT INTO tareas
+         (id, docente_id, materia_id, grupo_id, periodo_id, plan_item_id, titulo, descripcion,
+          valor_max, fecha_entrega, estado, permitir_tardias, recibir_entregas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, req.usuario.id, materia_id, grupoId, periodo_id,
-        titulo.trim(), descripcion || null,
+        id, req.usuario.id, materia_id, grupoId, periodo_id, plan_item_id || null,
+        tituloActividad, descripcion || null,
         valor_max != null ? Number(valor_max) : 10.0,
         fecha_entrega, estado,
+        _valorBooleano(permitir_tardias, true),
+        _valorBooleano(recibir_entregas, true),
       ]
     );
+    if (req.file) {
+      const archivoId = randomUUID();
+      await conn.query(
+        `INSERT INTO archivos
+           (id, subido_por, tipo, nombre_original, nombre_storage, ruta_storage,
+            mime_type, tamanio_bytes, es_publico, ref_grupo_id, descripcion)
+         VALUES (?, ?, 'tarea_entregada', ?, ?, ?, ?, ?, FALSE, ?, ?)`,
+        [
+          archivoId, req.usuario.id, req.file.originalname, req.file.filename,
+          path.relative(path.join(__dirname, '../..'), req.file.path),
+          req.file.mimetype, req.file.size, grupoId,
+          `Material de la actividad "${tituloActividad}"`,
+        ]
+      );
+      await conn.query(`UPDATE tareas SET archivo_id = ? WHERE id = ?`, [archivoId, id]);
+    }
+    await conn.commit();
+    archivoGuardado = Boolean(req.file);
 
     // Solo se avisa (y se muestra al estudiante) si la tarea nace publicada.
     if (abierta) {
@@ -276,8 +355,8 @@ exports.crear = async (req, res) => {
       await crearNotificacionLote({
         destinatarios: destinatarios.map(r => r.id),
         tipo:          'tarea_asignada',
-        titulo:        `Nueva tarea: ${titulo.trim()}`,
-        mensaje:       `Se asignó la tarea "${titulo.trim()}" en #nombreinstitucion. Entrégala antes del ${fechaEntregaTxt}.`,
+        titulo:        `Nueva tarea: ${tituloActividad}`,
+        mensaje:       `Se asignó la tarea "${tituloActividad}" en #nombreinstitucion. Entrégala antes del ${fechaEntregaTxt}.`,
         ref_id:        id,
         ref_tabla:     'tareas',
         institucion_nombre: instRows[0]?.nombre || null,
@@ -291,7 +370,7 @@ exports.crear = async (req, res) => {
       if (grupoId) {
         await publicarMensajeSistema(grupoId, {
           evento: 'actividad_creada',
-          texto: `📋 Nueva actividad de ${materia.nombre}: "${titulo.trim()}". Fecha de entrega: ${fechaEntregaTxt}.`,
+          texto: `📋 Nueva actividad de ${materia.nombre}: "${tituloActividad}". Fecha de entrega: ${fechaEntregaTxt}.`,
         });
       }
     }
@@ -304,10 +383,18 @@ exports.crear = async (req, res) => {
       id,
       periodo_id,
       estado,
+      plan_item_id: planItem?.id || null,
     });
   } catch (err) {
+    if (conn) await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY' && plan_item_id) {
+      return res.status(409).json({ ok: false, mensaje: 'Esta actividad ya tiene una tarea creada.' });
+    }
     console.error('crear tareas:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    if (conn) conn.release();
+    if (req.file && !archivoGuardado) _limpiarArchivoTemporal(req.file);
   }
 };
 
@@ -316,7 +403,7 @@ exports.crear = async (req, res) => {
 // ────────────────────────────────────────────────────────────
 exports.actualizar = async (req, res) => {
   const { id } = req.params;
-  const { titulo, descripcion, fecha_entrega, valor_max } = req.body;
+  const { titulo, descripcion, fecha_entrega, valor_max, permitir_tardias, recibir_entregas } = req.body;
   try {
     const [tarRows] = await pool.query(`SELECT * FROM tareas WHERE id = ?`, [id]);
     if (!tarRows.length) return res.status(404).json({ ok: false, mensaje: 'Tarea no encontrada.' });
@@ -327,7 +414,7 @@ exports.actualizar = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar esta tarea.' });
     }
 
-    if (fecha_entrega !== undefined && new Date(fecha_entrega) < new Date(new Date().toDateString())) {
+    if (fecha_entrega !== undefined && _soloFecha(fecha_entrega) < _hoyISO()) {
       return res.status(400).json({ ok: false, mensaje: 'La fecha de entrega no puede ser anterior a hoy.' });
     }
 
@@ -336,13 +423,17 @@ exports.actualizar = async (req, res) => {
        SET titulo = COALESCE(?, titulo),
            descripcion = COALESCE(?, descripcion),
            fecha_entrega = COALESCE(?, fecha_entrega),
-           valor_max = COALESCE(?, valor_max)
+           valor_max = COALESCE(?, valor_max),
+           permitir_tardias = COALESCE(?, permitir_tardias),
+           recibir_entregas = COALESCE(?, recibir_entregas)
        WHERE id = ?`,
       [
         titulo !== undefined ? titulo.trim() : null,
         descripcion !== undefined ? descripcion : null,
         fecha_entrega || null,
         valor_max !== undefined ? Number(valor_max) : null,
+        permitir_tardias !== undefined ? _valorBooleano(permitir_tardias, true) : null,
+        recibir_entregas !== undefined ? _valorBooleano(recibir_entregas, true) : null,
         id,
       ]
     );
@@ -368,7 +459,17 @@ exports.eliminar = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para eliminar esta tarea.' });
     }
 
+    const archivo = tarea.archivo_id
+      ? (await pool.query(`SELECT ruta_storage FROM archivos WHERE id = ? LIMIT 1`, [tarea.archivo_id]))[0][0]
+      : null;
     await pool.query(`DELETE FROM tareas WHERE id = ?`, [id]);
+    if (tarea.archivo_id) {
+      await pool.query(`DELETE FROM archivos WHERE id = ?`, [tarea.archivo_id]);
+      if (archivo?.ruta_storage) {
+        const ruta = path.resolve(__dirname, '../..', archivo.ruta_storage);
+        if (ruta.startsWith(`${RAIZ_ENTREGAS}${path.sep}`)) _limpiarArchivoTemporal({ path: ruta });
+      }
+    }
     return res.json({ ok: true, mensaje: 'Tarea eliminada.' });
   } catch (err) {
     console.error('eliminar tareas:', err.message);
@@ -465,7 +566,9 @@ exports.listarPorEstudiante = async (req, res) => {
       `SELECT t.id, t.materia_id, m.nombre AS materia, t.titulo, t.descripcion,
               t.fecha_asig, t.fecha_entrega, t.fecha_entrega AS fecha_limite,
               t.valor_max, t.estado AS tarea_estado,
+              t.permitir_tardias, t.recibir_entregas,
               e.id AS entrega_id, COALESCE(e.estado, 'pendiente') AS estado,
+              COALESCE(e.entrega_tarde, FALSE) AS entrega_tarde,
               e.calificacion, e.calificacion AS nota,
               e.feedback_doc, e.feedback_doc AS feedback,
               e.comentario, e.fecha_entrega AS fec_entrega
@@ -485,6 +588,59 @@ exports.listarPorEstudiante = async (req, res) => {
     return res.json({ ok: true, tareas });
   } catch (err) {
     console.error('listarPorEstudiante tareas:', err.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  }
+};
+
+// GET /api/tareas/:id/archivo — descarga autenticada del material docente.
+exports.descargarArchivoActividad = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.materia_id, t.grupo_id, t.estado, ar.nombre_original, ar.ruta_storage
+       FROM tareas t
+       JOIN archivos ar ON ar.id = t.archivo_id
+       WHERE t.id = ? LIMIT 1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, mensaje: 'Archivo de actividad no encontrado.' });
+    const tarea = rows[0];
+    if (req.usuario.rol === 'estudiante') {
+      if (tarea.estado !== 'publicada') {
+        return res.status(404).json({ ok: false, mensaje: 'Archivo de actividad no encontrado.' });
+      }
+      const [matriculas] = await pool.query(
+        `SELECT 1 FROM matriculas WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'activa' LIMIT 1`,
+        [req.usuario.id, tarea.grupo_id]
+      );
+      if (!matriculas.length) {
+        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para descargar este archivo.' });
+      }
+    } else {
+      const materia = await _materiaDeLaInstitucion(req, tarea.materia_id);
+      if (!materia || !(await _puedeVerTareas(req, materia, tarea.grupo_id))) {
+        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para descargar este archivo.' });
+      }
+    }
+
+    const ruta = path.resolve(__dirname, '../..', tarea.ruta_storage);
+    if (!ruta.startsWith(`${RAIZ_ENTREGAS}${path.sep}`)) {
+      console.error('Ruta del material de actividad fuera de su carpeta.');
+      return res.status(500).json({ ok: false, mensaje: 'No se pudo abrir el archivo.' });
+    }
+    return res.download(ruta, tarea.nombre_original, err => {
+      if (err) {
+        console.error('descargar archivo de actividad:', err.message);
+        if (!res.headersSent) {
+          res.status(err.code === 'ENOENT' ? 404 : 500).json({
+            ok: false,
+            mensaje: err.code === 'ENOENT' ? 'Archivo no encontrado.' : 'No se pudo abrir el archivo.',
+          });
+        }
+      }
+    });
+  } catch (err) {
+    console.error('descargarArchivoActividad tareas:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   }
 };
@@ -518,9 +674,17 @@ exports.entregar = async (req, res) => {
     if (tarea.estado !== 'publicada' && !abierto) {
       return res.status(409).json({ ok: false, mensaje: 'Esta tarea todavía no está publicada.' });
     }
+    const fechaLimite = _soloFecha(tarea.fecha_entrega);
+    const tardia = hoy > fechaLimite;
+    if (!tarea.recibir_entregas) {
+      return res.status(409).json({ ok: false, mensaje: 'El docente cerró la recepción de entregas para esta actividad.' });
+    }
+    if (tardia && !tarea.permitir_tardias) {
+      return res.status(409).json({ ok: false, mensaje: 'La fecha límite ya pasó y esta actividad no admite entregas tardías.' });
+    }
     const finPeriodo = periodo ? _soloFecha(periodo.fecha_fin) : null;
-    if (finPeriodo && hoy > finPeriodo) {
-      return res.status(409).json({ ok: false, mensaje: 'El periodo de esta tarea ya cerró; no se pueden registrar más entregas.' });
+    if (finPeriodo && hoy > finPeriodo && !tardia) {
+      return res.status(409).json({ ok: false, mensaje: 'El periodo de esta tarea ya cerró; no se pueden registrar entregas.' });
     }
 
     // Una entrega calificada queda inmutable (ni comentario ni estado).
@@ -533,19 +697,19 @@ exports.entregar = async (req, res) => {
     }
 
     const ahora = new Date();
-    const limite = new Date(tarea.fecha_entrega + 'T23:59:59');
-    const estado = ahora > limite ? 'tarde' : 'entregada';
+    const estado = tardia ? 'tarde' : 'entregada';
 
     await pool.query(
-      `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, comentario, estado, fecha_entrega)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, comentario, estado, entrega_tarde, fecha_entrega)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE comentario = VALUES(comentario),
+         entrega_tarde = IF(estado = 'calificada', entrega_tarde, VALUES(entrega_tarde)),
          estado = IF(estado = 'calificada', estado, VALUES(estado)),
          fecha_entrega = VALUES(fecha_entrega)`,
-      [randomUUID(), id, req.usuario.id, comentario || null, estado, ahora]
+      [randomUUID(), id, req.usuario.id, comentario || null, estado, tardia, ahora]
     );
 
-    return res.json({ ok: true, mensaje: 'Tarea entregada.', estado });
+    return res.json({ ok: true, mensaje: 'Tarea entregada.', estado, entrega_tarde: tardia });
   } catch (err) {
     console.error('entregar tareas:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
@@ -578,7 +742,8 @@ exports.listarEntregas = async (req, res) => {
     );
 
     const [entregas] = await pool.query(
-      `SELECT e.estudiante_id, e.estado, e.calificacion, e.feedback_doc, e.comentario, e.fecha_entrega
+      `SELECT e.estudiante_id, e.estado, e.entrega_tarde,
+              e.calificacion, e.feedback_doc, e.comentario, e.fecha_entrega
        FROM entregas_tareas e
        WHERE e.tarea_id = ?`,
       [id]
@@ -594,6 +759,7 @@ exports.listarEntregas = async (req, res) => {
         nombres: e.nombres,
         apellidos: e.apellidos,
         estado: d.estado || 'pendiente',
+        entrega_tarde: Boolean(Number(d.entrega_tarde)),
         calificacion: d.calificacion ?? null,
         feedback_doc: d.feedback_doc ?? null,
         comentario: d.comentario ?? null,
@@ -617,6 +783,7 @@ exports.listarEntregas = async (req, res) => {
 exports.calificarEntrega = async (req, res) => {
   const { id } = req.params;
   const { estudiante_id, calificacion, feedback_doc } = req.body;
+  let conn;
   try {
     const [tarRows] = await pool.query(`SELECT * FROM tareas WHERE id = ?`, [id]);
     if (!tarRows.length) return res.status(404).json({ ok: false, mensaje: 'Tarea no encontrada.' });
@@ -637,9 +804,11 @@ exports.calificarEntrega = async (req, res) => {
       }
     }
 
-    await pool.query(
-      `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, estado, calificacion, feedback_doc, fecha_entrega)
-       VALUES (?, ?, ?, 'calificada', ?, ?, NULL)
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await conn.query(
+      `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, estado, entrega_tarde, calificacion, feedback_doc, fecha_entrega)
+       VALUES (?, ?, ?, 'calificada', FALSE, ?, ?, NULL)
        ON DUPLICATE KEY UPDATE estado = 'calificada', calificacion = COALESCE(?, calificacion), feedback_doc = ?`,
       [
         randomUUID(), id, estudiante_id,
@@ -649,6 +818,30 @@ exports.calificarEntrega = async (req, res) => {
         feedback_doc || null,
       ]
     );
+
+    if (calificacion !== null && calificacion !== undefined && tarea.plan_item_id) {
+      const [items] = await conn.query(
+        `SELECT nombre, peso_pct FROM plan_evaluacion_items WHERE id = ? LIMIT 1`,
+        [tarea.plan_item_id]
+      );
+      const item = items[0];
+      if (item && item.peso_pct !== null) {
+        await conn.query(
+          `INSERT INTO notas
+             (id, estudiante_id, materia_id, periodo_id, docente_id, tipo_nota, descripcion,
+              valor, valor_max, peso_pct, plan_item_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE valor = VALUES(valor), valor_max = VALUES(valor_max),
+             docente_id = VALUES(docente_id), peso_pct = VALUES(peso_pct)`,
+          [
+            randomUUID(), estudiante_id, tarea.materia_id, tarea.periodo_id,
+            tarea.docente_id, item.nombre.slice(0, 60), tarea.titulo,
+            Number(calificacion), Number(tarea.valor_max), Number(item.peso_pct), tarea.plan_item_id,
+          ]
+        );
+      }
+    }
+    await conn.commit();
 
     // Aviso al estudiante de que su entrega fue calificada (punto 6).
     const nota = calificacion !== null && calificacion !== undefined ? Number(calificacion) : null;
@@ -672,7 +865,10 @@ exports.calificarEntrega = async (req, res) => {
 
     return res.json({ ok: true, mensaje: 'Entrega calificada.' });
   } catch (err) {
+    if (conn) await conn.rollback();
     console.error('calificarEntrega tareas:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    if (conn) conn.release();
   }
 };

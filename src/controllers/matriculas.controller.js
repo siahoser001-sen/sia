@@ -456,10 +456,30 @@ exports.trasladar = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Matrícula activa no encontrada.' });
     }
 
+    const [matriculasActivas] = await conn.query(
+      `SELECT id FROM matriculas
+       WHERE estudiante_id = ? AND estado = 'activa'
+       FOR UPDATE`,
+      [actual[0].estudiante_id]
+    );
+    if (matriculasActivas.length !== 1 || matriculasActivas[0].id !== id) {
+      await conn.rollback();
+      return res.status(409).json({
+        ok: false,
+        mensaje: 'El estudiante tiene más de una matrícula activa o su matrícula cambió. Corrige el estado antes de trasladarlo.',
+      });
+    }
+
+    if (actual[0].grupo_id === nuevo_grupo_id) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, mensaje: 'El estudiante ya pertenece a ese grupo.' });
+    }
+
     const [grupoDestino] = await conn.query(
       `SELECT g.id, g.capacidad_max
        FROM grupos g JOIN grados gr ON gr.id = g.grado_id
-       WHERE g.id = ? AND gr.institucion_id = ? AND g.activo = TRUE`,
+       WHERE g.id = ? AND gr.institucion_id = ? AND g.activo = TRUE
+       FOR UPDATE`,
       [nuevo_grupo_id, req.usuario.institucion_id]
     );
     if (!grupoDestino.length) {
@@ -486,15 +506,21 @@ exports.trasladar = async (req, res) => {
       actual[0].anio_lectivo
     );
 
-    await conn.query(
-      `UPDATE matriculas SET estado = 'trasladada', fecha_retiro = CURRENT_DATE WHERE id = ?`,
+    const [actualizada] = await conn.query(
+      `UPDATE matriculas
+       SET estado = 'trasladada', fecha_retiro = CURRENT_DATE
+       WHERE id = ? AND estado = 'activa'`,
       [id]
     );
+    if (actualizada.affectedRows !== 1) {
+      throw new Error('La matrícula dejó de estar activa durante el traslado.');
+    }
 
     const nuevaId = randomUUID();
     await conn.query(
-      `INSERT INTO matriculas (id, estudiante_id, grupo_id, anio_lectivo)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO matriculas
+         (id, estudiante_id, grupo_id, anio_lectivo, fecha_ingreso, estado)
+       VALUES (?, ?, ?, ?, CURRENT_DATE, 'activa')`,
       [nuevaId, actual[0].estudiante_id, nuevo_grupo_id, actual[0].anio_lectivo]
     );
 

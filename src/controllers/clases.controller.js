@@ -2,8 +2,7 @@ const pool = require('../config/db');
 const { randomUUID, randomBytes } = require('crypto');
 const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
 const {
-  condicionMateriaEnGrupo,
-  condicionDocenteEnGrupo,
+  condicionDocenteDictaMateriaEnGrupo,
   materiasConDocentesDeGrupo,
 } = require('../utils/materias-curso.util');
 
@@ -17,8 +16,7 @@ exports.misMateriasDocente = async (req, res) => {
               gr.nombre AS grado, dm.periodo_id
        FROM docentes_materias dm
        JOIN materias m ON m.id = dm.materia_id
-       JOIN grupos   g ON ${condicionDocenteEnGrupo('dm', 'm', 'g.id')}
-                        AND ${condicionMateriaEnGrupo('m', 'g.id')}
+       JOIN grupos   g ON ${condicionDocenteDictaMateriaEnGrupo('dm', 'm', 'g.id')}
        JOIN grados   gr ON gr.id = g.grado_id
        WHERE dm.docente_id = ? AND m.activa = TRUE
        ORDER BY gr.orden, g.nombre, m.nombre`,
@@ -42,10 +40,58 @@ exports.misMateriasEstudiante = async (req, res) => {
        LIMIT 1`,
       [req.usuario.id]
     );
-    if (!matriculas.length) return res.json({ ok: true, materias: [] });
+    if (!matriculas.length) {
+      return res.json({ ok: true, materias: [], curso: null, companeros: [], planItems: [] });
+    }
 
-    const rows = await materiasConDocentesDeGrupo(pool, matriculas[0].grupo_id);
-    return res.json({ ok: true, materias: rows });
+    const grupoId = matriculas[0].grupo_id;
+    const [rows, cursos, companeros] = await Promise.all([
+      materiasConDocentesDeGrupo(pool, grupoId),
+      pool.query(
+        `SELECT g.id AS grupo_id, g.nombre AS grupo, gr.nombre AS grado,
+                CONCAT_WS(' ', director.nombres, director.apellidos) AS director
+         FROM grupos g
+         JOIN grados gr ON gr.id = g.grado_id
+         LEFT JOIN usuarios director ON director.id = g.director_id
+         WHERE g.id = ?`,
+        [grupoId]
+      ).then(([resultado]) => resultado),
+      pool.query(
+        `SELECT DISTINCT u.id, CONCAT_WS(' ', u.nombres, u.apellidos) AS nombre
+         FROM matriculas mt
+         JOIN usuarios u ON u.id = mt.estudiante_id
+         WHERE mt.grupo_id = ? AND mt.estado = 'activa'
+           AND mt.estudiante_id <> ?
+         ORDER BY nombre`,
+        [grupoId, req.usuario.id]
+      ).then(([resultado]) => resultado),
+    ]);
+    const materiasIds = [...new Set(rows.map(materia => materia.materia_id))];
+    const planItems = materiasIds.length
+      ? (await pool.query(
+        `SELECT pi.id, pi.materia_id, m.nombre AS materia, pi.nombre,
+                pi.peso_pct, pi.orden
+         FROM plan_evaluacion_items pi
+         JOIN materias m ON m.id = pi.materia_id
+         WHERE pi.materia_id IN (${materiasIds.map(() => '?').join(',')})
+           AND pi.periodo_id IN (
+             SELECT pa.id
+             FROM periodos_academicos pa
+             JOIN grados gr ON gr.institucion_id = pa.institucion_id
+             JOIN grupos g ON g.grado_id = gr.id
+             WHERE g.id = ? AND pa.activo = TRUE
+           )
+         ORDER BY m.nombre, pi.orden, pi.created_at`,
+        [...materiasIds, grupoId]
+      ))[0]
+      : [];
+    return res.json({
+      ok: true,
+      materias: rows,
+      curso: cursos[0] || null,
+      companeros,
+      planItems,
+    });
   } catch (err) {
     console.error('misMateriasEstudiante error:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });

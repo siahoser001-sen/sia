@@ -11,6 +11,54 @@ function condicionDocenteEnGrupo(aliasDocente = 'dm', aliasMateria = 'm', grupo 
   ))`;
 }
 
+function condicionDocenteDictaMateriaEnGrupo(aliasDocente = 'dm', aliasMateria = 'm', grupo = '?') {
+  return `((
+    ${condicionDocenteEnGrupo(aliasDocente, aliasMateria, grupo)}
+    AND ${condicionMateriaEnGrupo(aliasMateria, grupo)}
+  ) OR (
+    ${aliasMateria}.grupo_id IS NULL
+    AND EXISTS (
+      SELECT 1 FROM horarios h_docente
+      WHERE h_docente.grupo_id = ${grupo}
+        AND h_docente.materia_id = ${aliasMateria}.id
+        AND h_docente.docente_id = ${aliasDocente}.docente_id
+    )
+  ))`;
+}
+
+function condicionDocentePerteneceAlGrupo(aliasGrupo = 'g', docente = '?') {
+  return `(${aliasGrupo}.director_id = ${docente} OR EXISTS (
+    SELECT 1
+    FROM docentes_materias dm_acceso
+    JOIN materias m_acceso ON m_acceso.id = dm_acceso.materia_id
+    WHERE dm_acceso.docente_id = ${docente}
+      AND m_acceso.activa = TRUE
+      AND ${condicionDocenteDictaMateriaEnGrupo('dm_acceso', 'm_acceso', `${aliasGrupo}.id`)}
+  ) OR EXISTS (
+    SELECT 1
+    FROM horarios h_acceso
+    JOIN materias m_acceso_horario ON m_acceso_horario.id = h_acceso.materia_id
+    WHERE h_acceso.grupo_id = ${aliasGrupo}.id
+      AND h_acceso.docente_id = ${docente}
+      AND m_acceso_horario.grupo_id IS NULL
+      AND m_acceso_horario.activa = TRUE
+  ))`;
+}
+
+function parametrosDocentePerteneceAlGrupo(docenteId) {
+  return [docenteId, docenteId, docenteId];
+}
+
+async function docentePerteneceAlGrupo(conn, docenteId, grupoId) {
+  if (!docenteId || !grupoId) return false;
+  const [rows] = await conn.query(
+    `SELECT 1 FROM grupos g
+     WHERE g.id = ? AND ${condicionDocentePerteneceAlGrupo('g')}`,
+    [grupoId, ...parametrosDocentePerteneceAlGrupo(docenteId)]
+  );
+  return rows.length > 0;
+}
+
 function parametrosMateriaEnGrupo(grupoId) {
   return [grupoId, grupoId];
 }
@@ -103,6 +151,10 @@ async function materiasConDocentesDeGrupo(conn, grupoId) {
 module.exports = {
   condicionMateriaEnGrupo,
   condicionDocenteEnGrupo,
+  condicionDocenteDictaMateriaEnGrupo,
+  condicionDocentePerteneceAlGrupo,
+  parametrosDocentePerteneceAlGrupo,
+  docentePerteneceAlGrupo,
   parametrosMateriaEnGrupo,
   parametrosDocenteEnGrupo,
   materiaPerteneceAlGrupo,

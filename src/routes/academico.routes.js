@@ -68,7 +68,7 @@ router.put('/periodos/:id/activar',soloRoles('admin', 'superadmin'), ctrl.activa
 router.delete('/periodos/:id',     soloRoles('admin', 'superadmin'), ctrl.eliminarPeriodo);
 
 // Horarios (parrilla semanal por curso)
-// Lectura/gestión: admin/superadmin + director de curso (se valida dentro del controller).
+// Lectura: admin/superadmin, director o docente asignado; escritura: admin/superadmin o director.
 router.get('/horario',             soloRoles('admin', 'superadmin', 'docente'), ctrl.listarHorario);
 router.get('/horario/materias',    soloRoles('admin', 'superadmin', 'docente'), ctrl.listarMateriasHorario);
 router.post('/horario',            soloRoles('admin', 'superadmin', 'docente'), ctrl.crearHorario);

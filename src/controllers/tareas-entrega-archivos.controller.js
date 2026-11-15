@@ -80,21 +80,30 @@ exports.subir = async (req, res) => {
       await limpiarArchivosTemporales(archivos);
       return res.status(409).json({ ok: false, mensaje: 'Esta tarea todavía no está publicada.' });
     }
-    const finPeriodo = periodo ? soloFecha(periodo.fecha_fin) : null;
-    if (finPeriodo && hoy > finPeriodo) {
+    const fechaLimite = soloFecha(tarea.fecha_entrega);
+    const tardia = hoy > fechaLimite;
+    if (!tarea.recibir_entregas) {
       await limpiarArchivosTemporales(archivos);
-      return res.status(409).json({ ok: false, mensaje: 'El periodo de esta tarea ya cerró; no se pueden registrar más entregas.' });
+      return res.status(409).json({ ok: false, mensaje: 'El docente cerró la recepción de entregas para esta actividad.' });
+    }
+    if (tardia && !tarea.permitir_tardias) {
+      await limpiarArchivosTemporales(archivos);
+      return res.status(409).json({ ok: false, mensaje: 'La fecha límite ya pasó y esta actividad no admite entregas tardías.' });
+    }
+    const finPeriodo = periodo ? soloFecha(periodo.fecha_fin) : null;
+    if (finPeriodo && hoy > finPeriodo && !tardia) {
+      await limpiarArchivosTemporales(archivos);
+      return res.status(409).json({ ok: false, mensaje: 'El periodo de esta tarea ya cerró; no se pueden registrar entregas.' });
     }
 
     const ahora = new Date();
-    const limite = new Date(tarea.fecha_entrega + 'T23:59:59');
-    const estado = ahora > limite ? 'tarde' : 'entregada';
+    const estado = tardia ? 'tarde' : 'entregada';
 
     conn = await pool.getConnection();
     await conn.beginTransaction();
 
     const [entregas] = await conn.query(
-      `SELECT id, estado FROM entregas_tareas
+      `SELECT id, estado, entrega_tarde FROM entregas_tareas
        WHERE tarea_id = ? AND estudiante_id = ?
        FOR UPDATE`,
       [id, req.usuario.id]
@@ -110,16 +119,16 @@ exports.subir = async (req, res) => {
       entregaId = entregas[0].id;
       await conn.query(
         `UPDATE entregas_tareas
-         SET estado = ?, fecha_entrega = ?
+         SET estado = ?, entrega_tarde = ?, fecha_entrega = ?
          WHERE id = ?`,
-        [estado, ahora, entregaId]
+        [estado, tardia, ahora, entregaId]
       );
     } else {
       entregaId = randomUUID();
       await conn.query(
-        `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, estado, fecha_entrega)
-         VALUES (?, ?, ?, ?, ?)`,
-        [entregaId, id, req.usuario.id, estado, ahora]
+        `INSERT INTO entregas_tareas (id, tarea_id, estudiante_id, estado, entrega_tarde, fecha_entrega)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [entregaId, id, req.usuario.id, estado, tardia, ahora]
       );
     }
 

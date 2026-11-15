@@ -629,11 +629,15 @@ function irAlTop(url) {
 
 function abrirNotasMateria() {
   const primera = MIS_MATERIAS.find(m => m.materia_id);
-  if (!primera) {
-    alert('Todavía no tienes materias para consultar.');
+  if (primera) {
+    irAlTop(`materia-estudiante.html?materia=${encodeURIComponent(primera.materia_id)}&tab=notas`);
     return;
   }
-  irAlTop(`materia-estudiante.html?materia=${encodeURIComponent(primera.materia_id)}&tab=notas`);
+  if (CURSO_ESTUDIANTE && CURSO_ESTUDIANTE.grupo_id) {
+    irAlTop(`materia-estudiante.html?curso=${encodeURIComponent(CURSO_ESTUDIANTE.grupo_id)}&tab=notas`);
+    return;
+  }
+  alert('Todavía no tienes materias para consultar.');
 }
 
 /* Información de una materia en su propio contexto:
@@ -654,11 +658,15 @@ function abrirInfoMateria() {
     vistas[clave] = true;
     unicas.push(clave);
   }
+  if (!unicas.length && CURSO_ESTUDIANTE && CURSO_ESTUDIANTE.grupo_id) {
+    irAlTop(`materia-estudiante.html?curso=${encodeURIComponent(CURSO_ESTUDIANTE.grupo_id)}`);
+    return;
+  }
   if (!unicas.length) {
     alert('Todavía no tienes materias para consultar.');
     return;
   }
-  if (unicas.length === 1) {
+  if (unicas.length === 1 && !CURSO_ESTUDIANTE) {
     abrirInfoMateriaDe(unicas[0]);
     return;
   }
@@ -678,13 +686,29 @@ function renderMaterias() {
   const nomCurso = contextoCurso
     ? [contextoCurso.grado, contextoCurso.grupo].filter(Boolean).join(' ')
     : '';
-  const totalMaterias = new Set(MIS_MATERIAS.map(m => m.materia_id || m.materia)).size;
+  const totalMaterias = new Set(MIS_MATERIAS.map(m => m.materia_id || m.materia)).size
+    + (CURSO_ESTUDIANTE ? 1 : 0);
   if (curso) {
     curso.textContent = (nomCurso ? `Curso actual: ${nomCurso} · ` : 'Sin curso activo · ')
       + `${totalMaterias} materia${totalMaterias === 1 ? '' : 's'}`;
   }
+  const tarjetaCurso = CURSO_ESTUDIANTE && CURSO_ESTUDIANTE.grupo_id
+    ? `<div class="materia-card ani">
+        <div>
+          <div class="materia-nombre">Curso ${nomCurso || ''}</div>
+          <div class="materia-docente">Actividades, asistencia, notas, información y compañeros del curso</div>
+        </div>
+        <div class="materia-actions">
+          <button type="button" class="btn btn-ghost btn-sm"
+            onclick="irAlTop('materia-estudiante.html?curso=${encodeURIComponent(CURSO_ESTUDIANTE.grupo_id)}')">
+            Información del curso
+          </button>
+        </div>
+      </div>`
+    : '';
   if (!MIS_MATERIAS.length) {
-    lista.innerHTML = '<div class="empty">Todavía no tienes materias asignadas. Cuando estés en un curso con materias, aparecerán aquí.</div>';
+    lista.innerHTML = tarjetaCurso
+      || '<div class="empty">Todavía no tienes materias asignadas ni un curso activo.</div>';
     return;
   }
 
@@ -698,7 +722,7 @@ function renderMaterias() {
     if (!fila.vistos[m.docente_id]) { fila.vistos[m.docente_id] = true; fila.docentes.push(m); }
   }
 
-  lista.innerHTML = porMateria.map((mat, i) => {
+  lista.innerHTML = tarjetaCurso + porMateria.map((mat, i) => {
     const docentes = mat.docentes.map(m => m.docente_id
       ? `<button type="button" onclick="SIAVerDocente('${m.docente_id}')" title="Ver perfil del docente" style="background:none;border:0;color:var(--blue-light,#93C5FD);cursor:pointer;font:inherit;padding:0;font-weight:700">${m.docente}</button>`
       : `<strong>${m.docente || 'Docente por asignar'}</strong>`).join(', ');
@@ -709,7 +733,7 @@ function renderMaterias() {
       ? `llamadas-estudiante.html?materia=${encodeURIComponent(dmId)}`
       : 'llamadas-estudiante.html';
     return `
-    <div class="glass materia-card ani" style="animation-delay:${i * 60}ms">
+    <div class="materia-card ani" style="animation-delay:${i * 60}ms">
       <div>
         <div class="materia-nombre">${mat.materia}</div>
         <div class="materia-docente">Docente${mat.docentes.length === 1 ? '' : 's'}: ${docentes}</div>

@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 
 async function obtenerResumenAsistenciaDia(grupoId, desde, hasta, estudianteId = null) {
+  // COUNT(*) conserva el conteo por clase, incluso si varias ocurren el mismo día.
   let sql = `
     SELECT estudiante_id, estado, COUNT(*) AS total
     FROM asistencia_dia
@@ -34,6 +35,33 @@ async function obtenerResumenAsistenciaDia(grupoId, desde, hasta, estudianteId =
   return resumen;
 }
 
+async function obtenerTotalesAsistenciaDia(grupoId, desde, hasta, estudianteIds = null) {
+  let sql = `
+    SELECT estudiante_id,
+           SUM(estado = 'asistio') AS asistencias,
+           SUM(estado = 'falta') AS fallas,
+           SUM(estado = 'tarde') AS retrasos,
+           SUM(estado = 'justificada') AS justificados
+    FROM asistencia_dia
+    WHERE grupo_id = ? AND fecha BETWEEN ? AND ?`;
+  const params = [grupoId, desde, hasta];
+  if (estudianteIds) {
+    if (!estudianteIds.length) return [];
+    sql += ` AND estudiante_id IN (${estudianteIds.map(() => '?').join(',')})`;
+    params.push(...estudianteIds);
+  }
+  sql += ' GROUP BY estudiante_id';
+
+  const [rows] = await pool.query(sql, params);
+  return rows.map(row => ({
+    estudiante_id: row.estudiante_id,
+    asistencias: Number(row.asistencias),
+    fallas: Number(row.fallas),
+    retrasos: Number(row.retrasos),
+    justificados: Number(row.justificados),
+  }));
+}
+
 function totalizarResumenAsistenciaDia(resumen) {
   const total = { asistio: 0, falta: 0, tarde: 0, justificada: 0 };
   for (const estudiante of Object.values(resumen)) {
@@ -45,4 +73,8 @@ function totalizarResumenAsistenciaDia(resumen) {
   return total;
 }
 
-module.exports = { obtenerResumenAsistenciaDia, totalizarResumenAsistenciaDia };
+module.exports = {
+  obtenerResumenAsistenciaDia,
+  obtenerTotalesAsistenciaDia,
+  totalizarResumenAsistenciaDia,
+};

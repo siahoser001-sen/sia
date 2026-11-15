@@ -28,6 +28,8 @@ const { randomUUID } = require('crypto');
 const {
   condicionDocenteEnGrupo,
   parametrosDocenteEnGrupo,
+  condicionMateriaEnGrupo,
+  parametrosMateriaEnGrupo,
   materiaPerteneceAlGrupo,
   docenteAsignadoEnGrupo,
   gruposDocenteMateria,
@@ -53,6 +55,7 @@ async function _puedeGestionarPlan(req, materia, grupoId = null) {
   if (req.usuario.rol === 'superadmin') return true;
   if (req.usuario.rol === 'admin') return materia.institucion_id === req.usuario.institucion_id;
   if (req.usuario.rol === 'docente') {
+    if (grupoId && await _esDirectorGrupo(req.usuario.id, grupoId)) return true;
     if (grupoId) return docenteAsignadoEnGrupo(pool, materia.id, req.usuario.id, grupoId);
     return (await gruposDocenteMateria(pool, materia.id, req.usuario.id)).length > 0;
   }
@@ -75,16 +78,49 @@ async function _puedeCalificar(req, materiaId, periodoId, grupoId = null) {
   return false;
 }
 
-async function _sumaPesoPlan(conn, materiaId, periodoId, excluirItemId = null) {
-  let sql = `SELECT COALESCE(SUM(peso_pct), 0) AS total FROM plan_evaluacion_items
-             WHERE materia_id = ? AND periodo_id = ?`;
-  const params = [materiaId, periodoId];
+async function _esDirectorGrupo(docenteId, grupoId, conn = pool) {
+  if (!docenteId || !grupoId) return false;
+  const [rows] = await conn.query(
+    `SELECT 1 FROM grupos WHERE id = ? AND director_id = ? LIMIT 1`,
+    [grupoId, docenteId]
+  );
+  return rows.length > 0;
+}
+
+async function _sumaPesoPlan(conn, materiaId, periodoId, excluirItemId = null, grupoId = null, planCurso = false) {
+  let sql;
+  let params;
+  if (planCurso && grupoId) {
+    sql = `SELECT COALESCE(SUM(pi.peso_pct), 0) AS total
+           FROM plan_evaluacion_items pi
+           JOIN materias m ON m.id = pi.materia_id
+           WHERE pi.periodo_id = ? AND ${condicionMateriaEnGrupo('m')}`;
+    params = [periodoId, ...parametrosMateriaEnGrupo(grupoId)];
+  } else {
+    sql = `SELECT COALESCE(SUM(peso_pct), 0) AS total FROM plan_evaluacion_items
+           WHERE materia_id = ? AND periodo_id = ?`;
+    params = [materiaId, periodoId];
+  }
   if (excluirItemId) {
-    sql += ` AND id != ?`;
+    sql += planCurso && grupoId ? ` AND pi.id != ?` : ` AND id != ?`;
     params.push(excluirItemId);
   }
   const [[{ total }]] = await conn.query(sql, params);
   return Number(total);
+}
+
+async function _bloquearPlan(conn, materiaId, grupoId = null, planCurso = false) {
+  if (planCurso && grupoId) {
+    await conn.query(`SELECT id FROM grupos WHERE id = ? FOR UPDATE`, [grupoId]);
+    return;
+  }
+  await conn.query(`SELECT id FROM materias WHERE id = ? FOR UPDATE`, [materiaId]);
+}
+
+function _pesoValido(peso) {
+  if (peso === null || peso === undefined || peso === '') return false;
+  const numero = Number(peso);
+  return Number.isFinite(numero) && numero > 0 && numero <= 100;
 }
 
 // Verifica que la materia exista y pertenezca a la institución del
@@ -132,18 +168,36 @@ exports.listarItems = async (req, res) => {
 
     const [items] = await pool.query(
       `SELECT pi.id, pi.nombre, pi.peso_pct, pi.orden,
+              t.id AS tarea_id, t.descripcion AS tarea_descripcion,
+              t.fecha_entrega, t.valor_max, t.estado AS tarea_estado,
+              t.permitir_tardias, t.recibir_entregas,
+              a.id AS archivo_id, a.nombre_original AS archivo_nombre,
+              (SELECT COUNT(*) FROM entregas_tareas e
+               WHERE e.tarea_id = t.id AND e.estado <> 'pendiente') AS con_entrega,
+              (SELECT COUNT(*) FROM entregas_tareas e WHERE e.tarea_id = t.id) AS total_entregas,
               (SELECT COUNT(*) FROM notas n WHERE n.plan_item_id = pi.id) AS conteo_notas
        FROM plan_evaluacion_items pi
+       LEFT JOIN tareas t ON t.plan_item_id = pi.id
+       LEFT JOIN archivos a ON a.id = t.archivo_id
        WHERE pi.materia_id = ? AND pi.periodo_id = ?
        ORDER BY pi.orden ASC, pi.created_at ASC`,
       [materiaId, periodoId]
     );
-    const suma = items.reduce((acc, it) => acc + Number(it.peso_pct), 0);
+    const planCurso = req.usuario.rol === 'docente' && await _esDirectorGrupo(req.usuario.id, req.query.grupo_id || materia.grupo_id);
+    const suma = await _sumaPesoPlan(
+      pool,
+      materiaId,
+      periodoId,
+      null,
+      req.query.grupo_id || materia.grupo_id,
+      planCurso
+    );
 
     return res.json({
       ok: true,
       periodo_id: periodoId,
       items,
+      plan_scope: planCurso ? 'curso' : 'materia',
       suma_actual: Number(suma.toFixed(2)),
       pendiente: Number((100 - suma).toFixed(2)),
     });
@@ -159,17 +213,16 @@ exports.listarItems = async (req, res) => {
 exports.crearItem = async (req, res) => {
   const { materia_id, nombre, peso_pct, orden } = req.body;
   let { periodo_id } = req.body;
-  if (!materia_id || !nombre || peso_pct === undefined) {
+  if (!materia_id || !nombre || !_pesoValido(peso_pct)) {
     return res.status(400).json({ ok: false, mensaje: 'materia_id, nombre y peso_pct son obligatorios.' });
   }
-  if (peso_pct <= 0 || peso_pct > 100) {
-    return res.status(400).json({ ok: false, mensaje: 'peso_pct debe estar entre 1 y 100.' });
-  }
 
+  let conn;
   try {
     const materia = await _materiaDeLaInstitucion(req, materia_id);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
-    if (!(await _puedeGestionarPlan(req, materia, req.body.grupo_id || materia.grupo_id))) {
+    const grupoId = req.body.grupo_id || materia.grupo_id;
+    if (!(await _puedeGestionarPlan(req, materia, grupoId))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
     }
 
@@ -178,27 +231,36 @@ exports.crearItem = async (req, res) => {
       return res.status(409).json({ ok: false, mensaje: 'No hay ningún periodo académico activo ni creado. Pide al administrador que cree uno.' });
     }
 
-    const sumaActual = await _sumaPesoPlan(pool, materia_id, periodo_id);
+    const planCurso = req.usuario.rol === 'docente' && await _esDirectorGrupo(req.usuario.id, grupoId);
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await _bloquearPlan(conn, materia_id, grupoId, planCurso);
+    const sumaActual = await _sumaPesoPlan(conn, materia_id, periodo_id, null, grupoId, planCurso);
     if (sumaActual + Number(peso_pct) > 100) {
+      await conn.rollback();
       return res.status(400).json({
         ok: false,
-        mensaje: `El plan de este periodo ya suma ${sumaActual}%. Con esta actividad se pasaría de 100%.`,
+        mensaje: `El plan ya usa ${sumaActual}%. Baja el porcentaje o elimina una actividad antes de agregar otra.`,
       });
     }
 
     const id = randomUUID();
-    await pool.query(
+    await conn.query(
       `INSERT INTO plan_evaluacion_items (id, materia_id, periodo_id, nombre, peso_pct, orden)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, materia_id, periodo_id, nombre.trim(), peso_pct, orden || 0]
     );
+    await conn.commit();
     return res.status(201).json({ ok: true, mensaje: 'Actividad agregada al plan.', id, periodo_id });
   } catch (err) {
+    if (conn) await conn.rollback();
     if (err.errno === 3819 || /chk_plan_peso_pct/.test(err.message || '')) {
       return res.status(400).json({ ok: false, mensaje: 'El peso no cumple las reglas de validación.' });
     }
     console.error('crearItem plan-evaluacion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
@@ -208,10 +270,14 @@ exports.crearItem = async (req, res) => {
 exports.actualizarItem = async (req, res) => {
   const { id } = req.params;
   const { nombre, peso_pct } = req.body;
-  if (peso_pct !== undefined && (peso_pct <= 0 || peso_pct > 100)) {
+  if (nombre !== undefined && (typeof nombre !== 'string' || !nombre.trim())) {
+    return res.status(400).json({ ok: false, mensaje: 'El nombre de la actividad no puede estar vacío.' });
+  }
+  if (peso_pct !== undefined && peso_pct !== null && !_pesoValido(peso_pct)) {
     return res.status(400).json({ ok: false, mensaje: 'peso_pct debe estar entre 1 y 100.' });
   }
 
+  let conn;
   try {
     const [itemRows] = await pool.query(`SELECT * FROM plan_evaluacion_items WHERE id = ?`, [id]);
     if (!itemRows.length) return res.status(404).json({ ok: false, mensaje: 'Actividad no encontrada.' });
@@ -222,34 +288,59 @@ exports.actualizarItem = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
     }
 
+    const grupoId = req.query.grupo_id || materia.grupo_id;
+    const planCurso = req.usuario.rol === 'docente' && await _esDirectorGrupo(req.usuario.id, grupoId);
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await _bloquearPlan(conn, item.materia_id, grupoId, planCurso);
+
     if (peso_pct !== undefined) {
-      const sumaActual = await _sumaPesoPlan(pool, item.materia_id, item.periodo_id, id);
-      if (sumaActual + Number(peso_pct) > 100) {
+      if (peso_pct === null) {
+        const [notas] = await conn.query(`SELECT 1 FROM notas WHERE plan_item_id = ? LIMIT 1`, [id]);
+        if (notas.length) {
+          await conn.rollback();
+          return res.status(409).json({ ok: false, mensaje: 'No se puede dejar sin porcentaje una actividad que ya tiene notas.' });
+        }
+      }
+      const sumaActual = await _sumaPesoPlan(conn, item.materia_id, item.periodo_id, id, grupoId, planCurso);
+      if (peso_pct !== null && sumaActual + Number(peso_pct) > 100) {
+        await conn.rollback();
         return res.status(400).json({
           ok: false,
-          mensaje: `El resto del plan ya suma ${sumaActual}%. Con este cambio se pasaría de 100%.`,
+          mensaje: `El plan ya usa ${sumaActual}%. Baja el porcentaje o elimina una actividad antes de guardar.`,
         });
       }
     }
 
-    await pool.query(
+    await conn.query(
       `UPDATE plan_evaluacion_items
-       SET nombre = COALESCE(?, nombre), peso_pct = COALESCE(?, peso_pct)
+       SET nombre = COALESCE(?, nombre), peso_pct = ?
        WHERE id = ?`,
-      [nombre ? nombre.trim() : null, peso_pct ?? null, id]
+      [nombre ? nombre.trim() : null, peso_pct === undefined ? item.peso_pct : peso_pct, id]
     );
+    if (nombre !== undefined) {
+      await conn.query(`UPDATE tareas SET titulo = ? WHERE plan_item_id = ?`, [nombre.trim(), id]);
+      await conn.query(
+        `UPDATE notas SET tipo_nota = ?, descripcion = ? WHERE plan_item_id = ?`,
+        [nombre.trim().slice(0, 60), nombre.trim(), id]
+      );
+    }
 
     // Si cambió el peso, las notas ya cargadas de este ítem deben quedar
     // con el mismo peso_pct nuevo (para que el promedio no quede
     // calculado con un peso viejo).
     if (peso_pct !== undefined) {
-      await pool.query(`UPDATE notas SET peso_pct = ? WHERE plan_item_id = ?`, [peso_pct, id]);
+      await conn.query(`UPDATE notas SET peso_pct = ? WHERE plan_item_id = ?`, [peso_pct, id]);
     }
 
+    await conn.commit();
     return res.json({ ok: true, mensaje: 'Actividad actualizada.' });
   } catch (err) {
+    if (conn) await conn.rollback();
     console.error('actualizarItem plan-evaluacion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
@@ -268,6 +359,14 @@ exports.eliminarItem = async (req, res) => {
     const materia = await _materiaDeLaInstitucion(req, item.materia_id);
     if (!materia || !(await _puedeGestionarPlan(req, materia, req.query.grupo_id || materia.grupo_id))) {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
+    }
+
+    const [tareas] = await pool.query(`SELECT id FROM tareas WHERE plan_item_id = ? LIMIT 1`, [id]);
+    if (tareas.length) {
+      return res.status(409).json({
+        ok: false,
+        mensaje: 'Esta actividad tiene una tarea y entregas asociadas. Conserva la actividad o elimina la tarea desde su gestión.',
+      });
     }
 
     await pool.query(`DELETE FROM plan_evaluacion_items WHERE id = ?`, [id]);
@@ -318,7 +417,7 @@ exports.hojaCalificacion = async (req, res) => {
 
     const [items] = await pool.query(
       `SELECT id, nombre, peso_pct, orden FROM plan_evaluacion_items
-       WHERE materia_id = ? AND periodo_id = ?
+       WHERE materia_id = ? AND periodo_id = ? AND peso_pct IS NOT NULL
        ORDER BY orden ASC, created_at ASC`,
       [materiaId, periodoId]
     );
@@ -436,6 +535,10 @@ exports.guardarCelda = async (req, res) => {
     if (!(await materiaPerteneceAlGrupo(conn, item.materia_id, grupoId))) {
       await conn.rollback();
       return res.status(404).json({ ok: false, mensaje: 'La materia no pertenece a ese curso.' });
+    }
+    if (item.peso_pct === null) {
+      await conn.rollback();
+      return res.status(409).json({ ok: false, mensaje: 'Esta actividad no tiene porcentaje y no admite calificación desde el plan.' });
     }
     if (!(await _puedeCalificar(req, item.materia_id, item.periodo_id, grupoId))) {
       await conn.rollback();

@@ -11,5 +11,6 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 router.use(authMiddleware);
 
 router.get('/', ctrl.listarNotificaciones);
+router.patch('/:id/leida', ctrl.marcarLeida);
 
 module.exports = router;

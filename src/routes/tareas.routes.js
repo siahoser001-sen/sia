@@ -20,6 +20,7 @@ router.use(authMiddleware);
 // con rol estudiante iría aquí — pero el estudiante es rol 'estudiante').
 router.get('/estudiante',        soloRoles('estudiante'), ctrl.listarPorEstudiante);
 router.post('/:id/entrega',      soloRoles('estudiante'), ctrl.entregar);
+router.get('/:id/archivo',      ctrl.descargarArchivoActividad);
 
 // Archivos de la entrega (máx. 5 por entrega, ver upload.middleware.js).
 router.post(
@@ -33,7 +34,7 @@ router.get('/:id/entrega/archivos/:archivoId', archivosCtrl.descargar);
 
 // Gestionar tareas por materia (docente asignado/admin)
 router.get('/materia/:materiaId',            soloRoles('admin', 'superadmin', 'docente'), ctrl.listarPorMateria);
-router.post('/',                              soloRoles('admin', 'superadmin', 'docente'), ctrl.crear);
+router.post('/',                              soloRoles('admin', 'superadmin', 'docente'), uploadEntrega.single('archivo'), ctrl.crear);
 router.put('/:id',                            soloRoles('admin', 'superadmin', 'docente'), ctrl.actualizar);
 router.put('/:id/publicar',                    soloRoles('admin', 'superadmin', 'docente'), ctrl.publicar);
 router.delete('/:id',                         soloRoles('admin', 'superadmin', 'docente'), ctrl.eliminar);

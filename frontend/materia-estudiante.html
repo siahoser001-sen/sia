@@ -64,6 +64,7 @@
     .empty{text-align:center;padding:2rem;color:var(--text-3);font-size:.86rem}
     .task-list{display:grid;gap:.8rem}
     .task-card{padding:1rem;border:1px solid var(--glass-border);border-radius:var(--r-md);background:rgba(255,255,255,.035)}
+    .task-card.actividad-destacada{scroll-margin-top:1rem;border-color:rgba(147,197,253,.85);box-shadow:0 0 0 3px rgba(59,130,246,.3)}
     .task-top{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start}
     .task-title{font:800 .95rem var(--font-d);margin-bottom:.28rem}
     .task-meta{font-size:.75rem;color:var(--text-2);line-height:1.5}
@@ -128,6 +129,9 @@
       <button class="tab" id="tab-notas" role="tab" aria-selected="false" aria-controls="panel-notas" data-tab="notas">Notas</button>
       <button class="tab" id="tab-tablero" role="tab" aria-selected="false" aria-controls="panel-tablero" data-tab="tablero">Tablero</button>
       <button class="tab" id="tab-videollamada" role="tab" aria-selected="false" aria-controls="panel-videollamada" data-tab="videollamada">Videollamada</button>
+      <button class="tab" id="tab-info-curso" role="tab" aria-selected="false" aria-controls="panel-info-curso" data-tab="info-curso">Información del curso</button>
+      <button class="tab" id="tab-companeros" role="tab" aria-selected="false" aria-controls="panel-companeros" data-tab="companeros">Compañeros</button>
+      <button class="tab" id="tab-chat" role="tab" aria-selected="false" aria-controls="panel-chat" data-tab="chat">Chat del curso</button>
     </nav>
 
     <section class="glass panel" id="panel-actividades" role="tabpanel" aria-labelledby="tab-actividades">
@@ -135,19 +139,26 @@
         <div><div class="section-title">Actividades y evaluaciones</div><div class="hint">Consulta las instrucciones, la fecha límite y el estado de cada entrega.</div></div>
       </div>
       <div id="mensajeActividades" aria-live="polite"></div>
+      <div id="listaPlanEvaluacion" class="task-list"></div>
       <div class="task-list" id="listaTareas"><div class="empty">Cargando actividades…</div></div>
     </section>
 
     <section class="glass panel" id="panel-asistencia" role="tabpanel" aria-labelledby="tab-asistencia" hidden>
       <div class="section-heading">
-        <div><div class="section-title">Mi asistencia del curso</div><div class="hint">Calendario personal de solo lectura. Las marcas diarias corresponden al curso, no a una materia.</div></div>
+        <div><div class="section-title">Mi asistencia del curso</div><div class="hint">Consulta de solo lectura, desglosada por clase del horario.</div></div>
       </div>
       <div class="calendar-controls">
+        <label class="muted" for="vistaAsistencia">Vista
+          <select id="vistaAsistencia">
+            <option value="dia">Día</option>
+            <option value="mes">Mes</option>
+          </select>
+        </label>
         <div style="display:flex;gap:.4rem">
           <button type="button" class="btn btn-ghost btn-sm" id="mesAnterior" aria-label="Mes anterior">←</button>
           <button type="button" class="btn btn-ghost btn-sm" id="mesSiguiente" aria-label="Mes siguiente">→</button>
         </div>
-        <label class="muted" for="mesAsistencia">Mes <input type="month" id="mesAsistencia"></label>
+        <label class="muted" for="mesAsistencia">Año lectivo y mes <input type="month" id="mesAsistencia"></label>
       </div>
       <div id="mensajeAsistencia" aria-live="polite"></div>
       <div class="calendar-grid" id="calendarioAsistencia" aria-label="Calendario mensual de asistencia"></div>
@@ -159,7 +170,7 @@
     </section>
 
     <section class="glass panel" id="panel-notas" role="tabpanel" aria-labelledby="tab-notas" hidden>
-      <div class="section-heading"><div><div class="section-title">Notas de la materia</div><div class="hint">El promedio se calcula con las notas registradas y sus porcentajes de peso.</div></div></div>
+      <div class="section-heading"><div><div class="section-title">Notas</div><div class="hint">El promedio se calcula con las notas registradas y sus porcentajes de peso.</div></div></div>
       <div id="mensajeNotas" aria-live="polite"></div>
       <div id="resumenNotas"></div>
       <div class="grades-table-wrap" id="tablaNotas"><div class="empty">Cargando notas…</div></div>
@@ -170,6 +181,7 @@
         <div class="section-title">Tablero de la clase</div>
         <p class="hint">Puedes ver en tiempo real el pizarrón compartido. El modo de estudiante no permite dibujar ni borrar.</p>
         <button type="button" class="btn btn-primary" id="abrirTablero">Abrir tablero en modo solo ver</button>
+        <div class="task-list" id="listaTablerosCurso"></div>
       </div>
     </section>
 
@@ -178,11 +190,34 @@
         <div class="section-title">Videollamada de la materia</div>
         <p class="hint" id="estadoVideollamada">Abre la sala para consultar si el docente inició una llamada.</p>
         <button type="button" class="btn btn-primary" id="abrirVideollamada">Abrir videollamada</button>
+        <div class="task-list" id="listaVideollamadasCurso"></div>
       </div>
+    </section>
+
+    <section class="glass panel" id="panel-info-curso" role="tabpanel" aria-labelledby="tab-info-curso" hidden>
+      <div class="section-heading">
+        <div><div class="section-title">Información del curso</div><div class="hint">Datos del curso en el que tienes matrícula activa.</div></div>
+      </div>
+      <div id="detalleCurso"></div>
+    </section>
+
+    <section class="glass panel" id="panel-companeros" role="tabpanel" aria-labelledby="tab-companeros" hidden>
+      <div class="section-heading">
+        <div><div class="section-title">Compañeros del curso</div><div class="hint">Estudiantes con matrícula activa en tu curso.</div></div>
+      </div>
+      <div id="listaCompaneros"></div>
+    </section>
+
+    <section class="glass panel" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" hidden>
+      <div class="section-heading">
+        <div><div class="section-title">Chat del curso</div><div class="hint">Consulta los avisos y mensajes del curso.</div></div>
+      </div>
+      <div id="chatCursoContenedor"></div>
     </section>
   </main>
   <div class="msg info" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="sia-chat-curso.js"></script>
   <script>
     'use strict';
     const API = window.location.origin;
@@ -191,17 +226,30 @@
     const headers = { Authorization: `Bearer ${token}` };
     const paramsPagina = new URLSearchParams(location.search);
     const materiaId = paramsPagina.get('materia');
-    const pestañasPermitidas = new Set(['actividades', 'asistencia', 'notas', 'tablero', 'videollamada']);
+    const cursoId = paramsPagina.get('curso');
+    const actividadSolicitadaId = paramsPagina.get('actividad');
+    const estudianteIdConsulta = usuario.rol === 'acudiente'
+      ? paramsPagina.get('estudiante_id')
+      : usuario.id;
+    const grupoIdConsulta = usuario.rol === 'acudiente'
+      ? paramsPagina.get('grupo_id')
+      : null;
+    const pestañasPermitidas = new Set(['actividades', 'asistencia', 'notas', 'tablero', 'videollamada', 'info-curso', 'companeros', 'chat']);
     const tabSolicitada = paramsPagina.get('tab');
     const tabInicial = pestañasPermitidas.has(tabSolicitada)
       ? tabSolicitada
-      : (materiaId ? 'actividades' : 'asistencia');
+      : (materiaId || cursoId || actividadSolicitadaId ? 'actividades' : 'asistencia');
     const MAX_ARCHIVOS = 5;
     const MAX_BYTES = 5 * 1024 * 1024;
     const EXTENSIONES = new Set(['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'pptx', 'zip']);
     let matricula = null;
     let materias = [];
+    let planItems = [];
     let materia = null;
+    let modoCurso = false;
+    let cursoInfo = null;
+    let companeros = [];
+    let chatMontado = false;
     let tareas = [];
     let tareasCargadas = false;
     let asistenciaCargada = false;
@@ -251,29 +299,55 @@
     function fechaISO(fecha) {
       return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
     }
-    function etiquetaEstado(estado) {
+    function etiquetaEstado(estado, entregaTarde = false) {
+      if (estado === 'calificada' && entregaTarde) return 'Calificada · entregada tarde';
       return ({ pendiente:'Pendiente', entregada:'Entregada', tarde:'Entregada tarde', calificada:'Calificada', asistio:'Asistió', presente:'Presente', falta:'Falta', ausente:'Ausente', justificada:'Justificada', excusado:'Excusada' })[estado] || estado || 'Pendiente';
     }
 
     async function iniciar() {
       try {
+        if (usuario.rol === 'acudiente') {
+          if (!estudianteIdConsulta || !grupoIdConsulta) {
+            throw new Error('Abre la asistencia indicando el estudiante y el curso que consultas.');
+          }
+          matricula = { grupo_id: grupoIdConsulta, grado: '', grupo: '' };
+          document.getElementById('cursoEstudiante').textContent = 'Asistencia del estudiante a cargo';
+          document.getElementById('tituloMateria').textContent = 'Asistencia del curso';
+          document.getElementById('subtituloMateria').textContent = 'Consulta de solo lectura.';
+          document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
+          seleccionarPestana('asistencia');
+          return;
+        }
         const [cursoData, materiasData] = await Promise.all([
           pedir('/api/matriculas/mi-curso'),
           pedir('/api/clases/mis-materias-estudiante'),
         ]);
         matricula = cursoData.matricula;
         materias = Array.isArray(materiasData.materias) ? materiasData.materias : [];
+        planItems = Array.isArray(materiasData.planItems) ? materiasData.planItems : [];
+        cursoInfo = materiasData.curso || null;
+        companeros = Array.isArray(materiasData.companeros) ? materiasData.companeros : [];
         if (!matricula) {
           document.getElementById('cursoEstudiante').textContent = 'Sin matrícula activa';
           document.getElementById('tituloMateria').textContent = 'Mi curso';
           document.getElementById('subtituloMateria').textContent = 'No encontramos una matrícula activa para cargar el contenido académico.';
           document.getElementById('listaTareas').innerHTML = '<div class="empty">Únete a un curso para consultar sus actividades.</div>';
           document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">No tienes un curso activo para consultar la asistencia.</div>';
+          document.getElementById('detalleCurso').innerHTML = '<div class="empty">No tienes un curso activo.</div>';
+          document.getElementById('listaCompaneros').innerHTML = '<div class="empty">No hay compañeros para mostrar.</div>';
           document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
           seleccionarPestana('asistencia');
           return;
         }
+        if (cursoId) {
+          if (String(matricula.grupo_id) !== String(cursoId)) {
+            throw new Error('El curso solicitado no corresponde a tu matrícula activa.');
+          }
+          modoCurso = !materiaId;
+        }
         document.getElementById('cursoEstudiante').textContent = `Curso: ${matricula.grado || ''} ${matricula.grupo || ''}`.trim();
+        renderizarInfoCurso();
+        renderizarCompaneros();
         if (materiaId) materia = materias.find(item => String(item.materia_id) === String(materiaId)) || null;
         if (materiaId && !materia) {
           document.getElementById('tituloMateria').textContent = 'Materia no disponible';
@@ -284,16 +358,25 @@
           document.getElementById('tituloMateria').textContent = materia.materia;
           document.getElementById('subtituloMateria').textContent = `${materia.grado || matricula.grado || ''} ${materia.grupo || matricula.grupo || ''}`.trim();
           configurarAccesos();
+        } else if (modoCurso) {
+          const nombreCurso = [matricula.grado, matricula.grupo].filter(Boolean).join(' ');
+          document.getElementById('tituloMateria').textContent = `Curso ${nombreCurso}`.trim();
+          document.getElementById('subtituloMateria').textContent = 'Actividades, evaluaciones, asistencia y notas personales del curso.';
+          document.querySelector('#panel-notas .hint').textContent = 'Notas personales agrupadas por materia del curso.';
+          document.querySelector('#panel-tablero .section-title').textContent = 'Tableros del curso';
+          document.querySelector('#panel-videollamada .section-title').textContent = 'Videollamadas del curso';
+          configurarAccesosCurso();
         } else {
           document.getElementById('tituloMateria').textContent = 'Asistencia del curso';
           document.getElementById('subtituloMateria').textContent = 'Consulta tu calendario mensual de asistencia.';
           document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
         }
-        seleccionarPestana(materia ? tabInicial : 'asistencia');
+        seleccionarPestana(materia || modoCurso ? tabInicial : 'asistencia');
       } catch (err) {
         document.getElementById('cursoEstudiante').textContent = 'No se pudo cargar el curso';
         document.getElementById('subtituloMateria').textContent = err.message;
         document.getElementById('listaTareas').innerHTML = '<div class="empty">No se pudo cargar la información del curso.</div>';
+        document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
         console.error('Error cargando el contexto de la materia:', err);
       }
     }
@@ -322,12 +405,92 @@
       }
     }
 
+    function configurarAccesosCurso() {
+      const asignaciones = [];
+      const vistas = new Set();
+      for (const item of materias) {
+        if (!item.docente_materia_id || vistas.has(String(item.docente_materia_id))) continue;
+        vistas.add(String(item.docente_materia_id));
+        asignaciones.push(item);
+      }
+      const tablero = document.getElementById('abrirTablero');
+      const videollamada = document.getElementById('abrirVideollamada');
+      const estado = document.getElementById('estadoVideollamada');
+      const listaTableros = document.getElementById('listaTablerosCurso');
+      const listaVideollamadas = document.getElementById('listaVideollamadasCurso');
+      if (!asignaciones.length) {
+        tablero.disabled = true;
+        videollamada.disabled = true;
+        listaTableros.innerHTML = '<div class="empty">No hay tableros disponibles.</div>';
+        listaVideollamadas.innerHTML = '<div class="empty">No hay videollamadas disponibles.</div>';
+        estado.textContent = 'El curso todavía no tiene materias con docente asignado.';
+        return;
+      }
+      tablero.hidden = true;
+      videollamada.hidden = true;
+      estado.textContent = 'Selecciona una materia para abrir su videollamada.';
+      listaTableros.innerHTML = asignaciones.map(item =>
+        `<div class="task-card"><div class="task-title">${escapar(item.materia || 'Materia')}</div>
+          <button type="button" class="btn btn-primary btn-sm" data-tablero="${escapar(item.docente_materia_id)}">Abrir tablero en modo solo ver</button></div>`
+      ).join('');
+      listaVideollamadas.innerHTML = asignaciones.map(item =>
+        `<div class="task-card"><div class="task-title">${escapar(item.materia || 'Materia')}</div>
+          <button type="button" class="btn btn-primary btn-sm" data-videollamada="${escapar(item.docente_materia_id)}">Abrir videollamada</button></div>`
+      ).join('');
+      listaTableros.querySelectorAll('[data-tablero]').forEach(boton => {
+        boton.addEventListener('click', () => {
+          const destino = `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&materia=${encodeURIComponent(boton.dataset.tablero)}&modo=ver`;
+          window.open(destino, '_blank');
+        });
+      });
+      listaVideollamadas.querySelectorAll('[data-videollamada]').forEach(boton => {
+        boton.addEventListener('click', () => {
+          window.open(`llamadas-estudiante.html?materia=${encodeURIComponent(boton.dataset.videollamada)}`, '_blank', 'noopener');
+        });
+      });
+    }
+
+    function renderizarInfoCurso() {
+      const info = cursoInfo || {};
+      const grado = info.grado || matricula?.grado || '';
+      const grupo = info.grupo || matricula?.grupo || '';
+      document.getElementById('detalleCurso').innerHTML = `
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Grado</div><div class="stat-value">${escapar(grado || '—')}</div></div>
+          <div class="stat"><div class="stat-label">Grupo</div><div class="stat-value">${escapar(grupo || '—')}</div></div>
+          <div class="stat"><div class="stat-label">Año lectivo</div><div class="stat-value">${escapar(matricula?.anio_lectivo || '—')}</div></div>
+          <div class="stat"><div class="stat-label">Director de curso</div><div class="stat-value">${escapar(info.director || 'Por asignar')}</div></div>
+        </div>`;
+    }
+
+    function renderizarCompaneros() {
+      const contenedor = document.getElementById('listaCompaneros');
+      if (!companeros.length) {
+        contenedor.innerHTML = '<div class="empty">No hay otros estudiantes con matrícula activa en este curso.</div>';
+        return;
+      }
+      contenedor.innerHTML = `<div class="task-list">${companeros.map(persona =>
+        `<div class="task-card">${escapar(persona.nombre || 'Estudiante')}</div>`
+      ).join('')}</div>`;
+    }
+
+    function montarChatCurso() {
+      if (chatMontado || !matricula?.grupo_id) return;
+      const contenedor = document.getElementById('chatCursoContenedor');
+      if (!window.SIAChatCurso) {
+        contenedor.innerHTML = '<div class="msg error">No se pudo cargar el chat del curso.</div>';
+        return;
+      }
+      window.SIAChatCurso.montar(matricula.grupo_id, contenedor);
+      chatMontado = true;
+    }
+
     function seleccionarPestana(nombre) {
       const disponible = Array.from(document.querySelectorAll('.tab'))
         .some(tab => tab.dataset.tab === nombre && !tab.disabled);
       const objetivo = disponible
         ? nombre
-        : (materia ? 'actividades' : 'asistencia');
+        : (materia || modoCurso ? 'actividades' : 'asistencia');
       document.querySelectorAll('.tab').forEach(tab => {
         const seleccionado = tab.dataset.tab === objetivo;
         tab.setAttribute('aria-selected', String(seleccionado));
@@ -336,9 +499,13 @@
       document.querySelectorAll('[role="tabpanel"]').forEach(panel => {
         panel.hidden = panel.id !== `panel-${objetivo}`;
       });
-      if (objetivo === 'actividades') cargarTareas();
+      if (objetivo === 'actividades') {
+        renderizarPlanEvaluacion();
+        cargarTareas();
+      }
       if (objetivo === 'asistencia' && !asistenciaCargada) iniciarAsistencia();
       if (objetivo === 'notas' && !notasCargadas) cargarNotas();
+      if (objetivo === 'chat') montarChatCurso();
     }
     document.querySelectorAll('.tab').forEach((tab, indice, tabs) => {
       tab.addEventListener('click', () => seleccionarPestana(tab.dataset.tab));
@@ -362,6 +529,23 @@
       }
       return '';
     }
+
+    function renderizarPlanEvaluacion() {
+      const contenedor = document.getElementById('listaPlanEvaluacion');
+      const items = modoCurso
+        ? planItems
+        : planItems.filter(item => String(item.materia_id) === String(materiaId));
+      if (!items.length) {
+        contenedor.innerHTML = '';
+        return;
+      }
+      contenedor.innerHTML = `<h3 class="section-title">Plan de estudio</h3>${items.map(item => `
+        <article class="task-card">
+          <div class="task-title">${escapar(item.nombre || 'Evaluación')}</div>
+          <div class="task-meta">${modoCurso ? `${escapar(item.materia)} · ` : ''}Peso: ${item.peso_pct == null ? 'Sin ponderación' : `${escapar(item.peso_pct)}%`}</div>
+        </article>`).join('')}`;
+    }
+
     function mensajeArchivo(tareaId, texto, error) {
       const nodo = document.getElementById(`archivo-msg-${tareaId}`);
       if (!nodo) return;
@@ -374,26 +558,38 @@
       const cont = document.getElementById('listaTareas');
       if (!tareas.length) {
         cont.innerHTML = '<div class="empty">No hay actividades o evaluaciones publicadas para esta materia.</div>';
+        enfocarActividadSolicitada(cont);
         return;
       }
       cont.innerHTML = tareas.map(tarea => {
         const calificable = tarea.estado === 'calificada';
+        const hoy = new Date().toISOString().slice(0, 10);
+        const fechaLimite = String(tarea.fecha_limite || tarea.fecha_entrega || '').slice(0, 10);
+        const recibeEntregas = tarea.recibir_entregas == null || Number(tarea.recibir_entregas) === 1;
+        const permiteTardias = tarea.permitir_tardias == null || Number(tarea.permitir_tardias) === 1;
+        const recepcionCerrada = !recibeEntregas || (hoy > fechaLimite && !permiteTardias);
+        const noModificable = calificable || recepcionCerrada;
         const archivos = Array.isArray(tarea.archivos) ? tarea.archivos : [];
         const idArg = escaparArg(tarea.id);
         const archivosHtml = archivos.length ? `<div class="file-list"><div class="hint">Archivos de tu entrega (${archivos.length}/${MAX_ARCHIVOS}):</div>${archivos.map(archivo => `
           <div class="file-row">
             <button type="button" class="btn btn-ghost btn-sm" data-descargar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">⬇ ${escapar(archivo.nombre_original)}</button>
-            ${calificable ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-quitar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">Quitar</button>`}
+            ${noModificable ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-quitar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">Quitar</button>`}
           </div>`).join('')}</div>` : '';
-        const controles = calificable ? '' : `
+        const controles = calificable ? '' : recepcionCerrada
+          ? '<div class="hint">La recepción de entregas está cerrada.</div>'
+          : `
           <div class="submit-row">
             <label class="hint" for="files-${escapar(tarea.id)}">Adjuntar archivos (máx. 5 archivos, 5 MB cada uno)</label>
             <input type="file" id="files-${escapar(tarea.id)}" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip" data-existentes="${archivos.length}">
             <button type="button" class="btn btn-primary btn-sm" data-entregar="${idArg}">${tarea.estado === 'pendiente' ? 'Marcar como entregado' : 'Reentregar'}</button>
             <span class="hint" id="archivo-msg-${escapar(tarea.id)}" aria-live="polite">Puedes quitar y reemplazar archivos mientras la entrega no esté calificada.</span>
           </div>`;
-        return `<article class="task-card">
-          <div class="task-top"><div><div class="task-title">${escapar(tarea.titulo)}</div><div class="task-meta">Fecha límite: ${escapar(formatoFecha(tarea.fecha_limite || tarea.fecha_entrega))} · Valor máximo: ${escapar(tarea.valor_max)}</div></div><span class="badge ${escapar(tarea.estado || 'pendiente')}">${escapar(etiquetaEstado(tarea.estado))}</span></div>
+        const estadoVisible = tarea.estado === 'pendiente' && recepcionCerrada
+          ? 'Recepción cerrada'
+          : etiquetaEstado(tarea.estado, tarea.entrega_tarde);
+        return `<article class="task-card" data-tarea-id="${escapar(tarea.id)}">
+          <div class="task-top"><div><div class="task-title">${escapar(tarea.titulo)}</div><div class="task-meta">${modoCurso && tarea.materia ? `${escapar(tarea.materia)} · ` : ''}Fecha límite: ${escapar(formatoFecha(tarea.fecha_limite || tarea.fecha_entrega))} · Valor máximo: ${escapar(tarea.valor_max)}</div></div><span class="badge ${escapar(recepcionCerrada && tarea.estado === 'pendiente' ? 'pendiente' : (tarea.estado || 'pendiente'))}">${escapar(estadoVisible)}</span></div>
           ${tarea.descripcion ? `<div class="task-description">${escapar(tarea.descripcion)}</div>` : ''}
           ${tarea.nota != null ? `<div class="task-meta"><strong>Nota:</strong> ${escapar(tarea.nota)} / ${escapar(tarea.valor_max)}</div>` : ''}
           ${tarea.feedback_doc ? `<div class="feedback"><strong>Retroalimentación:</strong> ${escapar(tarea.feedback_doc)}</div>` : ''}
@@ -412,12 +608,30 @@
       cont.querySelectorAll('[data-entregar]').forEach(button => button.addEventListener('click', () => entregar(button.dataset.entregar, button)));
       cont.querySelectorAll('[data-quitar]').forEach(button => button.addEventListener('click', () => quitarArchivo(button.dataset.quitar, button.dataset.archivo)));
       cont.querySelectorAll('[data-descargar]').forEach(button => button.addEventListener('click', () => descargarArchivo(button.dataset.descargar, button.dataset.archivo)));
+      enfocarActividadSolicitada(cont);
+    }
+    function enfocarActividadSolicitada(contenedor) {
+      if (!actividadSolicitadaId) return;
+      const tarjeta = Array.from(contenedor.querySelectorAll('[data-tarea-id]'))
+        .find(item => item.dataset.tareaId === actividadSolicitadaId);
+      if (!tarjeta) {
+        mostrarMensaje('mensajeActividades', 'No se encontró la actividad solicitada entre las actividades disponibles.', 'error');
+        return;
+      }
+      tarjeta.classList.add('actividad-destacada');
+      tarjeta.setAttribute('tabindex', '-1');
+      const movimientoReducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      tarjeta.scrollIntoView({ behavior: movimientoReducido ? 'auto' : 'smooth', block: 'center' });
+      tarjeta.focus({ preventScroll: true });
     }
     async function cargarTareas() {
-      if (!materiaId || !materia || tareasCargadas) return;
+      if ((!modoCurso && (!materiaId || !materia)) || tareasCargadas) return;
       document.getElementById('listaTareas').innerHTML = '<div class="empty">Cargando actividades…</div>';
       try {
-        const data = await pedir(`/api/tareas/estudiante?materia=${encodeURIComponent(materiaId)}`);
+        const rutaTareas = modoCurso
+          ? '/api/tareas/estudiante'
+          : `/api/tareas/estudiante?materia=${encodeURIComponent(materiaId)}`;
+        const data = await pedir(rutaTareas);
         tareas = Array.isArray(data.tareas) ? data.tareas : [];
         tareasCargadas = true;
         renderizarTareas();
@@ -489,6 +703,7 @@
       const input = document.getElementById('mesAsistencia');
       input.value = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
       input.addEventListener('change', cargarAsistencia);
+      document.getElementById('vistaAsistencia').addEventListener('change', cargarAsistencia);
       document.getElementById('mesAnterior').addEventListener('click', () => moverMes(-1));
       document.getElementById('mesSiguiente').addEventListener('click', () => moverMes(1));
       asistenciaCargada = true;
@@ -505,35 +720,127 @@
       if (!matricula?.grupo_id) return;
       const mes = document.getElementById('mesAsistencia').value;
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) return;
+      const vista = document.getElementById('vistaAsistencia').value;
       const [anio, mesNum] = mes.split('-').map(Number);
-      const desde = `${mes}-01`;
-      const hasta = fechaISO(new Date(anio, mesNum, 0));
       document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">Cargando calendario…</div>';
       mostrarMensaje('mensajeAsistencia', '', '');
       try {
-        const historialParams = new URLSearchParams({ desde, hasta });
-        if (materiaId && materia) historialParams.set('materia_id', materiaId);
-        const peticiones = [
-          pedir(`/api/asistencia-dia?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${encodeURIComponent(mes)}`),
-          pedir(`/api/asistencia/estudiante/${encodeURIComponent(usuario.id)}?${historialParams}`),
-        ];
-        if (materiaId && materia) peticiones.push(pedir(`/api/asistencia/resumen/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(materiaId)}`));
-        const respuestas = await Promise.all(peticiones);
-        const persona = (respuestas[0].estudiantes || []).find(item => String(item.estudiante_id) === String(usuario.id));
-        dibujarCalendario(mes, persona?.registros || {}, respuestas[1].asistencia || []);
-        dibujarResumenAsistencia(respuestas[2] || null);
-        dibujarHistorialAsistencia(respuestas[1].asistencia || []);
+        let respuestaMes;
+        let mesesTotales;
+        let totalesAnio;
+        let persona;
+        let clases;
+        let registrosAntiguos = [];
+        if (vista === 'mes') {
+          const consultasMes = Array.from({ length: 12 }, (_, indice) => {
+            const mesAnio = `${anio}-${String(indice + 1).padStart(2, '0')}`;
+            return obtenerDatosAsistenciaEstudiante(`/api/asistencia-dia/totales?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${mesAnio}`);
+          });
+          const respuestas = await Promise.all([
+            obtenerDatosAsistenciaEstudiante(`/api/asistencia-dia?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${anio}-01`),
+            ...consultasMes,
+            obtenerDatosAsistenciaEstudiante(`/api/asistencia-dia/totales?grupo_id=${encodeURIComponent(matricula.grupo_id)}&anio=${anio}`),
+          ]);
+          respuestaMes = respuestas[0];
+          mesesTotales = respuestas.slice(1, 13);
+          totalesAnio = respuestas[13];
+        } else {
+          const peticiones = [
+            obtenerDatosAsistenciaEstudiante(`/api/asistencia-dia?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${encodeURIComponent(mes)}`),
+            obtenerDatosAsistenciaEstudiante(`/api/asistencia-dia/totales?grupo_id=${encodeURIComponent(matricula.grupo_id)}&mes=${encodeURIComponent(mes)}`),
+          ];
+          if (usuario.rol !== 'acudiente') {
+            const desde = `${mes}-01`;
+            const hasta = fechaISO(new Date(anio, mesNum, 0));
+            const historialParams = new URLSearchParams({ desde, hasta });
+            if (materiaId && materia) historialParams.set('materia_id', materiaId);
+            peticiones.push(pedir(`/api/asistencia/estudiante/${encodeURIComponent(estudianteIdConsulta)}?${historialParams}`));
+          }
+          const respuestas = await Promise.all(peticiones);
+          respuestaMes = respuestas[0];
+          mesesTotales = respuestas[1];
+          registrosAntiguos = respuestas[2]?.asistencia || [];
+        }
+        const transformada = transformarAsistenciaEstudiante(respuestaMes, estudianteIdConsulta);
+        persona = transformada.persona;
+        clases = transformada.clases;
+        if (usuario.rol === 'acudiente' && persona) {
+          document.getElementById('cursoEstudiante').textContent =
+            `Asistencia de ${persona.nombre}`;
+        }
+        dibujarCalendario(
+          mes,
+          persona?.registros || {},
+          persona?.sin_clase || {},
+          clases,
+          registrosAntiguos
+        );
+        dibujarResumenAsistencia(mesesTotales, totalesAnio, estudianteIdConsulta, anio, mes, vista);
+        dibujarHistorialAsistencia(
+          persona?.registros || {},
+          persona?.sin_clase || {},
+          clases,
+          registrosAntiguos
+        );
       } catch (err) {
         mostrarMensaje('mensajeAsistencia', err.message, 'error');
         document.getElementById('calendarioAsistencia').innerHTML = '<div class="empty">No se pudo cargar el calendario de asistencia.</div>';
       }
     }
-    function dibujarCalendario(mes, registrosDiarios, historial) {
+    async function obtenerDatosAsistenciaEstudiante(url) {
+      const response = await fetch(`${API}${url}`, { headers });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.mensaje || 'No se pudo cargar la asistencia.');
+      return data;
+    }
+    function transformarAsistenciaEstudiante(data, estudianteId) {
+      const estudiante = (Array.isArray(data.estudiantes) ? data.estudiantes : [])
+        .find(item => item && String(item.id) === String(estudianteId));
+      if (!estudiante) return { persona: null, clases: [] };
+      const persona = {
+        estudiante_id: estudiante.id,
+        nombre: estudiante.nombre || '',
+        registros: {},
+        sin_clase: {},
+      };
+      for (const original of Array.isArray(data.registros) ? data.registros : []) {
+        if (!original || String(original.estudiante_id) !== String(estudianteId)
+          || !original.fecha || !original.estado) continue;
+        const registro = {
+          ...original,
+          clase_id: original.bloque_id,
+          motivo: original.justificacion_texto,
+          archivo_url: original.justificacion_archivo,
+        };
+        if (registro.clase_id) {
+          (persona.registros[registro.fecha] ||= {})[registro.clase_id] = registro;
+        } else {
+          (persona.sin_clase[registro.fecha] ||= []).push(registro);
+        }
+      }
+      const clasesPorId = new Map();
+      for (const [fecha, bloques] of Object.entries(data.clases_por_dia || {})) {
+        const diaJS = new Date(`${fecha}T00:00:00.000Z`).getUTCDay();
+        const diaSemana = diaJS === 0 ? 7 : diaJS;
+        for (const bloque of Array.isArray(bloques) ? bloques : []) {
+          if (!bloque || !bloque.bloque_id) continue;
+          clasesPorId.set(String(bloque.bloque_id), {
+            ...bloque,
+            clase_id: bloque.bloque_id,
+            dia_semana: diaSemana,
+          });
+        }
+      }
+      return { persona, clases: [...clasesPorId.values()] };
+    }
+    function dibujarCalendario(mes, registrosDiarios, sinClase, clases, historial) {
       const [anio, mesNum] = mes.split('-').map(Number);
-      const diasMes = new Date(anio, mesNum, 0).getDate();
+      const diasMes = document.getElementById('vistaAsistencia').value === 'mes'
+        ? 0
+        : new Date(anio, mesNum, 0).getDate();
       const inicio = new Date(anio, mesNum - 1, 1).getDay();
       const porFecha = {};
-      historial.forEach(registro => {
+      historial.filter(Boolean).forEach(registro => {
         const fecha = String(registro.fecha).slice(0, 10);
         (porFecha[fecha] ||= []).push(registro);
       });
@@ -542,68 +849,168 @@
       const hoy = fechaISO(new Date());
       const celdas = Array.from({ length:diasMes }, (_, indice) => {
         const fecha = `${mes}-${String(indice + 1).padStart(2, '0')}`;
-        const diario = registrosDiarios[fecha];
+        const diario = Object.values(registrosDiarios[fecha] || {});
+        const historicos = Array.isArray(sinClase[fecha])
+          ? sinClase[fecha]
+          : (sinClase[fecha] ? [sinClase[fecha]] : []);
         const anteriores = porFecha[fecha] || [];
-        let estado = diario?.estado || '';
+        let estado = diario[0]?.estado || historicos[0]?.estado || '';
         let multiple = false;
-        if (!estado && anteriores.length) {
+        if (!diario.length && !historicos.length && anteriores.length) {
           const estados = [...new Set(anteriores.map(item => item.estado))];
           estado = estados[0];
           multiple = estados.length > 1;
         }
+        if (diario.length + historicos.length > 1) multiple = true;
         const clase = multiple ? 'multiple' : estadoAsistencia(estado);
-        const titulo = diario ? 'Asistencia del curso' : (materia ? 'Asistencia histórica de la materia' : 'Asistencia histórica por materia');
-        const estadoHtml = estado ? `<span class="day-status state-${clase}" title="${escapar(titulo)}">${escapar(multiple ? 'Varios registros' : etiquetaEstado(estado))}</span>` : '<span class="hint">Sin registro</span>';
+        const detalles = diario.map(registro => {
+          const horario = clases.find(item => String(item.clase_id) === String(registro.clase_id));
+          return `${horario ? `${horario.hora_inicio} ${horario.materia_nombre}` : 'Sin clase'}: ${etiquetaEstado(registro.estado)}`;
+        });
+        const tituloHistorico = historicos.map(registro => `Sin clase: ${etiquetaEstado(registro.estado)}`);
+        const titulo = [...detalles, ...tituloHistorico].join(' · ')
+          || (materia ? 'Asistencia histórica de la materia' : 'Asistencia histórica por materia');
+        const cantidadRegistros = diario.length + historicos.length;
+        const estadoHtml = cantidadRegistros || estado
+          ? `<span class="day-status state-${clase}" title="${escapar(titulo)}">${escapar(cantidadRegistros > 1 ? `${cantidadRegistros} registros` : etiquetaEstado(estado))}</span>`
+          : '<span class="hint">Sin registro</span>';
         const diaSemana = new Date(anio, mesNum - 1, indice + 1).getDay();
         return `<div class="calendar-day${diaSemana === 0 || diaSemana === 6 ? ' weekend' : ''}${fecha === hoy ? ' today' : ''}" aria-label="${escapar(fecha)}: ${escapar(estado ? etiquetaEstado(estado) : 'sin registro')}"><span class="day-number">${indice + 1}</span>${estadoHtml}</div>`;
       }).join('');
       const nombreMes = new Date(anio, mesNum - 1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' });
-      document.getElementById('calendarioAsistencia').innerHTML = `${semana}${espacios}${celdas}`;
+      document.getElementById('calendarioAsistencia').innerHTML = diasMes
+        ? `${semana}${espacios}${celdas}`
+        : `<div class="empty">Consulta por mes seleccionada para ${escapar(nombreMes)}.</div>`;
       document.getElementById('calendarioAsistencia').setAttribute('aria-label', `Asistencia de ${nombreMes}`);
     }
-    function dibujarResumenAsistencia(resumen) {
-      const cont = document.getElementById('resumenAsistencia');
-      if (!resumen) { cont.innerHTML = ''; return; }
-      const conteo = resumen.conteo || {};
-      cont.innerHTML = `<h3 class="section-title">Resumen histórico de esta materia</h3><div class="stats">
-        <div class="stat"><div class="stat-label">Clases registradas</div><div class="stat-value">${escapar(resumen.total_clases || 0)}</div></div>
-        <div class="stat"><div class="stat-label">Asistencia</div><div class="stat-value">${resumen.porcentaje_asistencia == null ? '—' : `${escapar(resumen.porcentaje_asistencia)}%`}</div></div>
-        <div class="stat"><div class="stat-label">Presentes</div><div class="stat-value">${escapar(conteo.presente || 0)}</div></div>
-        <div class="stat"><div class="stat-label">Tardes</div><div class="stat-value">${escapar(conteo.tarde || 0)}</div></div>
-        <div class="stat"><div class="stat-label">Ausencias</div><div class="stat-value">${escapar(conteo.ausente || 0)}</div></div>
-        <div class="stat"><div class="stat-label">Excusadas</div><div class="stat-value">${escapar(conteo.excusa || conteo.excused || conteo.excusado || 0)}</div></div>
-      </div>`;
+    function htmlConteoAsistencia(conteo) {
+      const estados = [
+        ['asistencias', 'Asistió'],
+        ['fallas', 'Fallas'],
+        ['retrasos', 'Retrasos'],
+        ['justificados', 'Justificadas'],
+      ];
+      return estados.map(([campo, nombre]) =>
+        `<span title="${nombre}">${nombre}: ${conteo[campo] || 0}</span>`
+      ).join(' · ');
     }
-    function dibujarHistorialAsistencia(registros) {
+    function dibujarResumenAsistencia(totalesMes, totalesAnio, estudianteId, anio, mes, vista) {
+      const cont = document.getElementById('resumenAsistencia');
+      const buscarTotales = filas => (Array.isArray(filas) ? filas : [])
+        .find(item => item && String(item.estudiante_id) === String(estudianteId)) || {};
+      if (vista === 'dia') {
+        const conteo = buscarTotales(totalesMes);
+        cont.innerHTML = `<h3 class="section-title">Totales de ${escapar(mes)}</h3><div class="stats">
+          <div class="stat"><div class="stat-label">Asistió</div><div class="stat-value">${conteo.asistencias || 0}</div></div>
+          <div class="stat"><div class="stat-label">Fallas</div><div class="stat-value">${conteo.fallas || 0}</div></div>
+          <div class="stat"><div class="stat-label">Retrasos</div><div class="stat-value">${conteo.retrasos || 0}</div></div>
+          <div class="stat"><div class="stat-label">Justificadas</div><div class="stat-value">${conteo.justificados || 0}</div></div>
+        </div>`;
+        return;
+      }
+      const meses = Array.from({ length: 12 }, (_, indice) => indice + 1);
+      const filas = meses.map(numero => {
+        const conteo = buscarTotales(totalesMes[numero - 1]);
+        const nombre = new Date(Date.UTC(Number(anio), numero - 1, 1)).toLocaleDateString('es-CO', { month:'long', timeZone:'UTC' });
+        return `<tr><th>${escapar(nombre)}</th><td>${htmlConteoAsistencia(conteo)}</td></tr>`;
+      }).join('');
+      const anual = buscarTotales(totalesAnio);
+      cont.innerHTML = `<h3 class="section-title">Resumen del año lectivo ${escapar(anio)}</h3>
+        <div class="tabla-wrap"><table><thead><tr><th>Mes</th><th>Asistencia por clase</th></tr></thead>
+          <tbody>${filas}<tr><th>Total del año</th><td>${htmlConteoAsistencia(anual)}</td></tr></tbody>
+        </table></div>`;
+    }
+    function dibujarHistorialAsistencia(registros, sinClase, clases, registrosAntiguos) {
       const cont = document.getElementById('historialAsistencia');
-      if (!registros.length) {
+      const nombresClase = Object.fromEntries(clases.map(item => [item.clase_id,
+        `${item.hora_inicio}–${item.hora_fin} · ${item.materia_nombre}`]));
+      const filas = [];
+      for (const [fecha, porClase] of Object.entries(registros || {})) {
+        for (const registro of Object.values(porClase)) {
+          filas.push(`<tr><td>${escapar(formatoFecha(fecha))}</td>
+            <td>${escapar(nombresClase[registro.clase_id] || 'Clase')}</td>
+            <td>${escapar(etiquetaEstado(registro.estado))}</td>
+            <td>${escapar(registro.motivo || '—')}
+              ${registro.archivo_url ? `<button type="button" class="btn btn-ghost btn-sm" onclick="abrirArchivoAsistencia('${escaparArg(registro.archivo_url)}')">Abrir ${escapar(registro.archivo_nombre || 'soporte')}</button>` : ''}
+            </td></tr>`);
+        }
+      }
+      for (const [fecha, datos] of Object.entries(sinClase || {})) {
+        const registros = Array.isArray(datos) ? datos : [datos];
+        for (const registro of registros) {
+          filas.push(`<tr><td>${escapar(formatoFecha(fecha))}</td><td>Sin clase (histórico)</td>
+            <td>${escapar(etiquetaEstado(registro.estado))}</td><td>${escapar(registro.motivo || '—')}
+              ${registro.archivo_url ? `<button type="button" class="btn btn-ghost btn-sm" onclick="abrirArchivoAsistencia('${escaparArg(registro.archivo_url)}')">Abrir ${escapar(registro.archivo_nombre || 'soporte')}</button>` : ''}
+            </td></tr>`);
+        }
+      }
+      (registrosAntiguos || []).filter(Boolean).forEach(registro => {
+        filas.push(`<tr><td>${escapar(formatoFecha(registro.fecha))}</td>
+          <td>${escapar((materias.find(item => String(item.materia_id) === String(registro.materia_id)) || {}).materia || 'Histórico')}</td>
+          <td>${escapar(etiquetaEstado(registro.estado))}</td><td>${escapar(registro.observacion || '—')}</td></tr>`);
+      });
+      if (!filas.length) {
         cont.innerHTML = '<div class="hint">No hay registros históricos de esta materia en el mes seleccionado.</div>';
         return;
       }
-      const nombresMateria = Object.fromEntries(materias.map(item => [item.materia_id, item.materia]));
-      cont.innerHTML = `<div class="history"><h3 class="section-title">Registros históricos del mes</h3><table><thead><tr><th>Fecha</th>${materia ? '' : '<th>Materia</th>'}<th>Estado</th><th>Observación</th></tr></thead><tbody>${registros.map(registro => `<tr><td>${escapar(formatoFecha(registro.fecha))}</td>${materia ? '' : `<td>${escapar(nombresMateria[registro.materia_id] || 'Materia')}</td>`}<td>${escapar(etiquetaEstado(registro.estado))}</td><td>${escapar(registro.observacion || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+      cont.innerHTML = `<div class="history"><h3 class="section-title">Registros por clase</h3>
+        <table><thead><tr><th>Fecha</th><th>Hora y materia</th><th>Estado</th><th>Motivo y soporte</th></tr></thead>
+          <tbody>${filas.join('')}</tbody></table></div>`;
+    }
+
+    async function abrirArchivoAsistencia(url) {
+      const ventana = window.open('about:blank', '_blank');
+      if (!ventana) {
+        mostrarMensaje('mensajeAsistencia', 'Permite las ventanas emergentes para abrir el soporte.', 'error');
+        return;
+      }
+      try {
+        const response = await fetch(`${API}${url}`, { headers });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.mensaje || 'No se pudo abrir el soporte.');
+        }
+        ventana.location.href = URL.createObjectURL(await response.blob());
+      } catch (err) {
+        ventana.close();
+        mostrarMensaje('mensajeAsistencia', err.message || 'No se pudo abrir el soporte.', 'error');
+      }
     }
 
     async function cargarNotas() {
-      if (!materiaId || !materia) return;
+      const materiasNotas = modoCurso
+        ? Array.from(new Map(materias.filter(item => item.materia_id)
+          .map(item => [String(item.materia_id), item])).values())
+        : (materiaId && materia ? [materia] : []);
+      if (!materiasNotas.length) {
+        document.getElementById('resumenNotas').innerHTML = '';
+        document.getElementById('tablaNotas').innerHTML = '<div class="empty">No hay materias activas para consultar notas.</div>';
+        notasCargadas = true;
+        return;
+      }
       document.getElementById('tablaNotas').innerHTML = '<div class="empty">Cargando notas…</div>';
       mostrarMensaje('mensajeNotas', '', '');
       try {
-        const data = await pedir(`/api/notas/estudiante/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(materiaId)}`);
-        const notas = Array.isArray(data.notas) ? data.notas : [];
-        const pesoTotal = notas.reduce((suma, nota) => suma + Number(nota.peso_pct || 0), 0);
-        const ponderado = notas.reduce((suma, nota) => {
-          const valorMax = Number(nota.valor_max);
-          if (nota.valor == null || valorMax <= 0) return suma;
-          return suma + (Number(nota.valor) / valorMax) * Number(nota.peso_pct || 0);
-        }, 0);
-        const promedio = pesoTotal > 0 ? (ponderado / pesoTotal) * 10 : null;
-        document.getElementById('resumenNotas').innerHTML = `<div class="average-card"><div><div class="section-title">Promedio ponderado</div><div class="hint">${notas.length} ítem${notas.length === 1 ? '' : 's'} · ${pesoTotal.toFixed(1)}% del peso registrado</div></div><div class="average-number">${promedio == null ? '—' : promedio.toFixed(2)}</div></div>`;
-        if (!notas.length) {
-          document.getElementById('tablaNotas').innerHTML = '<div class="empty">Aún no tienes notas registradas en esta materia.</div>';
-        } else {
-          document.getElementById('tablaNotas').innerHTML = `<table class="grades-table"><thead><tr><th>Actividad</th><th>Fecha</th><th>Porcentaje</th><th>Nota</th><th>Observación</th></tr></thead><tbody>${notas.map(nota => `<tr><td>${escapar(nota.descripcion || nota.tipo_nota || 'Evaluación')}</td><td>${escapar(formatoFecha(nota.fecha_eval))}</td><td>${escapar(Number(nota.peso_pct || 0))}%</td><td>${nota.valor == null ? 'Pendiente' : `${escapar(nota.valor)} / ${escapar(nota.valor_max)}`}</td><td>${escapar(nota.observacion || '—')}</td></tr>`).join('')}</tbody></table>`;
-        }
+        const resultados = await Promise.all(materiasNotas.map(async item => {
+          const data = await pedir(`/api/notas/estudiante/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(item.materia_id)}`);
+          return { materia: item.materia || 'Materia', notas: Array.isArray(data.notas) ? data.notas : [] };
+        }));
+        const resumenes = resultados.map(resultado => {
+          const pesoTotal = resultado.notas.reduce((suma, nota) => suma + Number(nota.peso_pct || 0), 0);
+          const ponderado = resultado.notas.reduce((suma, nota) => {
+            const valorMax = Number(nota.valor_max);
+            if (nota.valor == null || valorMax <= 0) return suma;
+            return suma + (Number(nota.valor) / valorMax) * Number(nota.peso_pct || 0);
+          }, 0);
+          const promedio = pesoTotal > 0 ? (ponderado / pesoTotal) * 10 : null;
+          return `<div class="average-card"><div><div class="section-title">${escapar(resultado.materia)}</div><div class="hint">${resultado.notas.length} ítem${resultado.notas.length === 1 ? '' : 's'} · ${pesoTotal.toFixed(1)}% del peso registrado</div></div><div class="average-number">${promedio == null ? '—' : promedio.toFixed(2)}</div></div>`;
+        });
+        document.getElementById('resumenNotas').innerHTML = resumenes.join('');
+        const tablas = resultados.map(resultado => resultado.notas.length
+          ? `<h3 class="section-title">${escapar(resultado.materia)}</h3><table class="grades-table"><thead><tr><th>Actividad</th><th>Fecha</th><th>Porcentaje</th><th>Nota</th><th>Observación</th></tr></thead><tbody>${resultado.notas.map(nota => `<tr><td>${escapar(nota.descripcion || nota.tipo_nota || 'Evaluación')}</td><td>${escapar(formatoFecha(nota.fecha_eval))}</td><td>${escapar(Number(nota.peso_pct || 0))}%</td><td>${nota.valor == null ? 'Pendiente' : `${escapar(nota.valor)} / ${escapar(nota.valor_max)}`}</td><td>${escapar(nota.observacion || '—')}</td></tr>`).join('')}</tbody></table>`
+          : `<h3 class="section-title">${escapar(resultado.materia)}</h3><div class="empty">Aún no tienes notas registradas en esta materia.</div>`
+        ).join('');
+        document.getElementById('tablaNotas').innerHTML = `<div class="grades-table-wrap">${tablas}</div>`;
         notasCargadas = true;
       } catch (err) {
         mostrarMensaje('mensajeNotas', err.message, 'error');
