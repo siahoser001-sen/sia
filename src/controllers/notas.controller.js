@@ -8,6 +8,7 @@
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
 const { crearNotificacion } = require('../services/notificacion.service');
+const { notificarReporte } = require('../services/reporte-update.service');
 const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
 const {
   materiaPerteneceAlGrupo,
@@ -120,6 +121,9 @@ exports.crear = async (req, res) => {
       texto: `📝 Notas publicadas de ${mat ? mat.nombre : 'la materia'}: "${descripcion || tipo_nota}" (${valor}/${valor_max || 10}).`,
     });
 
+    // El reporte del estudiante (y el de sus acudientes) se refresca en vivo.
+    await notificarReporte(req.app.get('io'), estudiante_id, { motivo: 'nota', ref_id: id });
+
     return res.status(201).json({ ok: true, mensaje: 'Nota registrada.', id });
 
   } catch (err) {
@@ -186,6 +190,9 @@ exports.actualizar = async (req, res) => {
     );
 
     await conn.commit();
+
+    await notificarReporte(req.app.get('io'), nota.estudiante_id, { motivo: 'nota', ref_id: id });
+
     return res.json({ ok: true, mensaje: 'Nota actualizada.' });
 
   } catch (err) {
@@ -223,6 +230,9 @@ exports.eliminar = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'Nota no encontrada o no te pertenece.' });
     }
+
+    await notificarReporte(req.app.get('io'), nota.estudiante_id, { motivo: 'nota', ref_id: req.params.id });
+
     return res.json({ ok: true, mensaje: 'Nota eliminada.' });
   } catch (err) {
     console.error('eliminar nota:', err.message);

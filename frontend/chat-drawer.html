@@ -26,7 +26,28 @@
       </div>
       <div id="siaChatMensajes" class="sia-chat-msgs"></div>
       <div id="siaChatBloqueadoBanner" class="sia-chat-bloqueado" style="display:none">Este chat está bloqueado.</div>
+      <div id="siaChatAdjuntoSeleccionado" class="sia-chat-adjunto-seleccionado" style="display:none">
+        <span id="siaChatAdjuntoIcono" aria-hidden="true">📎</span>
+        <span id="siaChatAdjuntoNombre"></span>
+        <button type="button" id="siaChatQuitarAdjunto" class="sia-chat-btn" title="Quitar adjunto" aria-label="Quitar adjunto">×</button>
+      </div>
+      <div id="siaChatGrabacion" class="sia-chat-grabacion" style="display:none">
+        <div class="sia-chat-grabacion-info">
+          <span class="sia-chat-grabacion-punto" aria-hidden="true"></span>
+          <strong id="siaChatGrabacionTiempo">00:00</strong>
+          <span id="siaChatGrabacionEstado">Grabando…</span>
+        </div>
+        <div id="siaChatTranscripcionVista" class="sia-chat-transcripcion-vista"></div>
+        <div class="sia-chat-grabacion-acciones">
+          <button type="button" id="siaChatCancelarGrabacion" class="sia-chat-btn">Cancelar</button>
+          <button type="button" id="siaChatDetenerGrabacion" class="sia-chat-btn">Detener</button>
+          <button type="button" id="siaChatEnviarGrabacion" class="sia-chat-btn sia-chat-enviar" style="display:none">Enviar audio</button>
+        </div>
+      </div>
       <form id="siaChatForm" class="sia-chat-form">
+        <button type="button" id="siaChatAdjuntar" class="sia-chat-btn" title="Adjuntar archivo" aria-label="Adjuntar archivo">📎</button>
+        <input type="file" id="siaChatArchivo" hidden accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip,.webm,.ogg,.mp4,.mp3,.wav" />
+        <button type="button" id="siaChatGrabar" class="sia-chat-btn" title="Grabar mensaje de voz" aria-label="Grabar mensaje de voz">🎙️</button>
         <textarea id="siaChatTexto" rows="1" placeholder="Escribe un mensaje…"></textarea>
         <button type="submit" id="siaChatEnviar" class="sia-chat-btn sia-chat-enviar">Enviar</button>
       </form>

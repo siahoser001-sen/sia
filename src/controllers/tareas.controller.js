@@ -18,6 +18,7 @@
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
 const { crearNotificacion, crearNotificacionLote } = require('../services/notificacion.service');
+const { notificarReporte } = require('../services/reporte-update.service');
 const { publicarMensajeSistema } = require('../services/chat-curso.service'); // Ronda F (F5)
 const {
   materiaPerteneceAlGrupo,
@@ -665,6 +666,9 @@ exports.calificarEntrega = async (req, res) => {
     // La tarjeta "Mis tareas" del estudiante se refresca en vivo (punto 4).
     const io = req.app.get('io');
     if (io) io.to(`usuario:${estudiante_id}`).emit('tareas:update', { tarea_id: id });
+
+    // La calificación de una entrega también aparece en el reporte.
+    await notificarReporte(io, estudiante_id, { motivo: 'entrega', ref_id: id });
 
     return res.json({ ok: true, mensaje: 'Entrega calificada.' });
   } catch (err) {

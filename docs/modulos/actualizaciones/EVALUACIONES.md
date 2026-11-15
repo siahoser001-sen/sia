@@ -188,7 +188,8 @@ pizarrón/videollamada. Las actividades usan `GET /api/tareas/estudiante?materia
 `POST /api/tareas/:id/entrega` y las rutas existentes de archivos de entrega; cada
 archivo se valida en cliente hasta 5 MB y puede quitarse/reemplazarse antes de calificar.
 Las notas se consultan con `GET /api/notas/estudiante/:estudianteId/materia/:materiaId`.
-`mis-materias.html` enlaza cada materia a esta vista.
+`mis-materias.html` enlaza cada materia a esta vista con el botón
+**Información sobre la materia** (abre el detalle sin forzar la pestaña de notas).
 El pizarrón persiste trazos y textos por materia o curso, carga el historial al entrar
 y sincroniza los cambios por socket; el servidor valida quién puede modificarlo y el
 estudiante lo consulta en solo lectura.

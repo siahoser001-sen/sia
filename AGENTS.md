@@ -1,41 +1,37 @@
 # AGENTS.md
 
-Proyecto SIA (Sistema de Información Académica) — SENA. Backend Node/Express + MySQL 8, frontend HTML plano + JS vanilla.
+Proyecto SIA — aplicación académica SENA.
 
-## Estado del repo (léelo primero)
-- `git ls-files` / el historial de `origin/main` NO representan la app actual: la mayor parte del sistema real está en archivos **sin commitear**. Lo que está trackeado es el estado viejo (invitaciones/autorización por correo); lo importante vive en archivos untracked (matrícula por código, materias por curso, plan de evaluación, boletines PDF, calendario, comunicados, llamadas/pizarrón, etc.). No asumas que algo no existe porque no aparece en git.
-- `docs/modulos/actualizaciones/ROADMAP.md` describe el diseño/estado por secciones pero **se ha desincronizado de la realidad repetidas veces**: antes de dar por bueno lo que diga (funciones, rutas, pantallas, marcas ✅), verifícalo con grep sobre el código real. `README.md` es solo el manual de instalación/arranque.
-- Documentación estratégica (organizada bajo `docs/modulos/`): `docs/modulos/vision/VISION.md` (propósito y modelo pedagógico), `docs/modulos/actualizaciones/GUIA_DE_AVANCE.md` (fases/hitos/DoD y cómo documentar), y las specs de módulos en `docs/modulos/actualizaciones/*.md` (p. ej. `EVALUACIONES.md`) — leer/actualizar la del módulo en el que trabajes **antes** de codificar. La sección 0 de `docs/modulos/actualizaciones/ROADMAP.md` ("Plan estratégico") es la brújula actual.
+## Fuente de verdad
+- Verifica en el código antes de afirmar rutas, pantallas, funciones o estado de una tarea.
+- `docs/modulos/actualizaciones/ROADMAP.md` sigue desincronizado: T21 describe asistencia con materia y periodo opcionales; el esquema vigente de `asistencia_dia` identifica grupo, estudiante y fecha. Confirma la implementación antes de usar decisiones antiguas del documento.
+- No mantener una sección de archivos huérfanos: consulta el mapa y confirma enlaces con búsquedas acotadas.
 
-## Ejecutar y verificar
-- Preparación: `copy .env.example .env` (llenar MySQL, JWT, email), crear BD `sia_db` en MySQL, correr migraciones, `npm install`.
-- `npm run dev` (nodemon) o `npm start`. **No hay tests, lint ni build**: la verificación es manual (navegador + MySQL Workbench). Las pruebas manuales end-to-end pendientes y sus credenciales están en `docs/verificacion/PRUEBAS_MANUALES.md`.
-- El backend sirve el frontend en `http://localhost:3000/frontend/login.html` (la raíz `/` redirige ahí). Escucha en `0.0.0.0`; `CORS_ORIGIN` vacío = refleja cualquier origen (necesario para entrar desde el celular). No hace falta Live Server.
+## Frontend, API y migraciones
+- Las páginas y scripts consultados construyen la URL base con `window.location.origin`; no fijar `localhost` ni un puerto en el frontend.
+- Las migraciones SQL actuales cubren prefijos 01–37; faltan 09 y 11. Hay dos archivos 35 (`35_asistencia_dia.sql` y `35_chat_adjuntos.sql`); el siguiente prefijo libre es 38.
+- `npm run migrate` ejecuta las migraciones no registradas en `schema_migrations`, ordenadas por prefijo numérico. Para cambios de esquema, crea la próxima migración numerada y aplica el runner.
+- El código de la aplicación está organizado bajo `src/controllers`, `src/routes`, `src/services`, `src/utils` y `src/sockets`; las páginas compartidas viven en `frontend/`.
 
-## Base de datos (MySQL, NO PostgreSQL)
-- Driver `mysql2/promise`, pool en `src/config/db.js`. Placeholders `?` (no `$1`); las queries devuelven `[rows]`, no `.rows`. UUID: `CHAR(36) PRIMARY KEY DEFAULT (UUID())`.
-- Migraciones = archivos numerados `database/NN_nombre.sql` (01→19) que se ejecutan **en orden**. Hoy las corriste a mano, pero ya hay runner: `npm run migrate` aplica desde código las pendientes (`database/NN_*.sql`) usando `mysql2` con `multipleStatements`, y `npm run migrate:seed` sirve la **primera vez** para marcar las 01→19 como ya aplicadas sin releerlas. Cambio de esquema → crear `database/20_...` y correr `npm run migrate`. `create-tables.js` SOLO crea las 2 tablas de sockets/pizarrón, no es un migrador general. Las 18 y 19 ya existen (usuarios de prueba y revocación de sesiones JWT).
-- Transacciones: `pool.getConnection()` → `beginTransaction()`/`commit()` (nunca `pool.query('BEGIN')`).
-- Los errores de FK/constraint de MySQL se traducen a mensajes amigables en español en los controllers — mantén ese patrón.
+## Mapa por módulo
+| Módulo | Frontend (HTML/JS) | Controller / routes | Service / util | Migraciones principales |
+|---|---|---|---|---|
+| Asistencia diaria | `mis-clases.html`, `materia-estudiante.html` | `asistencia-dia.controller.js` / `asistencia-dia.routes.js` | `asistencia-dia.service.js` | `35_asistencia_dia.sql` |
+| Calendario y horario | `calendario.html`, `academico.html`, `mis-clases.html` | `calendario.controller.js`, `academico.controller.js` / rutas `calendario` y `academico` | `materias-curso.util.js`, `ciclo.util.js`, `chat-curso.service.js` | `01_sia_base.sql`, `17_calendario_eventos.sql`, `20_horario_horas.sql` |
+| Plan de evaluación | `mis-clases.html` | `plan-evaluacion.controller.js` / `plan-evaluacion.routes.js` | `materias-curso.util.js`, `reporte-update.service.js` | `15_plan_evaluacion.sql` |
+| Tareas y entregas con archivos | `dashboard.html`, `mis-clases.html`, `materia-estudiante.html` | `tareas.controller.js`, `tareas-entrega-archivos.controller.js` / `tareas.routes.js` | `tareas-entrega.util.js`, `materias-curso.util.js`, `notificacion.service.js`, `reporte-update.service.js`, `chat-curso.service.js` | `01_sia_base.sql`, `29_tareas_estado.sql`, `36_entregas_archivos.sql` |
+| Notas y periodos | `materia-estudiante.html`, `mis-clases.html`, `academico.html` | `notas.controller.js`, `academico.controller.js` / rutas `notas` y `academico` | `ciclo.util.js`, `materias-curso.util.js`, `notificacion.service.js`, `reporte-update.service.js`, `chat-curso.service.js` | `01_sia_base.sql`, `15_plan_evaluacion.sql`, `30_notas_periodo_cierre.sql`, `34_nota_minima_aprobacion_institucion.sql` |
+| Matrículas, traslados y materias por curso | `academico.html`, `estudiantes.html`, `activar-estudiante.html`, `mis-materias.html`, `mis-clases.html` | `matriculas.controller.js`, `promocion.controller.js`, `academico.controller.js` / rutas `matriculas` y `academico` | `materias-curso.util.js`, `ciclo.util.js` | `01_sia_base.sql`, `07_director_curso.sql`, `10_matriculacion_codigo.sql`, `13_matriculacion_por_codigo.sql`, `14_materias_por_curso.sql`, `23_materias_generales.sql`, `25_promocion_anual.sql`, `32_materias_curso.sql` |
+| Notificaciones | `dashboard.html`; el drawer comparte el indicador | `notificaciones.controller.js` / `notificaciones.routes.js` | `notificacion.service.js` | `02_sia_v2.sql` |
+| Chat directo | `chat-drawer.html`, `chat-drawer.js`, `chat-drawer-inyector.js` | `chat.controller.js` / `chat.routes.js` | `materias-curso.util.js` | `22_chat_mensajeria.sql`, `35_chat_adjuntos.sql` |
+| Chat de curso | `sia-chat-curso.js`, integrado en `dashboard.html` y `mis-clases.html` | `chat-curso.controller.js` / `chat.routes.js` | `chat-curso.service.js` | `33_chat_curso.sql` |
+| Llamadas y pizarrón | `llamadas-docente.html`, `llamadas-estudiante.html`, `pizarron.html`, `static/js/pizarron.js` | `llamadas.controller.js`, `clases.controller.js` / `llamadas.routes.js`, `clases.routes.js` | Socket.IO en `sockets/socket.js`; sin service/util dedicado | `03_sesiones_clase.sql`, `37_pizarron_persistente.sql` |
+| Reportes y boletines | `reporte-estudiante.html`, `mis-clases.html` | `reportes.controller.js`, `boletin.controller.js`, `resumen.controller.js`, `informe-didactico.controller.js` / rutas `reportes`, `boletin`, `resumen`, `informe-didactico` | `reporte-update.service.js`, `asistencia-dia.service.js`, `materias-curso.util.js`, `ciclo.util.js` | `16_boletines.sql`, `24_reporte_estudiantil.sql`, `26_certificados.sql`, `30_notas_periodo_cierre.sql`, `31_boletines_anual.sql`, `35_asistencia_dia.sql` |
+| Dirección de curso | `academico.html`, `mis-clases.html` | `academico.controller.js` / `academico.routes.js`; otras funciones aparecen en las filas de sus módulos | `materias-curso.util.js` | `07_director_curso.sql`, `10_matriculacion_codigo.sql`, `32_materias_curso.sql` |
+| Sesión, sidebar y UI compartida | `sia-sesion.js`, `sia-identidad.js`, `sia-ui.js`, `sia-utils.js`, `chat-drawer-inyector.js` | `auth.controller.js`, `auth.routes.js`, `auth.middleware.js` | `revocacion.js` | `01_sia_base.sql`, `12_intentos_fallidos_login.sql`, `19_revocacion_sesiones.sql` |
 
-## Arquitectura
-- `src/app.js` es el cableado: ahí se monta toda ruta bajo `/api/*` y se sirven `/frontend` y `/storage`. Desde un controller se emite por socket con `req.app.get('io')`.
-- Frontend: una página `.html` por pantalla, cada una con su propio `<script>`. **Explicitamente NO React.** Cada página lee `sessionStorage.getItem('sia_token')` (ojo: es `sessionStorage`, no `localStorage` como dice el README) y hace fetch contra `window.location.origin` — nunca quemar `localhost:3000` en el frontend.
-- Roles JWT: `superadmin | admin | docente | estudiante | acudiente`. "Director de curso" NO es un rol: es `grupos.director_id`, verificado por endpoint (ver `resumen.controller.js`, `calendario.controller.js`, `boletin.controller.js`).
-- Auth por ruta: `authMiddleware` + `soloRoles(...)` (src/middleware/auth.middleware.js). Error global al final de `app.js` via `manejadorErrores.js`.
-- Socket.io comparte el puerto HTTP; JWT va en `handshake.auth.token`. La autorización se revalida en el backend aunque el frontend oculte botones.
-
-## Convenciones
-- Todo en español: UI, respuestas `{ ok: true, mensaje: '...' }`, comentarios y commits (el historial va en español, sin prefijo `feat:`/`fix:`).
-- Los controllers existentes usan try/catch propio; el código nuevo puede envolver en `src/utils/asyncHandler.js` (cae en el manejador de errores).
-- Patrón de periodo activo: los endpoints de notas/resumen/plan-evaluación/boletín usan el periodo marcado `activo` de la institución si no reciben `periodo_id`, y filtran fallas por rango de fechas del periodo (asistencia/notas no siempre tienen `periodo_id`). Sigue ese patrón en funciones nuevas.
-- `storage/` está en `.gitignore` (archivos subidos, PDFs de boletines, comunicados) — se crea en runtime.
-
-## Seguridad y sesiones
-- JWT revocación: blacklist de `jti` en memoria (`src/utils/revocacion.js`) para logout puntual + columna `token_version` en `usuarios` para invalidar TODAS las sesiones al cambiar/recuperar contraseña. `auth.middleware.js` y el `io.use` de sockets validan ambos.
-- Rate-limit por IP en login: `src/middleware/rateLimit.middleware.js` con `express-rate-limit`, configurable via `.env` (`RATE_LIMIT_LOGIN_WINDOW_MIN`, `RATE_LIMIT_LOGIN_MAX`). `TRUST_PROXY=1` solo si corre detrás de nginx/proxy.
-- El bloqueo por cuenta (`intentos_fallidos`) es adicional al rate-limit por IP.
-
-## Archivos huérfanos (sin enlazar)
-- `frontend/llamadas-estudiante.html` — pantalla de videollamada; queda enlazada en `dashboard.html` y `mis-clases.html` (se completó su conexión).
-- `frontend/pizarron.html` — tablero de videollamada; backend (sockets) listo y enlazado desde `mis-clases.html` (directores). ~~`admin-dashboard.html`~~ se eliminó el 2026-09-02 (era borrador viejo de `panel-admin.html`, nadie lo enlazaba).
+## Reglas para el agente
+- Toca solo los archivos del módulo pedido.
+- Si necesitas modificar un archivo de otro módulo, di cuál y por qué antes de tocarlo.
+- No recorras todo el proyecto.
+- Si el mapa no cubre algo, busca con grep acotado a `src/` o `frontend/`.

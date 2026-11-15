@@ -25,15 +25,77 @@
 
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   condicionMateriaEnGrupo,
   condicionDocenteEnGrupo,
 } = require('../utils/materias-curso.util');
 
+const RAIZ_PROYECTO = path.resolve(__dirname, '../..');
+const CARPETA_CHAT = path.join(RAIZ_PROYECTO, 'storage_privado', 'chat');
+const EXTENSIONES_AUDIO = new Set(['.webm', '.ogg', '.mp4', '.mp3', '.wav']);
+
 // ── Helpers ─────────────────────────────────────────────────
 function parCanonico(a, b) {
   return a < b ? [a, b] : [b, a];
+}
+
+async function eliminarTemporal(file) {
+  if (!file || !file.path) return;
+  try {
+    await fs.promises.unlink(file.path);
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('No se pudo limpiar adjunto temporal:', err.message);
+  }
+}
+
+function rutaRelativaProyecto(ruta) {
+  return path.relative(RAIZ_PROYECTO, ruta).split(path.sep).join('/');
+}
+
+function tipoChatArchivo(file) {
+  return EXTENSIONES_AUDIO.has(path.extname(file.originalname).toLowerCase()) ? 'audio' : 'archivo';
+}
+
+function normalizarBusqueda(texto) {
+  return String(texto || '')
+    .toLocaleLowerCase('es-CO')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+async function resultadoChatPropio(me, consulta) {
+  const q = normalizarBusqueda(consulta);
+  const alias = ['tu', 'notas personales'].some(a => a.includes(q) || q.includes(a));
+  if (!alias) {
+    const [rows] = await pool.query(
+      `SELECT nombres, apellidos, numero_documento, email
+       FROM usuarios WHERE id = ? LIMIT 1`,
+      [me.id]
+    );
+    if (!rows.length) return null;
+    const valores = [
+      rows[0].nombres,
+      rows[0].apellidos,
+      `${rows[0].nombres} ${rows[0].apellidos}`,
+      rows[0].numero_documento,
+      rows[0].email,
+    ];
+    if (!valores.some(v => normalizarBusqueda(v).includes(q))) return null;
+  }
+  return {
+    id: me.id,
+    nombre: 'Tú (notas personales)',
+    sub: 'Notas personales',
+    tipo: 'personal',
+  };
+}
+
+function incluirChatPropio(resultados, propio) {
+  return propio ? [propio, ...resultados] : resultados;
 }
 
 async function superadminId() {
@@ -196,7 +258,8 @@ async function docenteDictaAlAcudido(docenteId, acudienteId) {
 
 // Valida a quién puede abrir un chat personal `me`.
 async function validarDestino(me, enteId) {
-  if (!enteId || enteId === me.id) return { ok: false, mensaje: 'No puedes abrir chat contigo mismo.' };
+  if (typeof enteId !== 'string' || !enteId) return { ok: false, mensaje: 'Destino inválido.' };
+  if (enteId === me.id) return { ok: true };
   if (enteId.length !== 36) return { ok: false, mensaje: 'Destino inválido.' };
 
 if (me.rol === 'superadmin') {
@@ -293,6 +356,13 @@ async function counterpart(chat, me) {
       label: 'Soporte SIA',
     };
   }
+  if (chat.ente_a === me.id && chat.ente_b === me.id) {
+    return {
+      nombre: 'Tú (notas personales)',
+      sub: 'Notas personales',
+      label: 'Notas personales',
+    };
+  }
   const otroId = chat.ente_a === me.id ? chat.ente_b : chat.ente_a;
   const [u] = await pool.query(
     `SELECT nombres, apellidos, rol, numero_documento, email FROM usuarios WHERE id = ? LIMIT 1`,
@@ -310,8 +380,11 @@ async function counterpart(chat, me) {
 async function detalleConversacion(chat, me) {
   const contraparte = await counterpart(chat, me);
   const [last] = await pool.query(
-    `SELECT texto, remitente_id, created_at FROM chat_mensajes
-     WHERE chat_id = ? ORDER BY created_at DESC LIMIT 1`,
+    `SELECT cm.texto, cm.tipo, cm.transcripcion, cm.remitente_id, cm.created_at,
+            a.nombre_original
+     FROM chat_mensajes cm
+     LEFT JOIN archivos a ON a.id = cm.archivo_id
+     WHERE cm.chat_id = ? ORDER BY cm.created_at DESC LIMIT 1`,
     [chat.id]
   );
   const [noLeidos] = await pool.query(
@@ -320,11 +393,18 @@ async function detalleConversacion(chat, me) {
     [chat.id, me.id]
   );
   const ultimo = last.length ? last[0] : null;
+  const ultimoMensaje = !ultimo
+    ? null
+    : ultimo.tipo === 'audio'
+      ? `🎤 ${ultimo.nombre_original || 'Mensaje de voz'}`
+      : ultimo.tipo === 'archivo'
+        ? `📎 ${ultimo.nombre_original || 'Archivo adjunto'}`
+        : ultimo.texto;
   return {
     id: chat.id,
     tipo: chat.tipo,
     ...contraparte,
-    ultimo_mensaje: ultimo ? ultimo.texto : null,
+    ultimo_mensaje: ultimoMensaje,
     ultimo_remitente_id: ultimo ? ultimo.remitente_id : null,
     ultimo_at: ultimo ? ultimo.created_at : chat.created_at,
     no_leidos: noLeidos[0].c || 0,
@@ -432,6 +512,15 @@ exports.conversaciones = asyncHandler(async (req, res) => {
     chats.push(...personales);
   }
 
+  const [chatPropio] = await pool.query(
+    `SELECT id, tipo, ente_a, ente_b, institucion_id, bloqueado_por, created_at
+     FROM chats
+     WHERE tipo = 'personal' AND ente_a = ? AND ente_b = ?
+     LIMIT 1`,
+    [me.id, me.id]
+  );
+  chats.push(...chatPropio);
+
   const unicos = [];
   const vistos = new Set();
   for (const c of chats) {
@@ -461,7 +550,13 @@ exports.buscar = asyncHandler(async (req, res) => {
   if (!q) return res.json({ ok: true, total: 0, resultados: [] });
 
   const like = `%${q}%`;
-if (me.rol === 'superadmin') {
+  const propio = await resultadoChatPropio(me, q);
+  const responder = (resultados, limite) => {
+    const todos = incluirChatPropio(resultados, propio);
+    return res.json({ ok: true, total: todos.length, resultados: todos.slice(0, limite) });
+  };
+
+  if (me.rol === 'superadmin') {
     const [insts] = await pool.query(
       `SELECT id, nombre, nit, municipio FROM instituciones
        WHERE activa = TRUE AND (nombre LIKE ? OR nit LIKE ? OR municipio LIKE ?)
@@ -489,7 +584,7 @@ if (me.rol === 'superadmin') {
         tipo: 'personal',
       });
     }
-    return res.json({ ok: true, total: resultados.length, resultados: resultados.slice(0, 30) });
+    return responder(resultados, 30);
   }
 
   if (me.rol === 'admin') {
@@ -519,7 +614,7 @@ if (me.rol === 'superadmin') {
     for (const r of admins) {
       resultados.push({ id: r.id, nombre: `${r.nombres} ${r.apellidos}`, sub: `Administrador · ${r.institucion}`, tipo: 'personal' });
     }
-    return res.json({ ok: true, total: resultados.length, resultados: resultados.slice(0, 30) });
+    return responder(resultados, 30);
   }
 
   if (me.rol === 'docente') {
@@ -541,32 +636,26 @@ if (me.rol === 'superadmin') {
     for (const e of ests) {
       resultados.push({ id: e.id, nombre: `${e.nombres} ${e.apellidos}`, sub: `Estudiante · ${e.numero_documento}`, tipo: 'personal' });
     }
-    return res.json({ ok: true, total: resultados.length, resultados: resultados.slice(0, 20) });
+    return responder(resultados, 20);
   }
 
   if (me.rol === 'estudiante') {
     const rows = await docentesDeEstudiante(me.id, like);
-    return res.json({
-      ok: true, total: rows.length,
-      resultados: rows.map(r => ({
+    return responder(rows.map(r => ({
         id: r.id, nombre: `${r.nombres} ${r.apellidos}`,
         sub: r.es_director ? 'Docente · Director de curso' : 'Docente', tipo: 'personal',
-      })),
-    });
+      })), 20);
   }
 
   if (me.rol === 'acudiente') {
     const rows = await docentesDeAcudido(me.id, like);
-    return res.json({
-      ok: true, total: rows.length,
-      resultados: rows.map(r => ({
+    return responder(rows.map(r => ({
         id: r.id, nombre: `${r.nombres} ${r.apellidos}`,
         sub: r.es_director ? 'Docente · Director de curso' : 'Docente', tipo: 'personal',
-      })),
-    });
+      })), 20);
   }
 
-  return res.json({ ok: true, total: 0, resultados: [] });
+  return responder([], 20);
 });
 
 // ── POST /api/chat/abrir { tipo, ente_id } ───────────────────
@@ -642,8 +731,12 @@ exports.mensajes = asyncHandler(async (req, res) => {
   if (!esParticipante(chat, me)) return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este chat.' });
 
   const [msgs] = await pool.query(
-    `SELECT id, remitente_id, texto, leido, created_at FROM chat_mensajes
-     WHERE chat_id = ? ORDER BY created_at ASC LIMIT 300`,
+    `SELECT cm.id, cm.remitente_id, cm.texto, cm.tipo, cm.transcripcion,
+            cm.archivo_id, cm.leido, cm.created_at,
+            a.nombre_original AS archivo_nombre, a.mime_type, a.tamanio_bytes
+     FROM chat_mensajes cm
+     LEFT JOIN archivos a ON a.id = cm.archivo_id
+     WHERE cm.chat_id = ? ORDER BY cm.created_at ASC LIMIT 300`,
     [chat.id]
   );
 
@@ -665,55 +758,161 @@ exports.mensajes = asyncHandler(async (req, res) => {
   });
 });
 
-// ── POST /api/chat/:chatId/enviar { texto } ──────────────────
+// ── POST /api/chat/:chatId/enviar { texto } o multipart { archivo } ──
 exports.enviar = asyncHandler(async (req, res) => {
   const me = req.usuario;
-  const texto = (req.body.texto || '').trim();
-  if (!texto) return res.status(400).json({ ok: false, mensaje: 'Escribe un mensaje.' });
-  if (texto.length > 2000) return res.status(400).json({ ok: false, mensaje: 'El mensaje es muy largo.' });
+  const file = req.file;
+  const texto = typeof req.body.texto === 'string' ? req.body.texto.trim() : '';
+  const transcripcion = typeof req.body.transcripcion === 'string'
+    ? req.body.transcripcion.trim()
+    : '';
+  let conn = null;
+  let archivoGuardado = false;
 
-  const [rows] = await pool.query(
-    `SELECT id, tipo, ente_a, ente_b, institucion_id, bloqueado_por FROM chats WHERE id = ? LIMIT 1`,
-    [req.params.chatId]
-  );
-if (!rows.length) return res.status(404).json({ ok: false, mensaje: 'Chat no encontrado.' });
-  const chat = rows[0];
-  if (!esParticipante(chat, me)) return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este chat.' });
-  if (chat.bloqueado_por) return res.status(403).json({ ok: false, mensaje: 'Este chat está bloqueado.' });
-
-  // Ronda C2: si el admin cerró "mensajes abiertos", nadie de la
-  // institución puede seguir escribiéndole, ni por un chat ya iniciado.
-  if (chat.tipo === 'personal' && !['admin', 'superadmin'].includes(me.rol)) {
-    const otroId = chat.ente_a === me.id ? chat.ente_b : chat.ente_a;
-    const adminId = await adminDeInstitucion(chat.institucion_id);
-    if (otroId === adminId && !(await configAbierto(chat.institucion_id))) {
-      return res.status(403).json({ ok: false, mensaje: 'Este chat está bloqueado por el administrador.' });
+  try {
+    if (texto.length > 2000) return res.status(400).json({ ok: false, mensaje: 'El mensaje es muy largo.' });
+    if (transcripcion.length > 20000) {
+      return res.status(400).json({ ok: false, mensaje: 'La transcripción es muy larga.' });
     }
-  }
+    if (!texto && !file) return res.status(400).json({ ok: false, mensaje: 'Escribe un mensaje o adjunta un archivo.' });
 
-  const id = randomUUID();
-  const fecha = new Date();
-  await pool.query(
-    `INSERT INTO chat_mensajes (id, chat_id, remitente_id, texto) VALUES (?, ?, ?, ?)`,
-    [id, chat.id, me.id, texto]
+    const [rows] = await pool.query(
+      `SELECT id, tipo, ente_a, ente_b, institucion_id, bloqueado_por
+       FROM chats WHERE id = ? LIMIT 1`,
+      [req.params.chatId]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, mensaje: 'Chat no encontrado.' });
+    const chat = rows[0];
+    if (!esParticipante(chat, me)) {
+      return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este chat.' });
+    }
+    if (chat.bloqueado_por) {
+      return res.status(403).json({ ok: false, mensaje: 'Este chat está bloqueado.' });
+    }
+
+    // Ronda C2: si el admin cerró "mensajes abiertos", nadie de la
+    // institución puede seguir escribiéndole, ni por un chat ya iniciado.
+    if (chat.tipo === 'personal' && !['admin', 'superadmin'].includes(me.rol)) {
+      const otroId = chat.ente_a === me.id ? chat.ente_b : chat.ente_a;
+      const adminId = await adminDeInstitucion(chat.institucion_id);
+      if (otroId === adminId && !(await configAbierto(chat.institucion_id))) {
+        return res.status(403).json({ ok: false, mensaje: 'Este chat está bloqueado por el administrador.' });
+      }
+    }
+
+    const id = randomUUID();
+    const archivoId = file ? randomUUID() : null;
+    const tipo = file ? tipoChatArchivo(file) : 'texto';
+    const fecha = new Date();
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    if (file) {
+      await conn.query(
+        `INSERT INTO archivos
+           (id, subido_por, tipo, nombre_original, nombre_storage, ruta_storage,
+            mime_type, tamanio_bytes, es_publico, descripcion)
+         VALUES (?, ?, 'chat_adjunto', ?, ?, ?, ?, ?, FALSE, ?)`,
+        [
+          archivoId,
+          me.id,
+          file.originalname,
+          file.filename,
+          rutaRelativaProyecto(file.path),
+          file.mimetype,
+          file.size,
+          'Adjunto de mensajería',
+        ]
+      );
+    }
+
+    await conn.query(
+      `INSERT INTO chat_mensajes
+         (id, chat_id, remitente_id, archivo_id, tipo, texto, transcripcion)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, chat.id, me.id, archivoId, tipo, texto || null, tipo === 'audio' ? transcripcion || null : null]
+    );
+    await conn.commit();
+    archivoGuardado = !!file;
+
+    const otros = [];
+    if (chat.tipo === 'personal') {
+      otros.push(chat.ente_a === me.id ? chat.ente_b : chat.ente_a);
+    } else {
+      const supId = await superadminId();
+      const adminId = await adminDeInstitucion(chat.institucion_id);
+      otros.push(...([supId, adminId].filter(Boolean)).filter(u => u !== me.id));
+    }
+    const io = req.app.get('io');
+    if (io) {
+      for (const u of new Set(otros)) io.to(`usuario:${u}`).emit('chat:update', { chat_id: chat.id });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      mensaje: 'Mensaje enviado.',
+      msg: {
+        id,
+        chat_id: chat.id,
+        remitente_id: me.id,
+        archivo_id: archivoId,
+        tipo,
+        texto: texto || null,
+        transcripcion: tipo === 'audio' ? transcripcion || null : null,
+        archivo_nombre: file ? file.originalname : null,
+        mime_type: file ? file.mimetype : null,
+        tamanio_bytes: file ? file.size : null,
+        leido: 0,
+        created_at: fecha,
+      },
+    });
+  } catch (err) {
+    if (conn) await conn.rollback();
+    throw err;
+  } finally {
+    if (conn) conn.release();
+    if (file && !archivoGuardado) await eliminarTemporal(file);
+  }
+});
+
+// Descarga/reproducción autenticada: solo quien participa en el chat.
+exports.descargarAdjunto = asyncHandler(async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT c.id AS chat_id, c.tipo, c.ente_a, c.ente_b,
+            c.institucion_id, a.nombre_original, a.ruta_storage, a.mime_type
+     FROM chat_mensajes cm
+     JOIN chats c ON c.id = cm.chat_id
+     JOIN archivos a ON a.id = cm.archivo_id
+     WHERE cm.id = ? AND cm.chat_id = ? LIMIT 1`,
+    [req.params.mensajeId, req.params.chatId]
   );
-
-  const otros = [];
-  if (chat.tipo === 'personal') {
-    otros.push(chat.ente_a === me.id ? chat.ente_b : chat.ente_a);
-  } else {
-    const supId = await superadminId();
-    const adminId = await adminDeInstitucion(chat.institucion_id);
-    otros.push(...([supId, adminId].filter(Boolean)).filter(u => u !== me.id));
-  }
-  const io = req.app.get('io');
-  if (io) {
-    for (const u of otros) io.to(`usuario:${u}`).emit('chat:update', { chat_id: chat.id });
+  if (!rows.length) return res.status(404).json({ ok: false, mensaje: 'Adjunto no encontrado.' });
+  const archivo = rows[0];
+  if (!esParticipante(archivo, req.usuario)) {
+    return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este adjunto.' });
   }
 
-  return res.status(201).json({
-    ok: true, mensaje: 'Mensaje enviado.',
-    msg: { id, chat_id: chat.id, remitente_id: me.id, texto, leido: 0, created_at: fecha },
+  const ruta = path.resolve(RAIZ_PROYECTO, archivo.ruta_storage);
+  if (!ruta.startsWith(`${CARPETA_CHAT}${path.sep}`)) {
+    console.error('Ruta de adjunto de chat fuera de su carpeta.');
+    return res.status(500).json({ ok: false, mensaje: 'No se pudo abrir el adjunto.' });
+  }
+
+  res.setHeader('Content-Type', archivo.mime_type || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename*=UTF-8''${encodeURIComponent(archivo.nombre_original)}`
+  );
+  return res.sendFile(ruta, err => {
+    if (err) {
+      console.error('descargar adjunto de chat:', err.message);
+      if (!res.headersSent) {
+        res.status(err.code === 'ENOENT' ? 404 : 500).json({
+          ok: false,
+          mensaje: err.code === 'ENOENT' ? 'Adjunto no encontrado.' : 'No se pudo abrir el adjunto.',
+        });
+      }
+    }
   });
 });
 

@@ -33,6 +33,7 @@ const {
   gruposDocenteMateria,
   materiasConDocentesDeGrupo,
 } = require('../utils/materias-curso.util');
+const { notificarReporte } = require('../services/reporte-update.service');
 
 // Trae la materia + su grupo_id + institucion_id, o null si no existe.
 async function _datosMateria(materiaId) {
@@ -454,6 +455,7 @@ exports.guardarCelda = async (req, res) => {
     if (valor === null || valor === undefined || valor === '') {
       await conn.query(`DELETE FROM notas WHERE plan_item_id = ? AND estudiante_id = ?`, [plan_item_id, estudiante_id]);
       await conn.commit();
+      await notificarReporte(req.app.get('io'), estudiante_id, { motivo: 'nota', plan_item_id });
       return res.json({ ok: true, mensaje: 'Celda vaciada.', valor: null });
     }
 
@@ -492,6 +494,13 @@ exports.guardarCelda = async (req, res) => {
     );
 
     await conn.commit();
+
+    await notificarReporte(req.app.get('io'), estudiante_id, {
+      motivo: 'nota',
+      materia_id: item.materia_id,
+      plan_item_id,
+    });
+
     return res.json({ ok: true, mensaje: 'Celda guardada.', valor: valorNum });
   } catch (err) {
     await conn.rollback();

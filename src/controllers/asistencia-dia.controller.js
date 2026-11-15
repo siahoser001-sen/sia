@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const pool = require('../config/db');
+const { notificarReporte } = require('../services/reporte-update.service');
 
 const ESTADOS_VALIDOS = ['asistio', 'falta', 'tarde', 'justificada'];
 
@@ -169,6 +170,8 @@ exports.guardarCelda = async (req, res) => {
       [randomUUID(), grupo.institucion_id, grupoId, estudianteId, fecha, estado, motivoFinal, req.usuario.id]
     );
 
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'asistencia', grupo_id: grupoId, fecha });
+
     return res.json({
       ok: true,
       mensaje: 'Asistencia guardada.',
@@ -253,6 +256,8 @@ exports.subirArchivo = async (req, res) => {
       [archivoUrl, req.file.originalname, celdas[0].id]
     );
     await conn.commit();
+
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'asistencia', grupo_id: grupoId, fecha });
 
     return res.status(201).json({
       ok: true,

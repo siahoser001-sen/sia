@@ -713,6 +713,7 @@
     </div>
   </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script src="sia-identidad.js"></script>
 <script>
   (function () {
@@ -807,6 +808,22 @@
         pintarDatos(r);
         cargarPaginas(true);
       }).catch(function () { refrescandoDatos = false; });
+    }
+
+    // Refresco sin recargar la página. Lo usan el socket (`reporte:update`)
+    // y el regreso a la pestaña. Se agrupa con un pequeño retardo porque
+    // un mismo cambio puede llegar como nota + notificación.
+    var refrescoPendiente = null;
+    function refrescarPorCambio() {
+      if (!estudianteIdActual) return;
+      if (refrescoPendiente) clearTimeout(refrescoPendiente);
+      refrescoPendiente = setTimeout(function () {
+        refrescoPendiente = null;
+        if (!estudianteIdActual) return;
+        refrescarDatos();
+        cargarCompromisos();
+        cargarObservaciones();
+      }, 250);
     }
 
     // Descarga PDF/Word por página o todas (punto 3).
@@ -1693,6 +1710,26 @@
       if (history.length > 1) history.back();
       else window.location.href = 'dashboard.html';
     });
+
+    // ── Tiempo real: el reporte se actualiza solo ──────────
+    // El backend emite `reporte:update` al estudiante y a sus
+    // acudientes cuando cambian notas, asistencia, compromisos u
+    // observaciones. Se filtra por estudiante porque un acudiente
+    // puede tener varios hijos.
+    if (typeof io === 'function') {
+      var socket = io(API, { auth: { token } });
+      socket.on('reporte:update', function (payload) {
+        if (!payload || payload.estudiante_id !== estudianteIdActual) return;
+        refrescarPorCambio();
+      });
+    }
+
+    // Al volver a la pestaña se refresca igual: cubre eventos perdidos
+    // mientras estaba en segundo plano o el socket desconectado.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') refrescarPorCambio();
+    });
+    window.addEventListener('focus', function () { refrescarPorCambio(); });
 
     // ── Arranque según rol ─────────────────────────────────
     function iniciar() {

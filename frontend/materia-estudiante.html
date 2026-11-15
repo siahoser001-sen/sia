@@ -116,7 +116,7 @@
     <header class="glass topbar">
       <div>
         <div class="topbar-titulo" id="tituloMateria">Mi materia</div>
-        <div class="topbar-sub" id="subtituloMateria">Actividades, asistencia y notas</div>
+        <div class="topbar-sub" id="subtituloMateria">Actividades, asistencia, notas, tablero y videollamada</div>
         <div class="course-pill" id="cursoEstudiante">Cargando curso…</div>
       </div>
       <a class="btn btn-ghost" href="mis-materias.html">← Mis materias</a>
@@ -303,10 +303,14 @@
       const tablero = document.getElementById('abrirTablero');
       const videollamada = document.getElementById('abrirVideollamada');
       tablero.addEventListener('click', () => {
-        const destino = asignacion
-          ? `pizarron.html?materia=${encodeURIComponent(asignacion.docente_materia_id)}&modo=ver`
-          : `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&modo=ver`;
-        window.open(destino, '_blank', 'noopener');
+        if (!asignacion) {
+          alert('Esta materia aún no tiene un docente asignado, así que todavía no tiene pizarrón.');
+          return;
+        }
+        const destino = `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&materia=${encodeURIComponent(asignacion.docente_materia_id)}&modo=ver`;
+        // Sin "noopener" para que la nueva pestaña herede la sesión
+        // (sessionStorage) y el pizarrón no pida iniciar sesión otra vez.
+        window.open(destino, '_blank');
       });
       if (!asignacion) {
         videollamada.disabled = true;

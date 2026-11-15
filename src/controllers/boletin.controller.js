@@ -182,8 +182,8 @@ async function armarDatosBoletin(estudianteId, grupoId, periodoId) {
 }
 
 // ---- informe ANUAL (D8) ----------------------------------------------
-// Recorre TODOS los periodos del año y arma el promedio de cada materia
-// combinando las notas del curso actual con el snapshot de `notas_periodo_cierre`
+// Recorre TODOS los periodos del año y arma el promedio de cada materia.
+// Los snapshots de `notas_periodo_cierre` solo completan años ya cerrados
 // (D7: periodos cursados en el curso anterior antes de un traslado).
 // Identidad de materia entre cursos: por NOMBRE (regla decidida en D7).
 
@@ -207,6 +207,13 @@ async function armarDatosInformeAnual(estudianteId, grupoId, anioLectivo) {
   );
   if (!institucionRows.length) return null;
   const institucion = institucionRows[0];
+
+  const [periodoActivoRows] = await pool.query(
+    `SELECT anio_lectivo FROM periodos_academicos
+     WHERE institucion_id = ? AND activo = TRUE LIMIT 1`,
+    [institucion.institucion_id]
+  );
+  const anioActivo = periodoActivoRows.length ? Number(periodoActivoRows[0].anio_lectivo) : null;
 
   const [yearPeriodos] = await pool.query(
     `SELECT id, nombre, fecha_inicio, fecha_fin FROM periodos_academicos
@@ -237,6 +244,15 @@ async function armarDatosInformeAnual(estudianteId, grupoId, anioLectivo) {
   );
   const matIds = materias.map(m => m.id);
   const nombresMaterias = materias.map(m => m.nombre);
+  const [periodosAbiertosRows] = await pool.query(
+    `SELECT COUNT(*) AS total FROM periodos_academicos
+     WHERE institucion_id = ? AND anio_lectivo = ?
+       AND (activo = TRUE OR fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE())`,
+    [institucion.institucion_id, anioLectivo]
+  );
+  const anioEstaCerrado =
+    Number(periodosAbiertosRows[0].total) === 0 &&
+    (anioActivo === null || Number(anioLectivo) < anioActivo);
 
   let notas = [];
   if (matIds.length && periodoIds.length) {
@@ -255,9 +271,10 @@ async function armarDatosInformeAnual(estudianteId, grupoId, anioLectivo) {
     notasPorPeriodoMateria[key].push(n);
   }
 
-  // Snapshot de los periodos del curso anterior (D7).
+  // Solo los años cerrados usan el snapshot; el año activo se calcula
+  // exclusivamente con notas vivas, incluso si una celda aún está vacía.
   let snapshot = [];
-  if (nombresMaterias.length && periodoIds.length) {
+  if (anioEstaCerrado && nombresMaterias.length && periodoIds.length) {
     [snapshot] = await pool.query(
       `SELECT periodo_id, materia_nombre, promedio_periodo FROM notas_periodo_cierre
        WHERE estudiante_id = ? AND anio_lectivo = ?

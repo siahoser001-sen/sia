@@ -8,14 +8,29 @@ const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
 const pool = require('../config/db');
 const { estaRevocado } = require('../utils/revocacion');
-const { setSocketIO } = require('../services/notificacion.service');
-const { setIO: setIOChatCurso } = require('../services/chat-curso.service');
 const {
   condicionMateriaEnGrupo,
   condicionDocenteEnGrupo,
+  parametrosMateriaEnGrupo,
+  parametrosDocenteEnGrupo,
 } = require('../utils/materias-curso.util');
+const { setSocketIO } = require('../services/notificacion.service');
+const { setIO: setIOChatCurso } = require('../services/chat-curso.service');
 
 const colasPizarron = new Map();
+// El pizarrón del curso que dirige el docente se maneja como una
+// "materia" más dentro de la misma pareja (grupo, materia). El curso
+// usa siempre el id 0 (nunca NULL) para no chocar con una materia real.
+const MATERIA_CURSO = '0';
+// Fuentes permitidas para las cajas de texto del pizarrón.
+const FUENTES_CAJA = new Set([
+  'Arial',
+  'Georgia',
+  'Courier New',
+  'Comic Sans MS',
+  'Verdana',
+  'Times New Roman',
+]);
 
 function initSockets(io) {
   // Da acceso al io al servicio de notificaciones para avisar a cada
@@ -73,38 +88,52 @@ function initSockets(io) {
       console.error('unirseAChatsDeCurso:', err.message)
     );
 
-    // ── Unirse a la sala de una materia (llamadas + pizarrón) ──
-    socket.on('unirse-materia', async ({ docente_materia_id }) => {
-      if (!docente_materia_id) return;
+    // ── Unirse a la sala de una materia (avisos de llamada) ────
+    //  El pizarrón ya no usa esta sala; se conserva para que los
+    //  estudiantes reciban llamada-iniciada / llamada-finalizada.
+    socket.on('unirse-materia', async ({ docente_materia_id } = {}) => {
+      const materiaId = normalizarId(docente_materia_id);
+      if (!materiaId) return;
 
-      const autorizado = await verificarAcceso(docente_materia_id, usuarioId, rol);
+      const autorizado = await verificarAccesoMateria(materiaId, usuarioId, rol);
       if (!autorizado) {
         socket.emit('error-autorizacion', { mensaje: 'No tienes acceso a esta materia.' });
         return;
       }
 
-      const contexto = { docente_materia_id, grupo_id: null };
-      socket.data.rol = rol;
-      socket.data.puedeDibujar = rol === 'docente';
-      await unirseAlPizarron(socket, contexto);
+      socket.join(`materia:${materiaId}`);
     });
 
-    // ── Unirse al pizarrón de un CURSO (H3) ────────────────────
-    //  El docente que dirige el salón (o cualquier docente con materias
-    //  en él) puede abrir el pizarrón para TODO el curso, sin depender de
-    //  una materia concreta. Estudiantes y acudientes entran a mirar.
-    socket.on('unirse-grupo', async ({ grupo_id }) => {
-      if (!grupo_id) return;
+    // ── Unirse al pizarrón de una pareja (grupo, materia) ──────
+    //  `materia_id` es el docente_materia_id de la materia o la palabra
+    //  "curso" para el pizarrón del curso que dirige el docente. Cada
+    //  pareja tiene su propia sala y su propio contenido guardado.
+    socket.on('unirse-pizarron', async ({ grupo_id, materia_id } = {}) => {
+      const grupoId = normalizarId(grupo_id);
+      const materia = parsearMateria(materia_id);
+      if (!grupoId || !materia) {
+        socket.emit('error-autorizacion', { mensaje: 'El pizarrón solicitado no es válido.' });
+        return;
+      }
 
-      const acceso = await verificarAccesoGrupo(grupo_id, usuarioId, rol);
+      const acceso = await verificarAccesoPizarron(
+        grupoId,
+        materia.docenteMateriaId,
+        usuarioId,
+        rol
+      );
       if (!acceso) {
-        socket.emit('error-autorizacion', { mensaje: 'No tienes acceso a este curso.' });
+        socket.emit('error-autorizacion', { mensaje: 'No tienes acceso a este pizarrón.' });
         return;
       }
 
       socket.data.rol = rol;
       socket.data.puedeDibujar = acceso.puedeDibujar;
-      await unirseAlPizarron(socket, { docente_materia_id: null, grupo_id });
+      await unirseAlPizarron(socket, {
+        grupo_id: grupoId,
+        materia_id: materia.materiaId,
+        docente_materia_id: materia.docenteMateriaId,
+      });
     });
 
     // ── Pizarrón: validar permiso y persistir antes de difundir. ──
@@ -144,6 +173,96 @@ function initSockets(io) {
       }
     });
 
+    // ── Pizarrón: cajas de texto editables. El cliente manda el objeto
+    //    completo; si el id ya pertenece a este pizarrón se actualiza,
+    //    si es nuevo se inserta. Solo publica a los demás conectados.
+    socket.on('pizarron:caja', async (payload, responder) => {
+      if (!socket.data.puedeDibujar) {
+        return responderSocket(responder, false, 'No tienes permiso para modificar este pizarrón.');
+      }
+      const contexto = contextoPizarron(socket.data);
+      const sala = salaPizarron(socket.data);
+      const caja = normalizarCaja(payload);
+      if (!contexto || !sala || !caja) {
+        return responderSocket(responder, false, 'La caja de texto no es válida.');
+      }
+
+      try {
+        await encolarOperacionPizarron(sala, async () => {
+          const [propias] = await pool.query(
+            `SELECT id FROM pizarron_trazos
+              WHERE id = ? AND ${contexto.filtro}
+              LIMIT 1`,
+            [caja.id, ...contexto.parametros]
+          );
+
+          if (propias.length) {
+            await pool.query(
+              `UPDATE pizarron_trazos
+                  SET datos_trazo = ?
+                WHERE id = ? AND ${contexto.filtro}`,
+              [JSON.stringify(caja.datos), caja.id, ...contexto.parametros]
+            );
+          } else {
+            // Un id ya usado en otro pizarrón no se puede reutilizar.
+            const [ajenas] = await pool.query(
+              `SELECT id FROM pizarron_trazos WHERE id = ? LIMIT 1`,
+              [caja.id]
+            );
+            if (ajenas.length) {
+              throw new Error('La caja pertenece a otro pizarrón.');
+            }
+            await pool.query(
+              `INSERT INTO pizarron_trazos
+                (id, sesion_clase_id, docente_materia_id, grupo_id, docente_id, datos_trazo)
+               VALUES (?, NULL, ?, ?, ?, ?)`,
+              [
+                caja.id,
+                contexto.docente_materia_id,
+                contexto.grupo_id,
+                usuarioId,
+                JSON.stringify(caja.datos),
+              ]
+            );
+          }
+
+          socket.to(sala).emit('pizarron:caja', { caja: caja.datos });
+          responderSocket(responder, true, null, { id: caja.id });
+        });
+      } catch (err) {
+        console.error('Guardar caja de pizarrón:', err.message);
+        socket.emit('pizarron:error', { mensaje: 'No se pudo guardar la caja de texto.' });
+        responderSocket(responder, false, 'No se pudo guardar la caja de texto.');
+      }
+    });
+
+    socket.on('pizarron:caja-borrar', async (payload, responder) => {
+      if (!socket.data.puedeDibujar) {
+        return responderSocket(responder, false, 'No tienes permiso para modificar este pizarrón.');
+      }
+      const contexto = contextoPizarron(socket.data);
+      const sala = salaPizarron(socket.data);
+      const id = normalizarUuid(payload?.id);
+      if (!contexto || !sala || !id) {
+        return responderSocket(responder, false, 'La caja de texto no es válida.');
+      }
+
+      try {
+        await encolarOperacionPizarron(sala, async () => {
+          await pool.query(
+            `DELETE FROM pizarron_trazos WHERE id = ? AND ${contexto.filtro}`,
+            [id, ...contexto.parametros]
+          );
+          socket.to(sala).emit('pizarron:caja-borrar', { id });
+          responderSocket(responder, true);
+        });
+      } catch (err) {
+        console.error('Borrar caja de pizarrón:', err.message);
+        socket.emit('pizarron:error', { mensaje: 'No se pudo borrar la caja de texto.' });
+        responderSocket(responder, false, 'No se pudo borrar la caja de texto.');
+      }
+    });
+
     socket.on('pizarron:limpiar', async (_payload, responder) => {
       if (!socket.data.puedeDibujar) {
         return responderSocket(responder, false, 'No tienes permiso para borrar este pizarrón.');
@@ -157,8 +276,8 @@ function initSockets(io) {
       try {
         await encolarOperacionPizarron(sala, async () => {
           await pool.query(
-            `DELETE FROM pizarron_trazos WHERE ${contexto.columna} = ?`,
-            [contexto.id]
+            `DELETE FROM pizarron_trazos WHERE ${contexto.filtro}`,
+            contexto.parametros
           );
           socket.to(sala).emit('pizarron:limpiar');
           responderSocket(responder, true);
@@ -214,42 +333,72 @@ async function unirseAChatsDeCurso(socket, usuarioId, rol) {
   for (const r of rows) socket.join(`curso:${r.id}`);
 }
 
-// Sala del pizarrón activa para un socket: puede ser de una materia
-// (modo clásico) o de un curso completo (H3).
+function normalizarId(valor) {
+  // Los ids de la base son CHAR(36) con formato UUID (no enteros).
+  if (typeof valor === 'string') {
+    const texto = valor.trim();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(texto)) {
+      return texto;
+    }
+  }
+  // Compatibilidad con flujos que todavía envían ids numéricos.
+  const numero = Number(valor);
+  return Number.isInteger(numero) && numero > 0 ? numero : null;
+}
+
+// `materia_id` identifica la materia dentro del grupo: 0 es el pizarrón
+// del curso que dirige el docente y un UUID es una materia concreta.
+// "curso" se acepta solo como valor antiguo y se normaliza a 0.
+// Devuelve null si el valor no es válido.
+function parsearMateria(valor) {
+  if (
+    valor === undefined ||
+    valor === null ||
+    valor === '' ||
+    valor === 0 ||
+    valor === MATERIA_CURSO ||
+    valor === 'curso'
+  ) {
+    return { materiaId: MATERIA_CURSO, docenteMateriaId: null };
+  }
+  const docenteMateriaId = normalizarId(valor);
+  return docenteMateriaId
+    ? { materiaId: String(docenteMateriaId), docenteMateriaId }
+    : null;
+}
+
+// Cada pizarrón es una pareja (grupo, materia). La sala incluye ambos
+// ids para que dos materias del mismo curso no compartan contenido.
 function salaPizarron(data) {
-  if (data.docente_materia_id) return `materia:${data.docente_materia_id}`;
-  if (data.grupo_id) return `grupo:${data.grupo_id}`;
-  return null;
+  if (!data.grupo_id) return null;
+  const materia = String(data.materia_id ?? data.docente_materia_id ?? MATERIA_CURSO);
+  return `pizarron:${data.grupo_id}:${materia}`;
 }
 
 function contextoPizarron(data) {
-  if (data.docente_materia_id) {
-    return {
-      columna: 'docente_materia_id',
-      id: data.docente_materia_id,
-      docente_materia_id: data.docente_materia_id,
-      grupo_id: null,
-    };
-  }
-  if (data.grupo_id) {
-    return {
-      columna: 'grupo_id',
-      id: data.grupo_id,
-      docente_materia_id: null,
-      grupo_id: data.grupo_id,
-    };
-  }
-  return null;
+  if (!data.grupo_id) return null;
+  const materiaId = String(data.materia_id ?? data.docente_materia_id ?? MATERIA_CURSO);
+  return {
+    grupo_id: data.grupo_id,
+    materia_id: materiaId,
+    docente_materia_id: materiaId === MATERIA_CURSO ? null : materiaId,
+    // Se usa la pareja completa (grupo_id, materia_id); el curso se
+    // guarda como 0 aunque la columna heredada use NULL para el curso.
+    filtro: "grupo_id = ? AND COALESCE(docente_materia_id, '0') = ?",
+    parametros: [data.grupo_id, materiaId],
+  };
 }
 
 async function unirseAlPizarron(socket, contexto) {
   const sala = salaPizarron(contexto);
-  if (!sala) return;
+  const datos = contextoPizarron(contexto);
+  if (!sala || !datos) return;
 
   const salaAnterior = salaPizarron(socket.data);
   if (salaAnterior && salaAnterior !== sala) socket.leave(salaAnterior);
-  socket.data.docente_materia_id = contexto.docente_materia_id;
   socket.data.grupo_id = contexto.grupo_id;
+  socket.data.materia_id = String(contexto.materia_id ?? MATERIA_CURSO);
+  socket.data.docente_materia_id = contexto.docente_materia_id ?? null;
   socket.join(sala);
 
   try {
@@ -257,15 +406,18 @@ async function unirseAlPizarron(socket, contexto) {
       const [rows] = await pool.query(
         `SELECT id, orden, datos_trazo
            FROM pizarron_trazos
-          WHERE ${contexto.columna} = ?
+          WHERE ${datos.filtro}
           ORDER BY orden ASC`,
-        [contexto.id]
+        datos.parametros
       );
       return rows;
     });
     socket.emit('pizarron:carga', {
       trazos,
       puede_dibujar: Boolean(socket.data.puedeDibujar),
+      grupo_id: contexto.grupo_id,
+      materia_id: contexto.materia_id ?? MATERIA_CURSO,
+      docente_materia_id: contexto.docente_materia_id ?? null,
     });
   } catch (err) {
     console.error('Cargar pizarrón:', err.message);
@@ -292,6 +444,55 @@ function responderSocket(responder, ok, mensaje, extra = {}) {
   if (typeof responder === 'function') {
     responder({ ok, ...(mensaje ? { mensaje } : {}), ...extra });
   }
+}
+
+function normalizarUuid(valor) {
+  if (typeof valor !== 'string') return null;
+  const id = valor.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : null;
+}
+
+function numeroPizarron(valor) {
+  return typeof valor === 'number' && Number.isFinite(valor) && Math.abs(valor) <= 10000;
+}
+
+// Normaliza una caja de texto editable. El objeto guardado en
+// datos_trazo conserva todos los campos que usa el cliente.
+function normalizarCaja(payload) {
+  const caja = payload?.caja ?? payload;
+  if (!caja || typeof caja !== 'object' || Array.isArray(caja)) return null;
+
+  const id = normalizarUuid(caja.id);
+  if (!id) return null;
+  if (typeof caja.texto !== 'string' || caja.texto.length > 4000) return null;
+  if (
+    !numeroPizarron(caja.x)
+    || !numeroPizarron(caja.y)
+    || !numeroPizarron(caja.ancho)
+    || !numeroPizarron(caja.tamaño)
+  ) return null;
+  if (caja.ancho < 120 || caja.ancho > 10000) return null;
+  if (caja.tamaño < 12 || caja.tamaño > 72) return null;
+  if (!/^#[0-9a-f]{6}$/i.test(caja.color || '')) return null;
+
+  return {
+    id,
+    datos: {
+      tipo: 'caja',
+      id,
+      texto: caja.texto,
+      x: Math.round(caja.x),
+      y: Math.round(caja.y),
+      ancho: Math.round(caja.ancho),
+      fuente: FUENTES_CAJA.has(caja.fuente) ? caja.fuente : 'Arial',
+      tamaño: Math.round(caja.tamaño),
+      negrita: caja.negrita === true,
+      cursiva: caja.cursiva === true,
+      color: caja.color.toLowerCase(),
+    },
+  };
 }
 
 function normalizarTrazo(trazo) {
@@ -323,66 +524,10 @@ function normalizarTrazo(trazo) {
   return { tipo: 'trazo', herramienta, points, color: trazo.color, width };
 }
 
-// H3: quién puede entrar al pizarrón de un curso y quién puede dibujar.
-//  - admin/superadmin: entran como espectadores.
-//  - docente: entra si dirige el curso o si dicta alguna materia en él;
-//    en ambos casos puede dibujar.
-//  - estudiante/acudiente del curso: entran como espectadores.
-// Devuelve null si no tiene acceso.
-async function verificarAccesoGrupo(grupoId, usuarioId, rol) {
-  try {
-    if (rol === 'admin' || rol === 'superadmin') {
-      return { puedeVer: true, puedeDibujar: false };
-    }
-
-    if (rol === 'docente') {
-      const [rows] = await pool.query(
-        `SELECT (g.director_id = ?) AS es_director,
-                (SELECT COUNT(*) FROM docentes_materias dm
-                  WHERE dm.grupo_id = g.id AND dm.docente_id = ?) AS materias
-           FROM grupos g
-          WHERE g.id = ? AND g.activo = TRUE
-          LIMIT 1`,
-        [usuarioId, usuarioId, grupoId]
-      );
-      if (!rows.length) return null;
-      // es_director puede venir como 1/0 o true/false según el driver.
-      if (!rows[0].es_director && !rows[0].materias) return null;
-      return { puedeVer: true, puedeDibujar: true };
-    }
-
-    if (rol === 'estudiante') {
-      const [rows] = await pool.query(
-        `SELECT id FROM matriculas
-          WHERE grupo_id = ? AND estudiante_id = ? AND estado = 'activa'
-          LIMIT 1`,
-        [grupoId, usuarioId]
-      );
-      return rows.length ? { puedeVer: true, puedeDibujar: false } : null;
-    }
-
-    if (rol === 'acudiente') {
-      const [rows] = await pool.query(
-        `SELECT mt.id
-           FROM acudientes_estudiantes ae
-           JOIN matriculas mt ON mt.estudiante_id = ae.estudiante_id
-          WHERE mt.grupo_id = ? AND ae.acudiente_id = ? AND mt.estado = 'activa'
-          LIMIT 1`,
-        [grupoId, usuarioId]
-      );
-      return rows.length ? { puedeVer: true, puedeDibujar: false } : null;
-    }
-
-    return null;
-  } catch (err) {
-    console.error('verificarAccesoGrupo (socket) error:', err.message);
-    return null;
-  }
-}
-
-// Reutiliza la misma regla de negocio que el middleware HTTP
-// (docente dueño de la materia, o estudiante matriculado en el grupo).
-async function verificarAcceso(docenteMateriaId, usuarioId, rol) {
+// Autoriza la sala de avisos de una materia (llamadas). Mantiene la
+// misma regla de negocio que el middleware HTTP: docente dueño de la
+// materia o estudiante matriculado en su curso.
+async function verificarAccesoMateria(docenteMateriaId, usuarioId, rol) {
   try {
     if (rol === 'docente') {
       const [rows] = await pool.query(
@@ -406,9 +551,112 @@ async function verificarAcceso(docenteMateriaId, usuarioId, rol) {
     }
     return rol === 'admin' || rol === 'superadmin';
   } catch (err) {
-    console.error('verificarAcceso (socket) error:', err.message);
+    console.error('verificarAccesoMateria (socket) error:', err.message);
     return false;
   }
+}
+
+// Autoriza el acceso a la pareja (grupo, materia) y decide quién dibuja.
+//  - admin/superadmin: espectadores.
+//  - docente: dibuja si dirige el grupo (cualquier materia del curso y el
+//    pizarrón "curso") o si la materia está asignada a él en ese grupo.
+//  - estudiante/acudiente del grupo: espectadores; si se pide una materia,
+//    esta debe pertenecer al curso.
+// Devuelve null si no tiene acceso.
+async function verificarAccesoPizarron(grupoId, docenteMateriaId, usuarioId, rol) {
+  try {
+    if (rol === 'admin' || rol === 'superadmin') {
+      return { puedeVer: true, puedeDibujar: false };
+    }
+
+    if (rol === 'docente') {
+      const [grupos] = await pool.query(
+        `SELECT (g.director_id = ?) AS es_director
+           FROM grupos g
+          WHERE g.id = ? AND g.activo = TRUE
+          LIMIT 1`,
+        [usuarioId, grupoId]
+      );
+      if (!grupos.length) return null;
+
+      if (docenteMateriaId) {
+        const [materias] = await pool.query(
+          `SELECT dm.id
+             FROM docentes_materias dm
+             JOIN materias m ON m.id = dm.materia_id
+            WHERE dm.id = ? AND m.activa = TRUE
+              AND ${condicionDocenteEnGrupo('dm', 'm', '?')}`,
+          [docenteMateriaId, ...parametrosDocenteEnGrupo(grupoId)]
+        );
+        if (!materias.length) return null;
+      }
+
+      // es_director puede venir como 1/0 o true/false según el driver.
+      if (grupos[0].es_director) {
+        return { puedeVer: true, puedeDibujar: true };
+      }
+      if (!docenteMateriaId) return null;
+
+      const [asignadas] = await pool.query(
+        `SELECT dm.id
+           FROM docentes_materias dm
+           JOIN materias m ON m.id = dm.materia_id
+          WHERE dm.id = ? AND dm.docente_id = ? AND m.activa = TRUE
+            AND ${condicionDocenteEnGrupo('dm', 'm', '?')}`,
+        [docenteMateriaId, usuarioId, ...parametrosDocenteEnGrupo(grupoId)]
+      );
+      return asignadas.length ? { puedeVer: true, puedeDibujar: true } : null;
+    }
+
+    if (rol === 'estudiante') {
+      const [matriculas] = await pool.query(
+        `SELECT id FROM matriculas
+          WHERE grupo_id = ? AND estudiante_id = ? AND estado = 'activa'
+          LIMIT 1`,
+        [grupoId, usuarioId]
+      );
+      if (!matriculas.length) return null;
+      if (docenteMateriaId && !(await materiaDelCurso(docenteMateriaId, grupoId))) return null;
+      return { puedeVer: true, puedeDibujar: false };
+    }
+
+    if (rol === 'acudiente') {
+      const [matriculas] = await pool.query(
+        `SELECT mt.id
+           FROM acudientes_estudiantes ae
+           JOIN matriculas mt ON mt.estudiante_id = ae.estudiante_id
+          WHERE mt.grupo_id = ? AND ae.acudiente_id = ? AND mt.estado = 'activa'
+          LIMIT 1`,
+        [grupoId, usuarioId]
+      );
+      if (!matriculas.length) return null;
+      if (docenteMateriaId && !(await materiaDelCurso(docenteMateriaId, grupoId))) return null;
+      return { puedeVer: true, puedeDibujar: false };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('verificarAccesoPizarron (socket) error:', err.message);
+    return null;
+  }
+}
+
+// Verifica que una asignación (docente_materias) pertenezca al curso.
+async function materiaDelCurso(docenteMateriaId, grupoId) {
+  const [rows] = await pool.query(
+    `SELECT dm.id
+       FROM docentes_materias dm
+       JOIN materias m ON m.id = dm.materia_id
+      WHERE dm.id = ? AND m.activa = TRUE
+        AND ${condicionDocenteEnGrupo('dm', 'm', '?')}
+        AND ${condicionMateriaEnGrupo('m', '?')}`,
+    [
+      docenteMateriaId,
+      ...parametrosDocenteEnGrupo(grupoId),
+      ...parametrosMateriaEnGrupo(grupoId),
+    ]
+  );
+  return rows.length > 0;
 }
 
 module.exports = { initSockets };

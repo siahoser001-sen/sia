@@ -18,6 +18,22 @@
     socket: null,
     buscando: false,
     creadoElUltimoChat: null,
+    archivoPendiente: null,
+    transcripcionPendiente: '',
+    urlsAdjuntos: [],
+    grabadora: null,
+    stream: null,
+    reconocimiento: null,
+    transcripcionAudio: '',
+    fragmentosAudio: [],
+    tamanioAudio: 0,
+    inicioGrabacion: 0,
+    timerGrabacion: null,
+    timerTranscripcion: null,
+    cancelandoGrabacion: false,
+    limiteGrabacion: false,
+    transcripcionLista: true,
+    transcripcionNoDisponible: false,
   };
 
   var FAB = $('siaChatFab');
@@ -124,6 +140,171 @@
     return (nombre || '?').split(' ').slice(0, 2).map(function (p) { return p.charAt(0); }).join('').toUpperCase();
   }
 
+  function iconoArchivo(nombre) {
+    var ext = (nombre || '').split('.').pop().toLowerCase();
+    if (['webm', 'ogg', 'mp4', 'mp3', 'wav'].includes(ext)) return '🎧';
+    if (['jpg', 'jpeg', 'png'].includes(ext)) return '🖼️';
+    if (ext === 'pdf') return '📕';
+    if (['docx', 'xlsx', 'pptx'].includes(ext)) return '📄';
+    if (ext === 'zip') return '🗜️';
+    return '📎';
+  }
+
+  function revocarUrlsAdjuntos() {
+    estado.urlsAdjuntos.forEach(function (url) { URL.revokeObjectURL(url); });
+    estado.urlsAdjuntos = [];
+  }
+
+  async function obtenerUrlAdjunto(mensaje) {
+    var chatId = estado.activaId;
+    var res = await fetch(API + '/api/chat/' + chatId + '/adjuntos/' + encodeURIComponent(mensaje.id), {
+      headers: { Authorization: 'Bearer ' + token() },
+    });
+    if (!res.ok) throw new Error('No se pudo cargar el adjunto.');
+    var url = URL.createObjectURL(await res.blob());
+    estado.urlsAdjuntos.push(url);
+    return url;
+  }
+
+  function iniciarDescarga(url, nombre) {
+    var enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre || 'adjunto';
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+  }
+
+  function prepararDescarga(mensaje, enlace) {
+    enlace.addEventListener('click', async function (evento) {
+      evento.preventDefault();
+      if (enlace.dataset.cargando === '1') return;
+      if (enlace.dataset.url) {
+        iniciarDescarga(enlace.dataset.url, mensaje.archivo_nombre);
+        return;
+      }
+      enlace.dataset.cargando = '1';
+      enlace.textContent = 'Descargando…';
+      try {
+        var url = await obtenerUrlAdjunto(mensaje);
+        enlace.dataset.url = url;
+        enlace.setAttribute('aria-disabled', 'false');
+        iniciarDescarga(url, mensaje.archivo_nombre);
+      } catch (e) {
+        enlace.textContent = 'No se pudo descargar ' + (mensaje.archivo_nombre || 'el adjunto');
+      } finally {
+        enlace.dataset.cargando = '';
+      }
+    });
+  }
+
+  function prepararReproductor(mensaje, reproductor, estadoAudio) {
+    var cargar = async function () {
+      if (reproductor.dataset.cargando === '1' || reproductor.dataset.url) return;
+      reproductor.dataset.cargando = '1';
+      estadoAudio.textContent = 'Cargando audio…';
+      try {
+        var url = await obtenerUrlAdjunto(mensaje);
+        reproductor.dataset.url = url;
+        reproductor.src = url;
+        reproductor.load();
+        estadoAudio.textContent = '';
+      } catch (e) {
+        estadoAudio.textContent = 'No se pudo cargar el audio.';
+      } finally {
+        reproductor.dataset.cargando = '';
+      }
+    };
+
+    if (typeof IntersectionObserver === 'function') {
+      var observador = new IntersectionObserver(function (entradas) {
+        if (entradas.some(function (entrada) { return entrada.isIntersecting; })) {
+          observador.disconnect();
+          cargar();
+        }
+      }, { root: $('siaChatMensajes'), rootMargin: '80px' });
+      observador.observe(reproductor);
+    } else {
+      reproductor.addEventListener('click', cargar, { once: true });
+    }
+  }
+
+  function elementoMensaje(m, miId) {
+    var mio = m.remitente_id === miId;
+    var h = new Date(m.created_at);
+    var hora = String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0');
+    var nodo = document.createElement('div');
+    nodo.className = 'sia-chat-msg ' + (mio ? 'sia-mio' : 'sia-suyo');
+
+    if (m.archivo_id) {
+      var cabecera = document.createElement('div');
+      cabecera.className = 'sia-chat-msg-adjunto';
+      var icono = document.createElement('span');
+      icono.textContent = iconoArchivo(m.archivo_nombre);
+      cabecera.appendChild(icono);
+
+      var enlace = document.createElement('a');
+      enlace.className = 'sia-chat-msg-descarga';
+      enlace.textContent = m.archivo_nombre || 'Adjunto';
+      enlace.href = '#';
+      enlace.setAttribute('aria-disabled', 'false');
+      enlace.download = m.archivo_nombre || 'adjunto';
+      prepararDescarga(m, enlace);
+      cabecera.appendChild(enlace);
+      nodo.appendChild(cabecera);
+
+      var reproductor = null;
+      if (m.tipo === 'audio') {
+        reproductor = document.createElement('audio');
+        reproductor.className = 'sia-chat-msg-audio';
+        reproductor.controls = true;
+        reproductor.preload = 'none';
+        nodo.appendChild(reproductor);
+        var estadoAudio = document.createElement('small');
+        estadoAudio.className = 'sia-chat-msg-estado-audio';
+        nodo.appendChild(estadoAudio);
+        prepararReproductor(m, reproductor, estadoAudio);
+      }
+    }
+
+    if (m.texto) {
+      var texto = document.createElement('div');
+      texto.textContent = m.texto;
+      nodo.appendChild(texto);
+    }
+    if (m.tipo === 'audio' && m.transcripcion) {
+      var transcripcion = document.createElement('div');
+      transcripcion.className = 'sia-chat-msg-transcripcion';
+      var etiqueta = document.createElement('small');
+      etiqueta.textContent = 'Transcripción';
+      var contenido = document.createElement('div');
+      contenido.textContent = m.transcripcion;
+      transcripcion.appendChild(etiqueta);
+      transcripcion.appendChild(contenido);
+      nodo.appendChild(transcripcion);
+    }
+
+    var marcaTiempo = document.createElement('span');
+    marcaTiempo.className = 'sia-chat-msg-hora';
+    marcaTiempo.textContent = hora;
+    nodo.appendChild(marcaTiempo);
+    return nodo;
+  }
+
+  function limpiarAdjuntoPendiente() {
+    estado.archivoPendiente = null;
+    estado.transcripcionPendiente = '';
+    $('siaChatArchivo').value = '';
+    $('siaChatAdjuntoSeleccionado').style.display = 'none';
+  }
+
+  function mostrarAdjuntoPendiente(file) {
+    estado.archivoPendiente = file;
+    $('siaChatAdjuntoIcono').textContent = iconoArchivo(file.name);
+    $('siaChatAdjuntoNombre').textContent = file.name;
+    $('siaChatAdjuntoSeleccionado').style.display = 'flex';
+  }
+
   function renderLista() {
     var cont = $('siaChatConversaciones');
     if (!cont) return;
@@ -163,7 +344,12 @@ function mensajeVacio() {
 
   // ── Abrir una conversación ──────────────────────────────────
   async function abrirConversacion(chatId) {
+    if (estado.activaId !== chatId) {
+      if (estado.grabadora) cancelarGrabacion();
+      limpiarAdjuntoPendiente();
+    }
     estado.activaId = chatId;
+    revocarUrlsAdjuntos();
     renderLista();
     $('siaChatConversacion').style.display = 'flex';
     $('siaChatMensajes').innerHTML = '<div class="sia-chat-vacio">Cargando…</div>';
@@ -176,6 +362,7 @@ function mensajeVacio() {
       var c = data.chat;
       $('siaChatChatNombre').textContent = c.nombre + (c.bloqueado ? ' 🔒' : '');
       var bloqueado = c.bloqueado;
+      if (bloqueado && estado.grabadora) cancelarGrabacion();
       $('siaChatBloqueadoBanner').style.display = bloqueado ? 'block' : 'none';
       $('siaChatBloqueadoBanner').textContent = bloqueado
         ? (c.yo_bloquee ? 'Bloqueaste este chat. Desbloquéalo si quieres volver a escribir.' : 'Este chat está bloqueado.')
@@ -184,23 +371,21 @@ function mensajeVacio() {
       $('siaChatBloquear').disabled = bloqueado && !c.yo_bloquee;
       $('siaChatForm').style.display = bloqueado && !c.yo_bloquee ? 'none' : '';
       $('siaChatTexto').disabled = bloqueado;
+      $('siaChatAdjuntar').disabled = bloqueado;
+      $('siaChatGrabar').disabled = bloqueado;
+      $('siaChatEnviar').disabled = bloqueado;
 
       var msgs = data.mensajes || [];
       var yo = JSON.parse(sessionStorage.getItem('sia_usuario') || '{}');
       var miId = yo.id;
-      $('siaChatMensajes').innerHTML = msgs.length
-        ? msgs.map(function (m) {
-            var mio = m.remitente_id === miId;
-            var h = new Date(m.created_at);
-            var hh = String(h.getHours()).padStart(2, '0');
-            var mm = String(h.getMinutes()).padStart(2, '0');
-            return '<div class="sia-chat-msg ' + (mio ? 'sia-mio' : 'sia-suyo') + '">' +
-                     (m.texto || '') +
-                     '<span class="sia-chat-msg-hora">' + hh + ':' + mm + '</span>' +
-                   '</div>';
-          }).join('')
-        : '<div class="sia-chat-vacio">Escribe el primer mensaje.</div>';
-      $('siaChatMensajes').scrollTop = $('siaChatMensajes').scrollHeight;
+      var contMensajes = $('siaChatMensajes');
+      contMensajes.replaceChildren();
+      if (msgs.length) {
+        msgs.forEach(function (m) { contMensajes.appendChild(elementoMensaje(m, miId)); });
+      } else {
+        contMensajes.innerHTML = '<div class="sia-chat-vacio">Escribe el primer mensaje.</div>';
+      }
+      contMensajes.scrollTop = contMensajes.scrollHeight;
 
       var idx = estado.conversaciones.findIndex(function (x) { return x.id === chatId; });
       if (idx >= 0) {
@@ -257,27 +442,296 @@ function mensajeVacio() {
     }, 260);
   }
 
+  var TAMANIO_MAXIMO_ADJUNTO = 5 * 1024 * 1024;
+  var EXTENSIONES_AUDIO_UI = new Set(['webm', 'ogg', 'mp4', 'mp3', 'wav']);
+
+  function limpiarInterfazGrabacion() {
+    if (estado.timerGrabacion) clearInterval(estado.timerGrabacion);
+    estado.timerGrabacion = null;
+    $('siaChatGrabacion').style.display = 'none';
+    $('siaChatForm').style.display = '';
+  }
+
+  function detenerPistas() {
+    if (!estado.stream) return;
+    estado.stream.getTracks().forEach(function (pista) { pista.stop(); });
+    estado.stream = null;
+  }
+
+  function detenerReconocimiento() {
+    if (!estado.reconocimiento) return;
+    try { estado.reconocimiento.stop(); } catch (e) { /* ya se había detenido */ }
+  }
+
+  function actualizarEnvioGrabacion() {
+    var boton = $('siaChatEnviarGrabacion');
+    boton.disabled = !estado.transcripcionLista;
+    if (!estado.transcripcionLista) $('siaChatGrabacionEstado').textContent = 'Esperando transcripción…';
+  }
+
+  function cancelarGrabacion() {
+    if (estado.timerTranscripcion) clearTimeout(estado.timerTranscripcion);
+    estado.timerTranscripcion = null;
+    estado.cancelandoGrabacion = true;
+    detenerReconocimiento();
+    if (estado.grabadora && estado.grabadora.state !== 'inactive') {
+      estado.grabadora.stop();
+      return;
+    }
+    detenerPistas();
+    estado.grabadora = null;
+    estado.reconocimiento = null;
+    estado.cancelandoGrabacion = false;
+    estado.transcripcionAudio = '';
+    estado.transcripcionPendiente = '';
+    limpiarAdjuntoPendiente();
+    limpiarInterfazGrabacion();
+  }
+
+  function actualizarRelojGrabacion() {
+    var segundos = Math.floor((Date.now() - estado.inicioGrabacion) / 1000);
+    var minutosTexto = String(Math.floor(segundos / 60)).padStart(2, '0');
+    var segundosTexto = String(segundos % 60).padStart(2, '0');
+    $('siaChatGrabacionTiempo').textContent = minutosTexto + ':' + segundosTexto;
+  }
+
+  function extensionAudio(mime) {
+    var tipo = (mime || '').split(';')[0].toLowerCase();
+    if (tipo.indexOf('ogg') >= 0) return 'ogg';
+    if (tipo.indexOf('mp4') >= 0 || tipo.indexOf('aac') >= 0) return 'mp4';
+    if (tipo.indexOf('mpeg') >= 0 || tipo.indexOf('mp3') >= 0) return 'mp3';
+    if (tipo.indexOf('wav') >= 0) return 'wav';
+    return 'webm';
+  }
+
+  function iniciarReconocimiento() {
+    var Constructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    estado.transcripcionAudio = '';
+    estado.transcripcionLista = !Constructor;
+    estado.transcripcionNoDisponible = !Constructor;
+    if (!Constructor) {
+      $('siaChatGrabacionEstado').textContent =
+        'Este navegador no permite transcribir; se enviará solo el audio.';
+      return;
+    }
+
+    try {
+      var reconocimiento = new Constructor();
+      estado.reconocimiento = reconocimiento;
+      reconocimiento.lang = 'es-CO';
+      reconocimiento.continuous = true;
+      reconocimiento.interimResults = true;
+      reconocimiento.onresult = function (evento) {
+        var final = '', parcial = '';
+        for (var i = 0; i < reconocimiento.results.length; i++) {
+          var resultado = reconocimiento.results[i];
+          if (resultado.isFinal) final += resultado[0].transcript + ' ';
+          else parcial += resultado[0].transcript + ' ';
+        }
+        estado.transcripcionAudio = final.trim();
+        $('siaChatTranscripcionVista').textContent = (final + parcial).trim();
+      };
+      reconocimiento.onerror = function () {
+        estado.transcripcionLista = true;
+        estado.transcripcionNoDisponible = true;
+        $('siaChatGrabacionEstado').textContent = 'No se pudo transcribir; se enviará solo el audio.';
+        actualizarEnvioGrabacion();
+      };
+      reconocimiento.onend = function () {
+        estado.transcripcionLista = true;
+        if (estado.transcripcionNoDisponible) {
+          $('siaChatGrabacionEstado').textContent = 'No se pudo transcribir; se enviará solo el audio.';
+        } else if (estado.grabadora && estado.grabadora.state === 'recording') {
+          $('siaChatGrabacionEstado').textContent = 'Grabando audio…';
+        } else {
+          $('siaChatGrabacionEstado').textContent = estado.limiteGrabacion
+            ? 'Se detuvo al alcanzar el límite de 5 MB.'
+            : 'Grabación lista.';
+        }
+        actualizarEnvioGrabacion();
+      };
+      reconocimiento.start();
+    } catch (e) {
+      estado.transcripcionLista = true;
+      estado.transcripcionNoDisponible = true;
+      estado.reconocimiento = null;
+      $('siaChatGrabacionEstado').textContent = 'No se pudo transcribir; se enviará solo el audio.';
+    }
+  }
+
+  async function iniciarGrabacion() {
+    if (estado.archivoPendiente) {
+      alert('Quita el archivo adjunto antes de grabar un audio.');
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof window.MediaRecorder !== 'function') {
+      alert('Este navegador no permite grabar audio.');
+      return;
+    }
+
+    try {
+      estado.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      var opciones = {};
+      ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].some(function (tipo) {
+        if (window.MediaRecorder.isTypeSupported(tipo)) {
+          opciones.mimeType = tipo;
+          return true;
+        }
+        return false;
+      });
+      estado.grabadora = new window.MediaRecorder(estado.stream, opciones);
+      estado.fragmentosAudio = [];
+      estado.tamanioAudio = 0;
+      estado.cancelandoGrabacion = false;
+      estado.limiteGrabacion = false;
+      estado.transcripcionNoDisponible = false;
+      if (estado.timerTranscripcion) clearTimeout(estado.timerTranscripcion);
+      estado.timerTranscripcion = null;
+      estado.inicioGrabacion = Date.now();
+      estado.transcripcionAudio = '';
+      estado.transcripcionLista = false;
+      $('siaChatTranscripcionVista').textContent = '';
+      $('siaChatGrabacionEstado').textContent = 'Grabando audio…';
+      $('siaChatDetenerGrabacion').style.display = '';
+      $('siaChatEnviarGrabacion').style.display = 'none';
+      $('siaChatEnviarGrabacion').disabled = true;
+      $('siaChatForm').style.display = 'none';
+      $('siaChatGrabacion').style.display = 'block';
+      actualizarRelojGrabacion();
+      estado.timerGrabacion = setInterval(actualizarRelojGrabacion, 250);
+      iniciarReconocimiento();
+
+      var grabadora = estado.grabadora;
+      grabadora.ondataavailable = function (evento) {
+        if (!evento.data || !evento.data.size || estado.cancelandoGrabacion) return;
+        if (estado.tamanioAudio + evento.data.size > TAMANIO_MAXIMO_ADJUNTO) {
+          estado.limiteGrabacion = true;
+          detenerGrabacion();
+          return;
+        }
+        estado.fragmentosAudio.push(evento.data);
+        estado.tamanioAudio += evento.data.size;
+        if (estado.tamanioAudio >= TAMANIO_MAXIMO_ADJUNTO - 128 * 1024) {
+          estado.limiteGrabacion = true;
+          detenerGrabacion();
+        }
+      };
+      grabadora.onerror = function () {
+        alert('Ocurrió un error al grabar el audio.');
+        cancelarGrabacion();
+      };
+      grabadora.onstop = function () {
+        if (estado.timerGrabacion) clearInterval(estado.timerGrabacion);
+        estado.timerGrabacion = null;
+        detenerPistas();
+        estado.grabadora = null;
+        estado.reconocimiento = null;
+        if (estado.cancelandoGrabacion) {
+          estado.cancelandoGrabacion = false;
+          estado.transcripcionAudio = '';
+          limpiarAdjuntoPendiente();
+          $('siaChatTranscripcionVista').textContent = '';
+          limpiarInterfazGrabacion();
+          return;
+        }
+
+        var blob = new Blob(estado.fragmentosAudio, { type: grabadora.mimeType || 'audio/webm' });
+        if (!blob.size || blob.size > TAMANIO_MAXIMO_ADJUNTO) {
+          alert('No se pudo preparar una grabación de hasta 5 MB.');
+          limpiarInterfazGrabacion();
+          return;
+        }
+        var extension = extensionAudio(blob.type);
+        var mime = (blob.type || 'audio/webm').split(';')[0];
+        estado.archivoPendiente = new File([blob], 'mensaje-de-voz.' + extension, { type: mime });
+        estado.transcripcionPendiente = estado.transcripcionAudio.trim();
+        $('siaChatDetenerGrabacion').style.display = 'none';
+        $('siaChatEnviarGrabacion').style.display = '';
+        $('siaChatGrabacionEstado').textContent = estado.transcripcionNoDisponible
+          ? 'Este navegador no permite transcribir; se enviará solo el audio.'
+          : estado.limiteGrabacion
+            ? 'Se detuvo al alcanzar el límite de 5 MB.'
+            : 'Grabación lista.';
+        if (!estado.transcripcionLista) {
+          actualizarEnvioGrabacion();
+          estado.timerTranscripcion = setTimeout(function () {
+            estado.timerTranscripcion = null;
+            estado.transcripcionLista = true;
+            actualizarEnvioGrabacion();
+          }, 2000);
+        } else {
+          $('siaChatEnviarGrabacion').disabled = false;
+        }
+      };
+      grabadora.start(1000);
+    } catch (e) {
+      detenerReconocimiento();
+      detenerPistas();
+      estado.grabadora = null;
+      estado.reconocimiento = null;
+      estado.fragmentosAudio = [];
+      estado.tamanioAudio = 0;
+      limpiarInterfazGrabacion();
+      alert('No se pudo iniciar la grabación. Revisa el permiso del micrófono.');
+    }
+  }
+
+  function detenerGrabacion() {
+    if (estado.grabadora && estado.grabadora.state === 'recording') {
+      try { estado.grabadora.stop(); } catch (e) { /* ya se había detenido */ }
+    }
+    detenerReconocimiento();
+  }
+
   // ── Enviar ──────────────────────────────────────────────────
-  async function enviarMensaje() {
+  async function enviarMensaje(esGrabacion) {
     var area = $('siaChatTexto');
     var texto = area.value.trim();
-    if (!estado.activaId || !texto) return;
-    area.value = '';
-    area.style.height = 'auto';
+    var archivo = estado.archivoPendiente;
+    if (!estado.activaId || (!texto && !archivo)) return;
+    var chatId = estado.activaId;
+    var boton = esGrabacion ? $('siaChatEnviarGrabacion') : $('siaChatEnviar');
+    boton.disabled = true;
+
     try {
-      var res = await peticion('/api/chat/' + estado.activaId + '/enviar', {
-        method: 'POST', body: JSON.stringify({ texto: texto })
-      });
+      var res;
+      if (archivo) {
+        var formData = new FormData();
+        formData.append('texto', texto);
+        formData.append('archivo', archivo, archivo.name);
+        if (EXTENSIONES_AUDIO_UI.has(archivo.name.split('.').pop().toLowerCase())) {
+          formData.append('transcripcion', estado.transcripcionPendiente || '');
+        }
+        var respuesta = await fetch(API + '/api/chat/' + chatId + '/enviar', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token() },
+          body: formData,
+        });
+        res = await respuesta.json();
+      } else {
+        res = await peticion('/api/chat/' + chatId + '/enviar', {
+          method: 'POST', body: JSON.stringify({ texto: texto })
+        });
+      }
       if (!res.ok) {
-        area.value = texto;
         alert(res.mensaje || 'No se pudo enviar el mensaje.');
         return;
       }
-      abrirConversacion(estado.activaId);
+
+      area.value = '';
+      area.style.height = 'auto';
+      limpiarAdjuntoPendiente();
+      if (esGrabacion) {
+        estado.transcripcionAudio = '';
+        $('siaChatTranscripcionVista').textContent = '';
+        limpiarInterfazGrabacion();
+      }
+      await abrirConversacion(chatId);
       cargarConversaciones();
     } catch (e) {
-      area.value = texto;
       alert('Error al enviar el mensaje.');
+    } finally {
+      boton.disabled = false;
     }
   }
 
@@ -321,6 +775,7 @@ function mensajeVacio() {
     cargarConversaciones();
   }
   function cerrar() {
+    if (estado.grabadora) cancelarGrabacion();
     DRAWER.classList.remove('sia-abierto');
     FONDO.className = '';
     if (!EN_SHELL) FAB.style.display = '';
@@ -346,14 +801,32 @@ function mensajeVacio() {
   $('siaChatClose').addEventListener('click', cerrar);
   FONDO.addEventListener('click', cerrar);
   $('siaChatVolver').addEventListener('click', function () {
+    if (estado.grabadora) cancelarGrabacion();
+    limpiarAdjuntoPendiente();
     $('siaChatConversacion').style.display = 'none';
     estado.activaId = null;
     estado.buscando = false;
     $('siaChatSearch').value = '';
     renderLista();
   });
-  $('siaChatEnviar').addEventListener('click', enviarMensaje);
-  $('siaChatForm').addEventListener('submit', function (e) { e.preventDefault(); enviarMensaje(); });
+  $('siaChatEnviar').addEventListener('click', function () { enviarMensaje(false); });
+  $('siaChatForm').addEventListener('submit', function (e) { e.preventDefault(); enviarMensaje(false); });
+  $('siaChatAdjuntar').addEventListener('click', function () { $('siaChatArchivo').click(); });
+  $('siaChatArchivo').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    if (file.size > TAMANIO_MAXIMO_ADJUNTO) {
+      alert('El archivo supera el máximo permitido de 5 MB.');
+      limpiarAdjuntoPendiente();
+      return;
+    }
+    mostrarAdjuntoPendiente(file);
+  });
+  $('siaChatQuitarAdjunto').addEventListener('click', limpiarAdjuntoPendiente);
+  $('siaChatGrabar').addEventListener('click', iniciarGrabacion);
+  $('siaChatCancelarGrabacion').addEventListener('click', cancelarGrabacion);
+  $('siaChatDetenerGrabacion').addEventListener('click', detenerGrabacion);
+  $('siaChatEnviarGrabacion').addEventListener('click', function () { enviarMensaje(true); });
   $('siaChatTexto').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensaje(); }
   });

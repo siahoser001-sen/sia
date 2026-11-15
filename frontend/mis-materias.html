@@ -456,6 +456,7 @@ var miniFondos = '';
       transition: border-color 150ms;
     }
     .materia-card:hover { border-color: rgba(255,255,255,0.35); }
+    .materia-card.destacar { border-color: rgba(147,197,253,0.75); box-shadow: 0 0 0 2px rgba(59,130,246,0.35); }
     .materia-nombre {
       font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; color: var(--text-1);
     }
@@ -567,7 +568,7 @@ var miniFondos = '';
         <div style="font-family:var(--font-d);font-size:1rem;font-weight:700">Mis materias</div>
         <div id="materiasCurso" style="font-size:0.82rem;color:var(--blue-light);font-weight:700;margin-top:3px">Cargando tu curso...</div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="abrirNotasMateria()">Ver mis notas</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="abrirInfoMateria()">Información sobre la materia</button>
     </div>
     <div id="listaMaterias" style="padding:1.25rem">
       <div class="empty">Cargando tus materias...</div>
@@ -635,6 +636,41 @@ function abrirNotasMateria() {
   irAlTop(`materia-estudiante.html?materia=${encodeURIComponent(primera.materia_id)}&tab=notas`);
 }
 
+/* Información de una materia en su propio contexto:
+   actividades, asistencia, notas, tablero y videollamada. */
+function abrirInfoMateriaDe(materiaId) {
+  if (!materiaId) return;
+  irAlTop(`materia-estudiante.html?materia=${encodeURIComponent(materiaId)}`);
+}
+
+/* Botón general de la tarjeta "Mis materias": abre el detalle cuando hay una
+   sola materia; si hay varias, lleva a la lista para que el estudiante elija. */
+function abrirInfoMateria() {
+  const unicas = [];
+  const vistas = {};
+  for (const m of MIS_MATERIAS) {
+    const clave = m.materia_id || m.materia;
+    if (!clave || vistas[clave]) continue;
+    vistas[clave] = true;
+    unicas.push(clave);
+  }
+  if (!unicas.length) {
+    alert('Todavía no tienes materias para consultar.');
+    return;
+  }
+  if (unicas.length === 1) {
+    abrirInfoMateriaDe(unicas[0]);
+    return;
+  }
+  const lista = document.getElementById('listaMaterias');
+  if (!lista) return;
+  lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  lista.querySelectorAll('.materia-card').forEach(card => card.classList.add('destacar'));
+  window.setTimeout(() => {
+    lista.querySelectorAll('.materia-card').forEach(card => card.classList.remove('destacar'));
+  }, 1800);
+}
+
 function renderMaterias() {
   const lista = document.getElementById('listaMaterias');
   const curso = document.getElementById('materiasCurso');
@@ -680,7 +716,7 @@ function renderMaterias() {
       </div>
       <div class="materia-actions">
         <button type="button" class="btn btn-ghost btn-sm" onclick="irAlTop('${urlLlamada}')">Videollamada</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="irAlTop('materia-estudiante.html?materia=${encodeURIComponent(mat.materia_id)}&amp;tab=notas')">Ver notas</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="abrirInfoMateriaDe('${mat.materia_id}')">Información sobre la materia</button>
       </div>
     </div>`;
   }).join('');

@@ -2061,6 +2061,27 @@ function botonVideollamadaMateria(m) {
   </button>`;
 }
 
+/* Botón "Pizarrón" por materia: cada pareja (curso, materia) tiene su
+   propio tablero. El parámetro `materia` es el docente_materia_id de esa
+   materia; si no existe, no se ofrece un pizarrón ambiguo. */
+function botonPizarronMateria(m) {
+  if (!m || !m.grupo_id || !m.docente_materia_id) return '';
+  const materia = m.docente_materia_id;
+  return `<button type="button" class="btn btn-ghost btn-sm" title="Abrir el pizarrón de esta materia"
+    onclick="event.stopPropagation(); abrirPizarronMateria('${m.grupo_id}', '${materia}')">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    Pizarrón
+  </button>`;
+}
+
+function abrirPizarronMateria(grupoId, materiaId) {
+  if (!grupoId || !materiaId) return;
+  window.open(
+    `pizarron.html?grupo=${encodeURIComponent(grupoId)}&materia=${encodeURIComponent(materiaId)}`,
+    '_blank'
+  );
+}
+
 function abrirVideollamadaDocente(docenteMateriaId) {
   if (!docenteMateriaId) {
     alert('Esta materia no tiene una videollamada disponible.');
@@ -2091,6 +2112,7 @@ async function cargarMisMaterias() {
           <div class="materia-nombre">${m.materia}</div>
           <div class="materia-meta">${m.grado} ${m.grupo}</div>
         </div>
+        ${botonPizarronMateria(m)}
         ${botonVideollamadaMateria(m)}
       </div>
     `;
@@ -2185,6 +2207,7 @@ async function renderCursoDictado(grupoId) {
             <div style="font-size:0.74rem;color:var(--text-2)">${codigo} · clic para ver fallas y promedio</div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem">
+            ${botonPizarronMateria(m)}
             ${botonVideollamadaMateria(m)}
             <span style="color:var(--text-3)">›</span>
           </div>
@@ -2212,6 +2235,7 @@ function renderMateriasDictadasDirector() {
             <div style="font-size:0.74rem;color:var(--text-2)">${codigo} · clic para ver fallas y promedio</div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem">
+            ${botonPizarronMateria(m)}
             ${botonVideollamadaMateria(m)}
             <span style="color:var(--text-3)">›</span>
           </div>
@@ -3395,15 +3419,15 @@ function confirmarVideollamadaCurso() {
 /* ══════════════════════════════════
    PIZARRÓN
 ══════════════════════════════════ */
-/* H3: el pizarrón se abre para TODO el curso que dirige el docente, no
-   atado a una materia concreta. Los estudiantes del curso entran a verlo
-   desde el mismo enlace (pizarron.html?grupo=...). */
+/* El pizarrón del curso que dirige el docente es una "materia" más:
+   se identifica con materia=0. Las materias que dicta en ese curso
+   tienen su propio pizarrón, separado de este. */
 function abrirPizarron() {
   if (!grupoDirigido?.id) {
     alert('Todavía no se cargó tu curso dirigido. Espera un momento e inténtalo de nuevo.');
     return;
   }
-  window.open(`pizarron.html?grupo=${grupoDirigido.id}`, '_blank');
+  window.open(`pizarron.html?grupo=${encodeURIComponent(grupoDirigido.id)}&materia=0`, '_blank');
 }
 
 /* ══════════════════════════════════

@@ -6,6 +6,7 @@
 
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const { notificarReporte } = require('../services/reporte-update.service');
 
 const ESTADOS_VALIDOS = ['presente', 'ausente', 'tarde', 'excusado'];
 
@@ -78,6 +79,14 @@ exports.registrarMasivo = async (req, res) => {
     );
 
     await conn.commit();
+
+    // El reporte de cada estudiante (y el de sus acudientes) se refresca
+    // en vivo. Se deduplica porque un mismo estudiante puede repetirse.
+    const io = req.app.get('io');
+    for (const estId of new Set(registros.map((r) => r.estudiante_id))) {
+      await notificarReporte(io, estId, { motivo: 'asistencia', materia_id });
+    }
+
     return res.status(201).json({ ok: true, mensaje: `Asistencia registrada para ${registros.length} estudiante(s).` });
 
   } catch (err) {

@@ -75,16 +75,57 @@
         <div class="tool-group" id="clearControls">
           <button id="clearBoard" type="button">Borrar tablero</button>
         </div>
+        <div class="tool-group text-format-controls" id="textFormatControls" hidden>
+          <label class="format-field">
+            Fuente
+            <select id="textFont">
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Comic Sans MS">Comic Sans MS</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Times New Roman">Times New Roman</option>
+            </select>
+          </label>
+          <label class="format-field">
+            Tamaño
+            <input type="number" id="textSize" min="12" max="72" step="1" value="24" />
+          </label>
+          <button type="button" class="format-btn" id="textBold" title="Negrita" aria-pressed="false">B</button>
+          <button type="button" class="format-btn" id="textItalic" title="Cursiva" aria-pressed="false">I</button>
+          <label class="format-field">
+            Color
+            <input type="color" id="textColor" value="#1f2937" />
+          </label>
+          <button type="button" class="btn-danger" id="deleteTextBox">Borrar caja</button>
+        </div>
         <span class="read-only-notice" id="readOnlyNotice" hidden>Modo solo ver</span>
         <span class="board-status" id="boardStatus" role="status" aria-live="polite">Conectando al pizarrón…</span>
       </header>
       <main class="board-wrapper">
         <div class="board-surface" id="boardSurface">
           <canvas id="boardCanvas" draggable="false"></canvas>
+          <div class="text-box-layer" id="textBoxLayer"></div>
         </div>
       </main>
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="static/js/pizarron.js"></script>
+    <script>
+      // TEMPORAL (diagnóstico): verifica el rol y el modo real del pizarrón.
+      function registrarDiagnosticoPizarron() {
+        console.log({
+          rol: obtenerUsuario().rol,
+          grupo: grupoId,
+          materia: materiaId,
+          modoEdicion: puedeDibujar,
+        });
+      }
+      if (socket) {
+        socket.on("pizarron:carga", registrarDiagnosticoPizarron);
+        socket.on("error-autorizacion", registrarDiagnosticoPizarron);
+      }
+      window.addEventListener("load", () => setTimeout(registrarDiagnosticoPizarron, 1000));
+    </script>
   </body>
 </html>

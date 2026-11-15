@@ -126,6 +126,44 @@ Verifica que estos cambios nuevos no rompieron nada:
    históricas por materia. Verifica que los endpoints antiguos por materia siguen
    consultando `asistencia`.
 
+## F. Reporte del estudiante en tiempo real (2026-11-14)
+
+El reporte (`frontend/reporte-estudiante.html`) se refresca solo cuando cambian notas,
+asistencia, compromisos u observaciones, sin recargar. El backend emite
+`reporte:update` al estudiante y a cada acudiente vinculado (salas `usuario:<id>`).
+
+Verificación ejecutada contra MySQL real (`colegio-prueba.sia`, servidor aparte en
+`:3101`, sockets de estudiante y acudiente conectados):
+
+1. **(a) Nota:** el docente guarda una celda del plan (`PUT /api/plan-evaluacion/celda`,
+   valor 8.5). Llega `reporte:update` a estudiante y acudiente, y ambos reportes
+   muestran el promedio 8.5 de la materia. **PASS**.
+2. **(b) Observación:** el admin crea una observación. Llega `reporte:update` a ambos,
+   la observación aparece en los dos reportes y se crea **una** notificación interna
+   por destinatario. Editarla vuelve a emitir el aviso pero **no** duplica la
+   notificación. También se verificó un compromiso nuevo: evento y notificación a
+   estudiante y acudiente. **PASS**.
+3. **(c) Asistencia:** el docente registra `ausente` en una fecha del periodo activo.
+   Llega `reporte:update` a estudiante y acudiente, y los reportes de estudiante,
+   acudiente y docente muestran `faltas=1` y `fallas=1` en la materia. Cambiar la
+   asistencia diaria (`PUT /api/asistencia-dia`) también emite el aviso. **PASS**.
+4. **Extras:** crear/editar/eliminar nota por `notas.controller` y calificar la entrega
+   de una tarea emiten `reporte:update`. **PASS**.
+5. **Interfaz:** en una pestaña abierta como estudiante, una observación creada por el
+   admin apareció en la sección Observaciones sin recargar la página. **PASS**.
+
+> Corrección aplicada: `PUT /api/plan-evaluacion/celda` era capturado por
+> `PUT /:id` por el orden de las rutas; `/celda` se declaró antes de `/:id`.
+
+> Snapshot de notas: el reporte lee notas **vivas** del periodo activo.
+> `notas_periodo_cierre` solo se consulta en el informe anual cuando todos los periodos
+> del año seleccionado están cerrados y ese año es anterior al año activo (si existe);
+> el año activo usa exclusivamente notas vivas. El snapshot solo se escribe al trasladar
+> matrícula; `resumen_notas_periodo` no se usa en `src/`.
+
+> ✅ Cuándo dar por cerrado: los tres flujos emiten `reporte:update` y el dato cambia
+> en el reporte del estudiante y del acudiente sin recargar.
+
 ## Registro de resultados
 
 | # | Prueba | Resultado | Fecha | Cómo se probó |
@@ -137,6 +175,7 @@ Verifica que estos cambios nuevos no rompieron nada:
 | D2 | Traslape de periodos bloqueado | ☐ | | |
 | D3 | Horario por curso (regresión) | ☐ | | |
 | E | Asistencia diaria por curso | ☐ | | |
+| F | Reporte del estudiante en tiempo real | ✅ | 2026-11-14 | E2E contra `:3101` + MySQL (`colegio-prueba.sia`) con sockets, API y verificación visual en navegador |
 
 Cuando marques cada una como ✅, actualiza `docs/modulos/actualizaciones/ROADMAP.md`
 (tachando el pendiente correspondiente en la sección 8).

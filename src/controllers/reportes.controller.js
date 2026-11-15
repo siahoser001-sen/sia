@@ -38,6 +38,10 @@ const {
   condicionMateriaEnGrupo,
   condicionDocenteEnGrupo,
 } = require('../utils/materias-curso.util');
+const {
+  notificarReporte,
+  notificarNuevoRegistroReporte,
+} = require('../services/reporte-update.service');
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -576,6 +580,12 @@ exports.crearCompromiso = async (req, res) => {
         fecha_limite || null,
       ]
     );
+
+    // Reporte abierto (estudiante y acudientes) + notificación interna.
+    await notificarNuevoRegistroReporte(
+      req.app.get('io'), estudianteId, 'compromiso', id, 'reporte_compromisos'
+    );
+
     return res.json({ ok: true, id, mensaje: 'Compromiso registrado.' });
   } catch (err) {
     console.error('crearCompromiso:', err.message);
@@ -627,6 +637,9 @@ exports.actualizarCompromiso = async (req, res) => {
       `UPDATE reporte_compromisos SET ${campos.join(', ')} WHERE id = ? AND estudiante_id = ?`,
       [...params, id, estudianteId]
     );
+
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'compromiso', ref_id: id });
+
     return res.json({ ok: true, mensaje: 'Compromiso actualizado.' });
   } catch (err) {
     console.error('actualizarCompromiso:', err.message);
@@ -646,6 +659,9 @@ exports.eliminarCompromiso = async (req, res) => {
       `DELETE FROM reporte_compromisos WHERE id = ? AND estudiante_id = ?`,
       [id, estudianteId]
     );
+
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'compromiso', ref_id: id });
+
     return res.json({ ok: true, mensaje: 'Compromiso eliminado.' });
   } catch (err) {
     console.error('eliminarCompromiso:', err.message);
@@ -699,6 +715,12 @@ exports.crearObservacion = async (req, res) => {
         String(observacion).trim(),
       ]
     );
+
+    // Reporte abierto (estudiante y acudientes) + notificación interna.
+    await notificarNuevoRegistroReporte(
+      req.app.get('io'), estudianteId, 'observacion', id, 'reporte_observaciones'
+    );
+
     return res.json({ ok: true, id, mensaje: 'Observación registrada.' });
   } catch (err) {
     console.error('crearObservacion:', err.message);
@@ -744,6 +766,9 @@ exports.actualizarObservacion = async (req, res) => {
       `UPDATE reporte_observaciones SET ${campos.join(', ')} WHERE id = ? AND estudiante_id = ?`,
       [...params, id, estudianteId]
     );
+
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'observacion', ref_id: id });
+
     return res.json({ ok: true, mensaje: 'Observación actualizada.' });
   } catch (err) {
     console.error('actualizarObservacion:', err.message);
@@ -763,6 +788,9 @@ exports.eliminarObservacion = async (req, res) => {
       `DELETE FROM reporte_observaciones WHERE id = ? AND estudiante_id = ?`,
       [id, estudianteId]
     );
+
+    await notificarReporte(req.app.get('io'), estudianteId, { motivo: 'observacion', ref_id: id });
+
     return res.json({ ok: true, mensaje: 'Observación eliminada.' });
   } catch (err) {
     console.error('eliminarObservacion:', err.message);
