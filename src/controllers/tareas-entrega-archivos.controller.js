@@ -16,11 +16,13 @@ const { randomUUID } = require('crypto');
 const pool   = require('../config/db');
 const {
   MAX_ARCHIVOS_ENTREGA,
+  limpiarArchivosTemporales,
   obtenerTarea,
   obtenerPeriodo,
   periodoAbierto,
   hoyISO,
   soloFecha,
+  fechaLimitePasada,
   estudianteMatriculado,
   puedeVerEntregas,
   archivosDeEntrega,
@@ -28,19 +30,6 @@ const {
 } = require('../utils/tareas-entrega.util');
 
 const RAIZ_ENTREGAS = path.resolve(__dirname, '../../storage_privado/entregas-tareas');
-
-async function limpiarArchivosTemporales(files = []) {
-  for (const file of files) {
-    if (!file?.path) continue;
-    try {
-      await fs.promises.unlink(file.path);
-    } catch (err) {
-      if (err.code !== 'ENOENT') {
-        console.error('No se pudo limpiar el archivo temporal de entrega:', err.message);
-      }
-    }
-  }
-}
 
 function rutaRelativaProyecto(rutaAbsoluta) {
   return path.relative(path.join(__dirname, '../..'), rutaAbsoluta);
@@ -80,8 +69,7 @@ exports.subir = async (req, res) => {
       await limpiarArchivosTemporales(archivos);
       return res.status(409).json({ ok: false, mensaje: 'Esta tarea todavía no está publicada.' });
     }
-    const fechaLimite = soloFecha(tarea.fecha_entrega);
-    const tardia = hoy > fechaLimite;
+    const tardia = fechaLimitePasada(tarea.fecha_entrega);
     if (!tarea.recibir_entregas) {
       await limpiarArchivosTemporales(archivos);
       return res.status(409).json({ ok: false, mensaje: 'El docente cerró la recepción de entregas para esta actividad.' });

@@ -1209,27 +1209,39 @@ var miniFondos = '';
     <div class="glass modal-box" style="max-width:560px">
       <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div class="card-titulo">Crear actividad</div>
+          <div class="card-titulo" id="actividadPlanTituloModal">Crear actividad</div>
           <div class="card-sub" id="actividadPlanNombre">—</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="cerrarModalActividadPlan()">Cerrar</button>
       </div>
       <div id="msgActividadPlan" class="msg" style="margin:0 1.4rem 0.75rem"></div>
       <div style="padding:0 1.4rem 1.4rem;display:flex;flex-direction:column;gap:0.75rem">
-        <label class="hint">Descripción
-          <textarea id="actividadPlanDescripcion" maxlength="5000" rows="3" placeholder="Instrucciones para la actividad"></textarea>
-        </label>
-        <label class="hint">Fecha límite
-          <input type="date" id="actividadPlanFecha" required>
-        </label>
-        <label class="hint">Archivo adjunto (opcional)
-          <input type="file" id="actividadPlanArchivo" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip">
-        </label>
-        <label class="hint"><input type="checkbox" id="actividadPermitirTardias" checked> Permitir entregas tardías</label>
-        <label class="hint"><input type="checkbox" id="actividadRecibirEntregas" checked> Recibir entregas</label>
+        <div id="actividadPlanCamposEdicion" style="display:none;flex-direction:column;gap:0.75rem">
+          <label class="hint">Nombre de la actividad
+            <input type="text" id="actividadPlanTitulo" maxlength="150">
+          </label>
+          <label class="hint">Porcentaje de la nota
+            <input type="number" id="actividadPlanPeso" min="1" max="100" step="0.01">
+          </label>
+        </div>
+        <div id="actividadPlanCamposTarea" style="display:flex;flex-direction:column;gap:0.75rem">
+          <label class="hint">Descripción
+            <textarea id="actividadPlanDescripcion" maxlength="5000" rows="3" placeholder="Instrucciones para la actividad"></textarea>
+          </label>
+          <label class="hint">Fecha y hora límite
+            <input type="datetime-local" id="actividadPlanFecha" required>
+          </label>
+          <div class="hint" id="actividadPlanArchivoActual" hidden></div>
+          <label class="hint">Archivo adjunto (opcional)
+            <input type="file" id="actividadPlanArchivo" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.pptx,.zip">
+          </label>
+          <label class="hint" id="actividadQuitarArchivoFila" hidden><input type="checkbox" id="actividadQuitarArchivo"> Quitar el archivo actual</label>
+          <label class="hint"><input type="checkbox" id="actividadPermitirTardias" checked> Permitir entregas tardías</label>
+          <label class="hint"><input type="checkbox" id="actividadRecibirEntregas" checked> Recibir entregas</label>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:0.5rem">
           <button type="button" class="btn btn-ghost btn-sm" onclick="cerrarModalActividadPlan()">Cancelar</button>
-          <button type="button" class="btn btn-primary btn-sm" id="btnGuardarActividadPlan" onclick="crearActividadPlan()">Guardar actividad</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnGuardarActividadPlan" onclick="guardarActividadPlan()">Guardar actividad</button>
         </div>
       </div>
     </div>
@@ -3051,6 +3063,8 @@ let planPeriodoId = null; // se resuelve automáticamente en el backend al perio
 let planGrupoId = null;
 let planSumaActual = 0;
 let actividadPlanItemId = null;
+let actividadPlanModo = 'crear';
+let planItemsActuales = [];
 let volverEntregasAPlan = false;
 
 /* Selección de materia desde la card "Trabajos" (director de curso).
@@ -3143,13 +3157,50 @@ function cerrarModalPlan() {
 }
 
 function abrirModalActividadPlan(itemId, nombre) {
+  actividadPlanModo = 'crear';
   actividadPlanItemId = itemId;
   document.getElementById('actividadPlanNombre').textContent = nombre;
+  document.getElementById('actividadPlanTituloModal').textContent = 'Crear actividad';
+  document.getElementById('actividadPlanCamposEdicion').style.display = 'none';
+  document.getElementById('actividadPlanCamposTarea').style.display = 'flex';
   document.getElementById('actividadPlanDescripcion').value = '';
   document.getElementById('actividadPlanFecha').value = '';
   document.getElementById('actividadPlanArchivo').value = '';
+  document.getElementById('actividadPlanArchivoActual').hidden = true;
+  document.getElementById('actividadQuitarArchivoFila').hidden = true;
+  document.getElementById('actividadQuitarArchivo').checked = false;
   document.getElementById('actividadPermitirTardias').checked = true;
   document.getElementById('actividadRecibirEntregas').checked = true;
+  document.getElementById('btnGuardarActividadPlan').textContent = 'Guardar actividad';
+  document.getElementById('msgActividadPlan').textContent = '';
+  document.getElementById('msgActividadPlan').className = 'msg';
+  document.getElementById('modalActividadPlan').style.display = 'flex';
+}
+
+function editarActividadPlan(itemId) {
+  const item = planItemsActuales.find(actual => String(actual.id) === String(itemId));
+  if (!item) return mostrarMsgPlan('No se encontró la actividad que intentas editar.', 'error');
+  actividadPlanModo = 'editar';
+  actividadPlanItemId = item.id;
+  document.getElementById('actividadPlanNombre').textContent = item.nombre;
+  document.getElementById('actividadPlanTituloModal').textContent = 'Editar actividad';
+  document.getElementById('actividadPlanCamposEdicion').style.display = 'flex';
+  document.getElementById('actividadPlanCamposTarea').style.display = item.tarea_id ? 'flex' : 'none';
+  document.getElementById('actividadPlanTitulo').value = item.nombre || '';
+  document.getElementById('actividadPlanPeso').value = item.peso_pct == null ? '' : item.peso_pct;
+  document.getElementById('actividadPlanDescripcion').value = item.tarea_descripcion || '';
+  document.getElementById('actividadPlanFecha').value = item.fecha_entrega
+    ? String(item.fecha_entrega).replace(' ', 'T').slice(0, 16)
+    : '';
+  document.getElementById('actividadPlanArchivo').value = '';
+  const archivoActual = document.getElementById('actividadPlanArchivoActual');
+  archivoActual.hidden = !item.archivo_id;
+  archivoActual.textContent = item.archivo_nombre ? `Archivo actual: ${item.archivo_nombre}` : '';
+  document.getElementById('actividadQuitarArchivoFila').hidden = !item.archivo_id;
+  document.getElementById('actividadQuitarArchivo').checked = false;
+  document.getElementById('actividadPermitirTardias').checked = Number(item.permitir_tardias) === 1;
+  document.getElementById('actividadRecibirEntregas').checked = Number(item.recibir_entregas) === 1;
+  document.getElementById('btnGuardarActividadPlan').textContent = 'Guardar cambios';
   document.getElementById('msgActividadPlan').textContent = '';
   document.getElementById('msgActividadPlan').className = 'msg';
   document.getElementById('modalActividadPlan').style.display = 'flex';
@@ -3159,37 +3210,78 @@ function cerrarModalActividadPlan() {
   document.getElementById('modalActividadPlan').style.display = 'none';
 }
 
-async function crearActividadPlan() {
+async function guardarActividadPlan() {
   const fecha = document.getElementById('actividadPlanFecha').value;
-  if (!fecha) {
+  const editando = actividadPlanModo === 'editar';
+  const item = editando
+    ? planItemsActuales.find(actual => String(actual.id) === String(actividadPlanItemId))
+    : null;
+  if (editando && !item) return mostrarMsgPlan('No se encontró la actividad que intentas guardar.', 'error');
+  const nombre = editando
+    ? document.getElementById('actividadPlanTitulo').value.trim()
+    : document.getElementById('actividadPlanNombre').textContent;
+  const peso = editando ? Number(document.getElementById('actividadPlanPeso').value) : null;
+  const tieneTarea = !editando || Boolean(item?.tarea_id);
+  if (!nombre || (tieneTarea && !fecha)) {
     const mensaje = document.getElementById('msgActividadPlan');
-    mensaje.textContent = 'Selecciona la fecha límite.';
+    mensaje.textContent = tieneTarea ? 'Completa el nombre y la fecha y hora límite.' : 'Escribe un nombre para la actividad.';
     mensaje.className = 'msg error';
     return;
+  }
+  if (editando && (!Number.isFinite(peso) || peso <= 0 || peso > 100)) {
+    const mensaje = document.getElementById('msgActividadPlan');
+    mensaje.textContent = 'El porcentaje debe estar entre 1 y 100.';
+    mensaje.className = 'msg error';
+    return;
+  }
+  if (editando && planSumaActual - (Number(item.peso_pct) || 0) + peso > 100) {
+    const mensaje = document.getElementById('msgActividadPlan');
+    mensaje.textContent = 'El plan supera el 100 %. Baja otro porcentaje antes de guardar.';
+    mensaje.className = 'msg error';
+    return;
+  }
+  if (editando && Number(item.conteo_notas) > 0 && peso !== Number(item.peso_pct)) {
+    if (!confirm(`Esta actividad ya tiene ${item.conteo_notas} nota(s). El cambio de porcentaje se aplicará a todas. ¿Continuar?`)) return;
   }
   const boton = document.getElementById('btnGuardarActividadPlan');
   boton.disabled = true;
   try {
     const form = new FormData();
-    form.append('materia_id', planMateriaId);
-    if (planGrupoId) form.append('grupo_id', planGrupoId);
-    if (planPeriodoId) form.append('periodo_id', planPeriodoId);
-    form.append('plan_item_id', actividadPlanItemId);
-    form.append('titulo', document.getElementById('actividadPlanNombre').textContent);
-    form.append('descripcion', document.getElementById('actividadPlanDescripcion').value.trim());
-    form.append('fecha_entrega', fecha);
-    form.append('permitir_tardias', String(document.getElementById('actividadPermitirTardias').checked));
-    form.append('recibir_entregas', String(document.getElementById('actividadRecibirEntregas').checked));
+    if (editando) {
+      form.append('nombre', nombre);
+      form.append('peso_pct', String(peso));
+      if (tieneTarea) {
+        form.append('descripcion', document.getElementById('actividadPlanDescripcion').value.trim());
+        form.append('fecha_entrega', fecha);
+        form.append('permitir_tardias', String(document.getElementById('actividadPermitirTardias').checked));
+        form.append('recibir_entregas', String(document.getElementById('actividadRecibirEntregas').checked));
+        if (document.getElementById('actividadQuitarArchivo').checked) form.append('quitar_archivo', 'true');
+      }
+    } else {
+      form.append('materia_id', planMateriaId);
+      if (planGrupoId) form.append('grupo_id', planGrupoId);
+      if (planPeriodoId) form.append('periodo_id', planPeriodoId);
+      form.append('plan_item_id', actividadPlanItemId);
+      form.append('titulo', nombre);
+      form.append('descripcion', document.getElementById('actividadPlanDescripcion').value.trim());
+      form.append('fecha_entrega', fecha);
+      form.append('permitir_tardias', String(document.getElementById('actividadPermitirTardias').checked));
+      form.append('recibir_entregas', String(document.getElementById('actividadRecibirEntregas').checked));
+    }
     const archivo = document.getElementById('actividadPlanArchivo').files[0];
     if (archivo) form.append('archivo', archivo);
 
-    const res = await fetch(`${API}/api/tareas`, {
-      method: 'POST',
+    const url = editando
+      ? new URL(`${API}/api/plan-evaluacion/${encodeURIComponent(actividadPlanItemId)}`)
+      : new URL(`${API}/api/tareas`);
+    if (editando && planGrupoId) url.searchParams.set('grupo_id', planGrupoId);
+    const res = await fetch(url, {
+      method: editando ? 'PUT' : 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.mensaje || 'No se pudo crear la actividad.');
+    if (!res.ok || !data.ok) throw new Error(data.mensaje || 'No se pudo guardar la actividad.');
     cerrarModalActividadPlan();
     await cargarPlan();
   } catch (err) {
@@ -3217,29 +3309,50 @@ async function alternarOpcionEntrega(tareaId, opcion, estadoActual) {
   }
 }
 
-async function descargarArchivoActividad(tareaId) {
+async function abrirArchivoActividad(tareaId, descargar) {
+  // Abrir la pestaña ANTES del fetch evita que el navegador bloquee
+  // la vista previa por perder la activación del usuario.
+  const ventana = descargar ? null : window.open('', '_blank');
   try {
-    const res = await fetch(`${API}/api/tareas/${encodeURIComponent(tareaId)}/archivo`, { headers });
+    const res = await fetch(`${API}/api/tareas/${encodeURIComponent(tareaId)}/archivo${descargar ? '' : '?vista=1'}`, { headers });
     if (!res.ok) {
+      if (ventana) ventana.close();
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.mensaje || 'No se pudo descargar el archivo.');
+      mostrarMsgPlan(data.mensaje || 'No se pudo abrir el archivo.', 'error');
+      return;
     }
     const disposicion = res.headers.get('Content-Disposition') || '';
     const coincidencia = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion);
     const nombre = coincidencia ? decodeURIComponent(coincidencia[1]) : 'archivo';
     const url = URL.createObjectURL(await res.blob());
-    const enlace = document.createElement('a');
-    enlace.href = url;
-    enlace.download = nombre;
-    document.body.appendChild(enlace);
-    enlace.click();
-    enlace.remove();
-    URL.revokeObjectURL(url);
+    if (descargar) {
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else if (ventana) {
+      ventana.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } else {
+      mostrarMsgPlan('El navegador bloqueó la vista previa. Usa "Descargar".', 'error');
+    }
   } catch (err) {
-    mostrarMsgPlan(err.message || 'No se pudo descargar el archivo.', 'error');
+    if (ventana) ventana.close();
+    mostrarMsgPlan(err.message || 'No se pudo abrir el archivo.', 'error');
+    console.error(err);
   }
 }
 
+function verArchivoActividad(tareaId) {
+  return abrirArchivoActividad(tareaId, false);
+}
+
+function descargarArchivoActividad(tareaId) {
+  return abrirArchivoActividad(tareaId, true);
+}
 async function publicarTareaPlan(tareaId, titulo) {
   if (!confirm(`¿Publicar la actividad "${titulo}"? Se notificará a los estudiantes del curso.`)) return;
   try {
@@ -3267,6 +3380,7 @@ async function cargarPlan() {
       return;
     }
     planPeriodoId = data.periodo_id;
+    planItemsActuales = data.items;
 
     planSumaActual = Number(data.suma_actual) || 0;
     const disponible = Math.max(0, 100 - planSumaActual);
@@ -3293,7 +3407,7 @@ async function cargarPlan() {
       const accionesTarea = it.tarea_id
         ? `<div class="materia-meta">${it.tarea_estado === 'borrador' ? 'Borrador · ' : ''}Fecha límite: ${escaparHtml(it.fecha_entrega || '—')} · ${it.con_entrega || 0}/${it.total_entregas || 0} entregas · ${it.recibir_entregas ? 'Recibe entregas' : 'Recepción cerrada'}</div>
            ${it.tarea_descripcion ? `<div class="materia-meta">${escaparHtml(it.tarea_descripcion)}</div>` : ''}
-           ${it.archivo_id ? `<div class="materia-meta"><button class="btn-sm" onclick="descargarArchivoActividad('${tareaId}')">Descargar ${escaparHtml(it.archivo_nombre || 'archivo')}</button></div>` : ''}
+           ${it.archivo_id ? `<div class="materia-meta"><span aria-hidden="true">${iconoArchivo(null, String(it.archivo_nombre || '').split('.').pop())}</span> ${escaparHtml(it.archivo_nombre || 'archivo')} · <button class="btn-sm" onclick="verArchivoActividad('${tareaId}')">Abrir</button> <button class="btn-sm" onclick="descargarArchivoActividad('${tareaId}')">Descargar</button></div>` : ''}
            <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem">
              ${it.tarea_estado === 'borrador' ? `<button class="btn-sm" onclick="publicarTareaPlan('${tareaId}','${tareaNombre}')">Publicar</button>` : `<button class="btn-sm" onclick="abrirEntregasDesdePlan('${tareaId}','${tareaNombre}')">Ver entregas</button>`}
              <button class="btn-sm" onclick="alternarOpcionEntrega('${tareaId}','recibir_entregas',${Boolean(it.recibir_entregas)})">${it.recibir_entregas ? 'No recibir entregas' : 'Reabrir entregas'}</button>
@@ -3310,8 +3424,8 @@ async function cargarPlan() {
             ${accionesTarea}
           </div>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn-sm" onclick="editarItemPlan('${SIAarg(it.id)}','${tareaNombre}',${it.peso_pct == null ? 'null' : Number(it.peso_pct)},${it.conteo_notas})">Editar</button>
-            <button class="btn-sm" ${it.tarea_id ? 'disabled title="La actividad tiene una tarea; no se puede eliminar sin perder su relación."' : `onclick="eliminarItemPlan('${SIAarg(it.id)}','${tareaNombre}',${it.conteo_notas})"`}>Eliminar</button>
+            <button class="btn-sm" onclick="editarActividadPlan('${SIAarg(it.id)}')">Editar</button>
+            <button class="btn-sm" onclick="eliminarItemPlan('${SIAarg(it.id)}','${tareaNombre}',${it.conteo_notas})">Eliminar</button>
           </div>
         </div>`;
     }).join('');
@@ -3348,44 +3462,8 @@ async function agregarItemPlan() {
   }
 }
 
-async function editarItemPlan(id, nombreActual, pesoActual, conteoNotas) {
-  if (conteoNotas > 0) {
-    const ok = confirm(`Esta actividad ya tiene ${conteoNotas} nota(s) cargada(s). Si cambias el peso, esas notas se recalculan con el peso nuevo. ¿Continuar?`);
-    if (!ok) return;
-  }
-  const nombre = prompt('Nombre de la actividad:', nombreActual);
-  if (nombre === null) return;
-  const pesoTxt = prompt('Peso (%) (déjalo vacío para dejarlo sin porcentaje):', pesoActual == null ? '' : pesoActual);
-  if (pesoTxt === null) return;
-  const peso = pesoTxt.trim() === '' ? null : Number(pesoTxt);
-  if (!nombre.trim() || (peso !== null && (!Number.isFinite(peso) || peso <= 0 || peso > 100))) {
-    return mostrarMsgPlan('Nombre o peso inválido.', 'error');
-  }
-  const sumaNueva = planSumaActual - (Number(pesoActual) || 0) + (peso || 0);
-  if (sumaNueva > 100) {
-    return mostrarMsgPlan('El plan supera el 100 %. Baja el porcentaje o elimina una actividad antes de guardar.', 'error');
-  }
-  try {
-    const url = new URL(`${API}/api/plan-evaluacion/${id}`);
-    if (planGrupoId) url.searchParams.set('grupo_id', planGrupoId);
-    const res  = await fetch(url, {
-      method: 'PUT', headers,
-      body: JSON.stringify({ nombre: nombre.trim(), peso_pct: peso }),
-    });
-    const data = await res.json();
-    if (!data.ok) return mostrarMsgPlan(data.mensaje, 'error');
-    ocultarMsgPlan();
-    await cargarPlan();
-  } catch (err) {
-    mostrarMsgPlan('Error de conexión con el servidor.', 'error');
-    console.error(err);
-  }
-}
-
 async function eliminarItemPlan(id, nombre, conteoNotas) {
-  const aviso = conteoNotas > 0
-    ? `"${nombre}" tiene ${conteoNotas} nota(s) cargada(s). Las notas NO se borran, quedan sin actividad asociada. ¿Eliminar de todas formas?`
-    : `¿Eliminar "${nombre}" del plan?`;
+  const aviso = `¿Eliminar "${nombre}"? Se borrarán también su tarea, todas las entregas, archivos y ${conteoNotas} nota(s) asociada(s). Esta acción no se puede deshacer.`;
   if (!confirm(aviso)) return;
   try {
     const url = new URL(`${API}/api/plan-evaluacion/${id}`);

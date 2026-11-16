@@ -2,6 +2,8 @@
 //  sockets/socket.js
 //  Tiempo real para: aviso de llamada iniciada/finalizada y
 //  sincronización del pizarrón (solo el docente puede dibujar).
+//  Mensajería directa: chat:update, chat:mensaje-eliminado y
+//  chat:mensaje-oculto se emiten a la sala `usuario:{id}`.
 // ============================================================
 
 const jwt = require('jsonwebtoken');
@@ -367,12 +369,11 @@ function parsearMateria(valor) {
     : null;
 }
 
-// Cada pizarrón es una pareja (grupo, materia). La sala incluye ambos
-// ids para que dos materias del mismo curso no compartan contenido.
+// Cada pizarrón es una pareja (materia, curso), con ids en ese orden.
 function salaPizarron(data) {
   if (!data.grupo_id) return null;
   const materia = String(data.materia_id ?? data.docente_materia_id ?? MATERIA_CURSO);
-  return `pizarron:${data.grupo_id}:${materia}`;
+  return `pizarron:${materia}:${data.grupo_id}`;
 }
 
 function contextoPizarron(data) {

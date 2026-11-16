@@ -1,6 +1,7 @@
 // ============================================================
 //  chat.controller.js — Centro de mensajería (estilo Messenger)
-//  Tablas: chats, chat_mensajes, chat_config (migración 22).
+//  Tablas: chats, chat_mensajes, chat_config (migración 22) y
+//  chat_mensajes_ocultos (migración 42).
 //
 //  Reglas de negocio (matriz de contactos):
 //   - superadmin ↔ institución: un canal por institución
@@ -120,6 +121,128 @@ function esParticipante(chat, usuario) {
     return usuario.rol === 'admin' && chat.institucion_id === usuario.institucion_id;
   }
   return false;
+}
+
+async function idsParticipantes(chat) {
+  if (chat.tipo === 'personal') {
+    return [...new Set([chat.ente_a, chat.ente_b].filter(Boolean))];
+  }
+  if (chat.tipo === 'institucion') {
+    const supId = await superadminId();
+    const adminId = await adminDeInstitucion(chat.institucion_id);
+    return [...new Set([supId, adminId].filter(Boolean))];
+  }
+  return [];
+}
+
+async function participantesChat(chat, excluirId = null) {
+  return (await idsParticipantes(chat)).filter(id => id !== excluirId);
+}
+
+function esChatDeGrupo(chat) {
+  return ['curso', 'materia'].includes(chat.tipo)
+    || (!chat.ente_a && !chat.ente_b && Boolean(chat.grupo_id));
+}
+
+async function contextoGrupoChat(chat) {
+  if (chat.grupo_id) {
+    return {
+      grupoId: chat.grupo_id,
+      docenteMateriaId: chat.docente_materia_id || null,
+      materiaId: chat.materia_id || null,
+    };
+  }
+  if (chat.docente_materia_id) {
+    const [rows] = await pool.query(
+      `SELECT grupo_id, materia_id FROM docentes_materias WHERE id = ? LIMIT 1`,
+      [chat.docente_materia_id]
+    );
+    if (rows.length) {
+      return {
+        grupoId: rows[0].grupo_id,
+        docenteMateriaId: chat.docente_materia_id,
+        materiaId: rows[0].materia_id || null,
+      };
+    }
+  }
+  if (chat.materia_id) {
+    const [rows] = await pool.query(
+      `SELECT grupo_id, id FROM docentes_materias WHERE materia_id = ? LIMIT 1`,
+      [chat.materia_id]
+    );
+    if (rows.length) {
+      return {
+        grupoId: rows[0].grupo_id,
+        docenteMateriaId: rows[0].id,
+        materiaId: chat.materia_id,
+      };
+    }
+  }
+  return null;
+}
+
+async function usuarioEnGrupo(contexto, usuario) {
+  const params = [];
+  let filtroMateria = '';
+  if (contexto.docenteMateriaId) {
+    filtroMateria = 'AND dm.id = ?';
+    params.push(contexto.docenteMateriaId);
+  } else if (contexto.materiaId) {
+    filtroMateria = 'AND dm.materia_id = ?';
+    params.push(contexto.materiaId);
+  }
+  params.push(
+    contexto.grupoId,
+    usuario.id,
+    usuario.id,
+    usuario.id,
+    usuario.id,
+    usuario.rol,
+    usuario.rol,
+    usuario.institucion_id
+  );
+  const [rows] = await pool.query(
+    `SELECT 1
+       FROM grupos g
+       JOIN grados gr ON gr.id = g.grado_id
+       LEFT JOIN matriculas mt
+         ON mt.grupo_id = g.id AND mt.estado = 'activa'
+       LEFT JOIN acudientes_estudiantes ae
+         ON ae.estudiante_id = mt.estudiante_id
+       LEFT JOIN docentes_materias dm
+         ON dm.grupo_id = g.id ${filtroMateria}
+      WHERE g.id = ?
+        AND (
+          g.director_id = ?
+          OR dm.docente_id = ?
+          OR mt.estudiante_id = ?
+          OR ae.acudiente_id = ?
+          OR ? = 'superadmin'
+          OR (? = 'admin' AND gr.institucion_id = ?)
+        )
+      LIMIT 1`,
+    params
+  );
+  return rows.length > 0;
+}
+
+async function esParticipanteChat(chat, usuario) {
+  if (esParticipante(chat, usuario)) return true;
+  if (!esChatDeGrupo(chat)) return false;
+  const contexto = await contextoGrupoChat(chat);
+  if (!contexto) return false;
+  return usuarioEnGrupo(contexto, usuario);
+}
+
+async function salasEventoChat(chat) {
+  if (chat.tipo === 'personal' || chat.tipo === 'institucion') {
+    return (await idsParticipantes(chat)).map(id => `usuario:${id}`);
+  }
+  if (esChatDeGrupo(chat)) {
+    const contexto = await contextoGrupoChat(chat);
+    return contexto ? [`curso:${contexto.grupoId}`] : [];
+  }
+  return [];
 }
 
 async function configAbierto(institucionId) {
@@ -384,13 +507,23 @@ async function detalleConversacion(chat, me) {
             a.nombre_original
      FROM chat_mensajes cm
      LEFT JOIN archivos a ON a.id = cm.archivo_id
-     WHERE cm.chat_id = ? ORDER BY cm.created_at DESC LIMIT 1`,
-    [chat.id]
+     WHERE cm.chat_id = ? AND cm.eliminado = 0
+       AND NOT EXISTS (
+         SELECT 1 FROM chat_mensajes_ocultos o
+         WHERE o.mensaje_id = cm.id AND o.usuario_id = ?
+       )
+     ORDER BY cm.created_at DESC LIMIT 1`,
+    [chat.id, me.id]
   );
   const [noLeidos] = await pool.query(
-    `SELECT COUNT(*) AS c FROM chat_mensajes
-     WHERE chat_id = ? AND remitente_id <> ? AND leido = 0`,
-    [chat.id, me.id]
+    `SELECT COUNT(*) AS c FROM chat_mensajes cm
+     WHERE cm.chat_id = ? AND cm.remitente_id <> ? AND cm.leido = 0
+       AND cm.eliminado = 0
+       AND NOT EXISTS (
+         SELECT 1 FROM chat_mensajes_ocultos o
+         WHERE o.mensaje_id = cm.id AND o.usuario_id = ?
+       )`,
+    [chat.id, me.id, me.id]
   );
   const ultimo = last.length ? last[0] : null;
   const ultimoMensaje = !ultimo
@@ -736,18 +869,16 @@ exports.mensajes = asyncHandler(async (req, res) => {
             a.nombre_original AS archivo_nombre, a.mime_type, a.tamanio_bytes
      FROM chat_mensajes cm
      LEFT JOIN archivos a ON a.id = cm.archivo_id
-     WHERE cm.chat_id = ? ORDER BY cm.created_at ASC LIMIT 300`,
-    [chat.id]
+     WHERE cm.chat_id = ? AND cm.eliminado = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM chat_mensajes_ocultos o
+        WHERE o.mensaje_id = cm.id AND o.usuario_id = ?
+      )
+    ORDER BY cm.created_at ASC LIMIT 300`,
+    [chat.id, me.id]
   );
 
-  const otros = [];
-  if (chat.tipo === 'personal') {
-    otros.push(chat.ente_a === me.id ? chat.ente_b : chat.ente_a);
-  } else if (chat.tipo === 'institucion') {
-    const supId = await superadminId();
-    const adminId = await adminDeInstitucion(chat.institucion_id);
-    otros.push(...([supId, adminId].filter(Boolean)));
-  }
+  const otros = await participantesChat(chat, me.id);
   await leerChat(chat.id, me.id, otros, req.app.get('io'));
 
   const contraparte = await counterpart(chat, me);
@@ -835,17 +966,10 @@ exports.enviar = asyncHandler(async (req, res) => {
     await conn.commit();
     archivoGuardado = !!file;
 
-    const otros = [];
-    if (chat.tipo === 'personal') {
-      otros.push(chat.ente_a === me.id ? chat.ente_b : chat.ente_a);
-    } else {
-      const supId = await superadminId();
-      const adminId = await adminDeInstitucion(chat.institucion_id);
-      otros.push(...([supId, adminId].filter(Boolean)).filter(u => u !== me.id));
-    }
+    const otros = await participantesChat(chat, me.id);
     const io = req.app.get('io');
     if (io) {
-      for (const u of new Set(otros)) io.to(`usuario:${u}`).emit('chat:update', { chat_id: chat.id });
+      for (const u of otros) io.to(`usuario:${u}`).emit('chat:update', { chat_id: chat.id });
     }
 
     return res.status(201).json({
@@ -925,14 +1049,7 @@ exports.bloquear = asyncHandler(async (req, res) => {
 
   await pool.query(`UPDATE chats SET bloqueado_por = ? WHERE id = ?`, [me.id, req.params.chatId]);
 
-  const otros = [];
-  if (rows[0].tipo === 'personal') {
-    otros.push(rows[0].ente_a === me.id ? rows[0].ente_b : rows[0].ente_a);
-  } else {
-    const supId = await superadminId();
-    const adminId = await adminDeInstitucion(rows[0].institucion_id);
-    otros.push(...([supId, adminId].filter(Boolean)));
-  }
+  const otros = await participantesChat(rows[0], me.id);
   const io = req.app.get('io');
   if (io) {
     for (const u of otros) io.to(`usuario:${u}`).emit('chat:update', { chat_id: req.params.chatId });
@@ -951,18 +1068,115 @@ exports.desbloquear = asyncHandler(async (req, res) => {
 
   await pool.query(`UPDATE chats SET bloqueado_por = NULL WHERE id = ?`, [req.params.chatId]);
 
-  const otros = [];
-  if (rows[0].tipo === 'personal') {
-    otros.push(rows[0].ente_a === me.id ? rows[0].ente_b : rows[0].ente_a);
-  } else {
-    const supId = await superadminId();
-    const adminId = await adminDeInstitucion(rows[0].institucion_id);
-    otros.push(...([supId, adminId].filter(Boolean)));
-  }
+  const otros = await participantesChat(rows[0], me.id);
   const io = req.app.get('io');
   if (io) {
     for (const u of otros) io.to(`usuario:${u}`).emit('chat:update', { chat_id: req.params.chatId });
   }
 
   return res.json({ ok: true, mensaje: 'Chat desbloqueado.' });
+});
+
+// ── DELETE /api/chat/:chatId/mensajes/:mensajeId ─────────────
+// Mensaje propio: se elimina para todos (marca + borra adjuntos).
+// Mensaje ajeno: se oculta solo para quien lo solicita.
+exports.eliminarMensaje = asyncHandler(async (req, res) => {
+  const me = req.usuario;
+  let [chats] = await pool.query(
+    `SELECT * FROM chats WHERE id = ? LIMIT 1`,
+    [req.params.chatId]
+  );
+  // El frontend del chat de curso trabaja con el id del grupo: se acepta
+  // también ese id para resolver el mismo chat y aplicar la misma regla.
+  if (!chats.length) {
+    [chats] = await pool.query(
+      `SELECT * FROM chats WHERE grupo_id = ? ORDER BY created_at ASC LIMIT 1`,
+      [req.params.chatId]
+    );
+  }
+  if (!chats.length) return res.status(404).json({ ok: false, mensaje: 'Chat no encontrado.' });
+  const chat = chats[0];
+  if (!(await esParticipanteChat(chat, me))) {
+    return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este chat.' });
+  }
+
+  const [rows] = await pool.query(
+    `SELECT cm.id, cm.remitente_id, cm.archivo_id, cm.eliminado, a.ruta_storage
+       FROM chat_mensajes cm
+       LEFT JOIN archivos a ON a.id = cm.archivo_id
+      WHERE cm.id = ? AND cm.chat_id = ? LIMIT 1`,
+    [req.params.mensajeId, chat.id]
+  );
+  if (!rows.length) return res.status(404).json({ ok: false, mensaje: 'Mensaje no encontrado.' });
+  const mensaje = rows[0];
+  if (Number(mensaje.eliminado) === 1) {
+    return res.json({ ok: true, mensaje: 'El mensaje ya estaba eliminado.', alcance: 'todos' });
+  }
+
+  const io = req.app.get('io');
+
+  // Mensaje de otra persona: solo se oculta para mí.
+  if (mensaje.remitente_id !== me.id) {
+    await pool.query(
+      `INSERT INTO chat_mensajes_ocultos (mensaje_id, usuario_id) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id)`,
+      [mensaje.id, me.id]
+    );
+    if (io) {
+      io.to(`usuario:${me.id}`).emit('chat:mensaje-oculto', {
+        chat_id: chat.id,
+        mensaje_id: mensaje.id,
+      });
+    }
+    return res.json({ ok: true, mensaje: 'Mensaje oculto solo para ti.', alcance: 'propio' });
+  }
+
+  // Mensaje propio: se elimina para todos y se borran sus adjuntos.
+  let archivoRuta = null;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `UPDATE chat_mensajes
+          SET eliminado = 1, eliminado_por = ?, eliminado_at = NOW(),
+              texto = NULL, transcripcion = NULL, archivo_id = NULL
+        WHERE id = ? AND chat_id = ? AND eliminado = 0`,
+      [me.id, mensaje.id, chat.id]
+    );
+    await conn.query(`DELETE FROM chat_mensajes_ocultos WHERE mensaje_id = ?`, [mensaje.id]);
+    if (mensaje.archivo_id) {
+      archivoRuta = mensaje.ruta_storage || null;
+      await conn.query(`DELETE FROM archivos WHERE id = ?`, [mensaje.archivo_id]);
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  if (archivoRuta) {
+    const ruta = path.resolve(RAIZ_PROYECTO, archivoRuta);
+    if (ruta.startsWith(`${CARPETA_CHAT}${path.sep}`)) {
+      try {
+        await fs.promises.unlink(ruta);
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error('No se pudo borrar el adjunto del mensaje:', err.message);
+        }
+      }
+    }
+  }
+
+  if (io) {
+    for (const sala of await salasEventoChat(chat)) {
+      io.to(sala).emit('chat:mensaje-eliminado', {
+        chat_id: chat.id,
+        mensaje_id: mensaje.id,
+      });
+    }
+  }
+
+  return res.json({ ok: true, mensaje: 'Mensaje eliminado para todos.', alcance: 'todos' });
 });

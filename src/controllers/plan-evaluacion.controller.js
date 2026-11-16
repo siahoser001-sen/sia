@@ -25,6 +25,8 @@
 
 const pool = require('../config/db');
 const { randomUUID } = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const {
   condicionDocenteEnGrupo,
   parametrosDocenteEnGrupo,
@@ -35,6 +37,8 @@ const {
   gruposDocenteMateria,
   materiasConDocentesDeGrupo,
 } = require('../utils/materias-curso.util');
+const { normalizarFechaHora } = require('../utils/tareas-entrega.util');
+const tareasController = require('./tareas.controller');
 const { notificarReporte } = require('../services/reporte-update.service');
 
 // Trae la materia + su grupo_id + institucion_id, o null si no existe.
@@ -123,6 +127,17 @@ function _pesoValido(peso) {
   return Number.isFinite(numero) && numero > 0 && numero <= 100;
 }
 
+function _valorBooleano(valor) {
+  return valor === true || valor === 1 || valor === '1' || valor === 'true';
+}
+
+function _limpiarArchivoTemporal(file) {
+  if (!file?.path) return;
+  fs.promises.unlink(file.path).catch(err => {
+    if (err.code !== 'ENOENT') console.error('No se pudo limpiar el archivo temporal de actividad:', err.message);
+  });
+}
+
 // Verifica que la materia exista y pertenezca a la institución del
 // usuario (o que sea superadmin). Devuelve la materia o null.
 async function _materiaDeLaInstitucion(req, materiaId) {
@@ -169,7 +184,8 @@ exports.listarItems = async (req, res) => {
     const [items] = await pool.query(
       `SELECT pi.id, pi.nombre, pi.peso_pct, pi.orden,
               t.id AS tarea_id, t.descripcion AS tarea_descripcion,
-              t.fecha_entrega, t.valor_max, t.estado AS tarea_estado,
+              DATE_FORMAT(t.fecha_entrega, '%Y-%m-%d %H:%i:%s') AS fecha_entrega,
+              t.valor_max, t.estado AS tarea_estado,
               t.permitir_tardias, t.recibir_entregas,
               a.id AS archivo_id, a.nombre_original AS archivo_nombre,
               (SELECT COUNT(*) FROM entregas_tareas e
@@ -251,6 +267,12 @@ exports.crearItem = async (req, res) => {
       [id, materia_id, periodo_id, nombre.trim(), peso_pct, orden || 0]
     );
     await conn.commit();
+    await tareasController.emitirActualizacionPlanMateria(
+      req.app.get('io'),
+      materia_id,
+      grupoId,
+      { actividad_id: id }
+    );
     return res.status(201).json({ ok: true, mensaje: 'Actividad agregada al plan.', id, periodo_id });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -265,19 +287,44 @@ exports.crearItem = async (req, res) => {
 };
 
 // ────────────────────────────────────────────────────────────
-//  PUT /api/plan-evaluacion/:id   { nombre?, peso_pct? }
+//  PUT /api/plan-evaluacion/:id   edición del ítem y su tarea asociada
 // ────────────────────────────────────────────────────────────
 exports.actualizarItem = async (req, res) => {
   const { id } = req.params;
-  const { nombre, peso_pct } = req.body;
-  if (nombre !== undefined && (typeof nombre !== 'string' || !nombre.trim())) {
-    return res.status(400).json({ ok: false, mensaje: 'El nombre de la actividad no puede estar vacío.' });
+  const body = req.body || {};
+  const { nombre, peso_pct } = body;
+  const pesoActualizado = peso_pct === undefined || peso_pct === null
+    ? peso_pct
+    : Number(Number(peso_pct).toFixed(2));
+  if (nombre !== undefined && (typeof nombre !== 'string' || !nombre.trim() || nombre.trim().length > 150)) {
+    _limpiarArchivoTemporal(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'El nombre debe tener entre 1 y 150 caracteres.' });
   }
   if (peso_pct !== undefined && peso_pct !== null && !_pesoValido(peso_pct)) {
+    _limpiarArchivoTemporal(req.file);
     return res.status(400).json({ ok: false, mensaje: 'peso_pct debe estar entre 1 y 100.' });
+  }
+  if (body.descripcion !== undefined
+    && (typeof body.descripcion !== 'string' || body.descripcion.length > 5000)) {
+    _limpiarArchivoTemporal(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'La descripción no puede superar 5000 caracteres.' });
+  }
+  const fechaEntrega = body.fecha_entrega === undefined
+    ? undefined
+    : normalizarFechaHora(body.fecha_entrega);
+  if (body.fecha_entrega !== undefined && !fechaEntrega) {
+    _limpiarArchivoTemporal(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no son válidas.' });
+  }
+  if (fechaEntrega && new Date(fechaEntrega.replace(' ', 'T')).getTime() < Date.now()) {
+    _limpiarArchivoTemporal(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no pueden estar en el pasado.' });
   }
 
   let conn;
+  let transaccionActiva = false;
+  let archivoGuardado = false;
+  let archivosAntiguos = [];
   try {
     const [itemRows] = await pool.query(`SELECT * FROM plan_evaluacion_items WHERE id = ?`, [id]);
     if (!itemRows.length) return res.status(404).json({ ok: false, mensaje: 'Actividad no encontrada.' });
@@ -289,22 +336,52 @@ exports.actualizarItem = async (req, res) => {
     }
 
     const grupoId = req.query.grupo_id || materia.grupo_id;
+    const [tareaInicial] = await pool.query(`SELECT * FROM tareas WHERE plan_item_id = ? LIMIT 1`, [id]);
+    const tieneCamposTarea = body.descripcion !== undefined || body.fecha_entrega !== undefined
+      || body.permitir_tardias !== undefined || body.recibir_entregas !== undefined
+      || body.quitar_archivo !== undefined || Boolean(req.file);
+    if (!tareaInicial.length && tieneCamposTarea) {
+      _limpiarArchivoTemporal(req.file);
+      return res.status(409).json({ ok: false, mensaje: 'Crea primero la tarea para editar su descripción, fecha y archivo.' });
+    }
+
     const planCurso = req.usuario.rol === 'docente' && await _esDirectorGrupo(req.usuario.id, grupoId);
     conn = await pool.getConnection();
     await conn.beginTransaction();
+    transaccionActiva = true;
     await _bloquearPlan(conn, item.materia_id, grupoId, planCurso);
+    const [itemsBloqueados] = await conn.query(
+      `SELECT id, materia_id, periodo_id, nombre, peso_pct
+       FROM plan_evaluacion_items WHERE id = ? FOR UPDATE`,
+      [id]
+    );
+    if (!itemsBloqueados.length) {
+      await conn.rollback();
+      transaccionActiva = false;
+      return res.status(404).json({ ok: false, mensaje: 'Actividad no encontrada.' });
+    }
+    const itemBloqueado = itemsBloqueados[0];
+    const [tareas] = await conn.query(`SELECT * FROM tareas WHERE plan_item_id = ? FOR UPDATE`, [id]);
+    const tarea = tareas[0] || null;
+    if (!tarea && tieneCamposTarea) {
+      await conn.rollback();
+      transaccionActiva = false;
+      return res.status(409).json({ ok: false, mensaje: 'La tarea vinculada ya no existe; vuelve a cargar la actividad.' });
+    }
 
     if (peso_pct !== undefined) {
-      if (peso_pct === null) {
+      if (pesoActualizado === null) {
         const [notas] = await conn.query(`SELECT 1 FROM notas WHERE plan_item_id = ? LIMIT 1`, [id]);
         if (notas.length) {
           await conn.rollback();
+          transaccionActiva = false;
           return res.status(409).json({ ok: false, mensaje: 'No se puede dejar sin porcentaje una actividad que ya tiene notas.' });
         }
       }
-      const sumaActual = await _sumaPesoPlan(conn, item.materia_id, item.periodo_id, id, grupoId, planCurso);
-      if (peso_pct !== null && sumaActual + Number(peso_pct) > 100) {
+      const sumaActual = await _sumaPesoPlan(conn, itemBloqueado.materia_id, itemBloqueado.periodo_id, id, grupoId, planCurso);
+      if (pesoActualizado !== null && sumaActual + pesoActualizado > 100) {
         await conn.rollback();
+        transaccionActiva = false;
         return res.status(400).json({
           ok: false,
           mensaje: `El plan ya usa ${sumaActual}%. Baja el porcentaje o elimina una actividad antes de guardar.`,
@@ -312,14 +389,70 @@ exports.actualizarItem = async (req, res) => {
       }
     }
 
+    if (tarea) {
+      let archivoId = tarea.archivo_id;
+      if (req.file) {
+        const nuevoArchivoId = randomUUID();
+        await conn.query(
+          `INSERT INTO archivos
+             (id, subido_por, tipo, nombre_original, nombre_storage, ruta_storage,
+              mime_type, tamanio_bytes, es_publico, ref_grupo_id, descripcion)
+           VALUES (?, ?, 'tarea_entregada', ?, ?, ?, ?, ?, FALSE, ?, ?)`,
+          [
+            nuevoArchivoId, req.usuario.id, req.file.originalname, req.file.filename,
+            path.relative(path.join(__dirname, '../..'), req.file.path),
+            req.file.mimetype, req.file.size, tarea.grupo_id,
+            `Material de la actividad "${nombre === undefined ? item.nombre : nombre.trim()}"`,
+          ]
+        );
+        archivoId = nuevoArchivoId;
+      } else if (_valorBooleano(body.quitar_archivo)) {
+        archivoId = null;
+      }
+
+      const camposTarea = {
+        descripcion: body.descripcion === undefined ? tarea.descripcion : (body.descripcion.trim() || null),
+        fecha_entrega: fechaEntrega === undefined ? tarea.fecha_entrega : fechaEntrega,
+        permitir_tardias: body.permitir_tardias === undefined
+          ? tarea.permitir_tardias
+          : _valorBooleano(body.permitir_tardias),
+        recibir_entregas: body.recibir_entregas === undefined
+          ? tarea.recibir_entregas
+          : _valorBooleano(body.recibir_entregas),
+      };
+      await conn.query(
+        `UPDATE tareas SET titulo = ?, descripcion = ?, fecha_entrega = ?,
+           permitir_tardias = ?, recibir_entregas = ?, archivo_id = ?
+         WHERE id = ?`,
+        [
+          nombre === undefined ? tarea.titulo : nombre.trim(),
+          camposTarea.descripcion,
+          camposTarea.fecha_entrega,
+          camposTarea.permitir_tardias,
+          camposTarea.recibir_entregas,
+          archivoId,
+          tarea.id,
+        ]
+      );
+      if (tarea.archivo_id && tarea.archivo_id !== archivoId) {
+        const [archivos] = await conn.query(
+          `SELECT ruta_storage FROM archivos WHERE id = ? FOR UPDATE`,
+          [tarea.archivo_id]
+        );
+        if (archivos.length) {
+          archivosAntiguos.push(archivos[0].ruta_storage);
+          await conn.query(`DELETE FROM archivos WHERE id = ?`, [tarea.archivo_id]);
+        }
+      }
+    }
+
     await conn.query(
       `UPDATE plan_evaluacion_items
        SET nombre = COALESCE(?, nombre), peso_pct = ?
        WHERE id = ?`,
-      [nombre ? nombre.trim() : null, peso_pct === undefined ? item.peso_pct : peso_pct, id]
+      [nombre ? nombre.trim() : null, pesoActualizado === undefined ? itemBloqueado.peso_pct : pesoActualizado, id]
     );
     if (nombre !== undefined) {
-      await conn.query(`UPDATE tareas SET titulo = ? WHERE plan_item_id = ?`, [nombre.trim(), id]);
       await conn.query(
         `UPDATE notas SET tipo_nota = ?, descripcion = ? WHERE plan_item_id = ?`,
         [nombre.trim().slice(0, 60), nombre.trim(), id]
@@ -329,54 +462,89 @@ exports.actualizarItem = async (req, res) => {
     // Si cambió el peso, las notas ya cargadas de este ítem deben quedar
     // con el mismo peso_pct nuevo (para que el promedio no quede
     // calculado con un peso viejo).
-    if (peso_pct !== undefined) {
-      await conn.query(`UPDATE notas SET peso_pct = ? WHERE plan_item_id = ?`, [peso_pct, id]);
+    if (pesoActualizado !== undefined) {
+      await conn.query(`UPDATE notas SET peso_pct = ? WHERE plan_item_id = ?`, [pesoActualizado, id]);
     }
 
     await conn.commit();
+    transaccionActiva = false;
+    archivoGuardado = Boolean(req.file);
+    await tareasController.emitirActualizacionPlanMateria(
+      req.app.get('io'),
+      item.materia_id,
+      (tarea && tarea.grupo_id) || grupoId,
+      { actividad_id: id }
+    );
+    await tareasController.limpiarArchivosBorrados(archivosAntiguos);
     return res.json({ ok: true, mensaje: 'Actividad actualizada.' });
   } catch (err) {
-    if (conn) await conn.rollback();
+    if (conn && transaccionActiva) await conn.rollback();
     console.error('actualizarItem plan-evaluacion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   } finally {
     if (conn) conn.release();
+    if (req.file && !archivoGuardado) _limpiarArchivoTemporal(req.file);
   }
 };
 
 // ────────────────────────────────────────────────────────────
 //  DELETE /api/plan-evaluacion/:id
-//  Las notas que tenía este ítem NO se borran — quedan con
-//  plan_item_id = NULL (FK con ON DELETE SET NULL, migración 15).
+//  Borra la actividad, su tarea, entregas, notas y archivos asociados.
 // ────────────────────────────────────────────────────────────
 exports.eliminarItem = async (req, res) => {
   const { id } = req.params;
+  let conn;
+  let transaccionActiva = false;
+  let archivosBorrados = [];
   try {
     const [itemRows] = await pool.query(`SELECT * FROM plan_evaluacion_items WHERE id = ?`, [id]);
     if (!itemRows.length) return res.status(404).json({ ok: false, mensaje: 'Actividad no encontrada.' });
     const item = itemRows[0];
 
     const materia = await _materiaDeLaInstitucion(req, item.materia_id);
-    if (!materia || !(await _puedeGestionarPlan(req, materia, req.query.grupo_id || materia.grupo_id))) {
-      return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar el plan de esta materia.' });
+    const grupoId = req.query.grupo_id || materia?.grupo_id || null;
+    if (req.usuario.rol !== 'docente' || !materia
+      || !(await _puedeGestionarPlan(req, materia, grupoId))) {
+      return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para eliminar actividades de esta materia.' });
     }
 
-    const [tareas] = await pool.query(`SELECT id FROM tareas WHERE plan_item_id = ? LIMIT 1`, [id]);
-    if (tareas.length) {
-      return res.status(409).json({
-        ok: false,
-        mensaje: 'Esta actividad tiene una tarea y entregas asociadas. Conserva la actividad o elimina la tarea desde su gestión.',
-      });
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    transaccionActiva = true;
+    await _bloquearPlan(conn, item.materia_id, grupoId, await _esDirectorGrupo(req.usuario.id, grupoId));
+    const [itemBloqueado] = await conn.query(
+      `SELECT id FROM plan_evaluacion_items WHERE id = ? FOR UPDATE`,
+      [id]
+    );
+    if (!itemBloqueado.length) {
+      await conn.rollback();
+      transaccionActiva = false;
+      return res.status(404).json({ ok: false, mensaje: 'Actividad no encontrada.' });
     }
-
-    await pool.query(`DELETE FROM plan_evaluacion_items WHERE id = ?`, [id]);
+    const [tarea] = await conn.query(
+      `SELECT grupo_id FROM tareas WHERE plan_item_id = ? FOR UPDATE`,
+      [id]
+    );
+    archivosBorrados = await tareasController.eliminarActividadEnTransaccion(conn, id);
+    await conn.commit();
+    transaccionActiva = false;
+    await tareasController.emitirActualizacionPlanMateria(
+      req.app.get('io'),
+      item.materia_id,
+      tarea[0]?.grupo_id || grupoId,
+      { actividad_id: id, eliminada: true }
+    );
+    await tareasController.limpiarArchivosBorrados(archivosBorrados);
     return res.json({
       ok: true,
-      mensaje: 'Actividad eliminada. Las notas ya puestas no se borraron, quedaron sin actividad asociada.',
+      mensaje: 'Actividad, entregas, notas y archivos eliminados.',
     });
   } catch (err) {
+    if (conn && transaccionActiva) await conn.rollback();
     console.error('eliminarItem plan-evaluacion:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
@@ -559,6 +727,12 @@ exports.guardarCelda = async (req, res) => {
       await conn.query(`DELETE FROM notas WHERE plan_item_id = ? AND estudiante_id = ?`, [plan_item_id, estudiante_id]);
       await conn.commit();
       await notificarReporte(req.app.get('io'), estudiante_id, { motivo: 'nota', plan_item_id });
+      await tareasController.emitirActualizacionPlanMateria(
+        req.app.get('io'),
+        item.materia_id,
+        grupoId,
+        { actividad_id: plan_item_id }
+      );
       return res.json({ ok: true, mensaje: 'Celda vaciada.', valor: null });
     }
 
@@ -603,6 +777,12 @@ exports.guardarCelda = async (req, res) => {
       materia_id: item.materia_id,
       plan_item_id,
     });
+    await tareasController.emitirActualizacionPlanMateria(
+      req.app.get('io'),
+      item.materia_id,
+      grupoId,
+      { actividad_id: plan_item_id }
+    );
 
     return res.json({ ok: true, mensaje: 'Celda guardada.', valor: valorNum });
   } catch (err) {

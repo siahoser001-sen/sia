@@ -5,12 +5,29 @@
 // ============================================================
 
 const pool = require('../config/db');
+const fs   = require('fs');
 const {
   materiaPerteneceAlGrupo,
   docenteAsignadoEnGrupo,
 } = require('./materias-curso.util');
 
 const MAX_ARCHIVOS_ENTREGA = 5;
+
+// Borra archivos temporales de multer (o binarios ya guardados) sin
+// romper si no existen. Acepta un archivo o un arreglo de archivos.
+async function limpiarArchivosTemporales(files = []) {
+  const lista = Array.isArray(files) ? files : [files];
+  for (const file of lista) {
+    if (!file?.path) continue;
+    try {
+      await fs.promises.unlink(file.path);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        console.error('No se pudo limpiar el archivo temporal:', err.message);
+      }
+    }
+  }
+}
 
 function soloFecha(valor) {
   if (!valor) return null;
@@ -20,6 +37,35 @@ function soloFecha(valor) {
 
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function normalizarFechaHora(valor) {
+  const texto = String(valor || '').trim();
+  const partes = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(texto);
+  if (!partes) return null;
+
+  const anio = Number(partes[1]);
+  const mes = Number(partes[2]);
+  const dia = Number(partes[3]);
+  const tieneHora = partes[4] !== undefined;
+  const hora = tieneHora ? Number(partes[4]) : 23;
+  const minuto = tieneHora ? Number(partes[5]) : 59;
+  const segundo = tieneHora ? (partes[6] === undefined ? 0 : Number(partes[6])) : 59;
+  const fecha = new Date(anio, mes - 1, dia, hora, minuto, segundo);
+  if (fecha.getFullYear() !== anio || fecha.getMonth() !== mes - 1 || fecha.getDate() !== dia
+    || fecha.getHours() !== hora || fecha.getMinutes() !== minuto || fecha.getSeconds() !== segundo) {
+    return null;
+  }
+
+  return `${partes[1]}-${partes[2]}-${partes[3]} ${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}:${String(segundo).padStart(2, '0')}`;
+}
+
+function fechaLimitePasada(valor, ahora = new Date()) {
+  const limite = valor instanceof Date
+    ? valor
+    : new Date(String(valor || '').replace(' ', 'T'));
+  if (Number.isNaN(limite.getTime())) throw new Error('La fecha límite almacenada no es válida.');
+  return ahora.getTime() > limite.getTime();
 }
 
 async function obtenerTarea(tareaId) {
@@ -154,8 +200,11 @@ async function contarArchivosEntrega(entregaId, conn = pool) {
 
 module.exports = {
   MAX_ARCHIVOS_ENTREGA,
+  limpiarArchivosTemporales,
   soloFecha,
   hoyISO,
+  normalizarFechaHora,
+  fechaLimitePasada,
   obtenerTarea,
   obtenerPeriodo,
   periodoAbierto,

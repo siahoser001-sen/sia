@@ -22,7 +22,7 @@
       --glass-bg:rgba(15,23,58,.68); --glass-bg-strong:rgba(9,14,39,.94);
       --glass-border:rgba(255,255,255,.13); --glass-border-hi:rgba(255,255,255,.25);
       --glass-shadow:0 12px 40px rgba(0,0,0,.24); --sidebar-bg:rgba(8,13,38,.78);
-      --blur:blur(18px); --font-d:'Nunito',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
+      --blur:blur(18px); --font-d:'Nunito',system-ui,sans-serif; --font-b:system-ui,sans-serif;
       --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:26px;
     }
     html[data-ui-scale="2"]{zoom:1.15} html[data-ui-scale="3"]{zoom:1.3}
@@ -74,6 +74,9 @@
     .feedback{margin-top:.65rem;padding:.65rem .75rem;border-left:3px solid var(--blue);background:rgba(59,130,246,.08);font-size:.8rem;white-space:pre-wrap}
     .file-list{display:grid;gap:.35rem;margin:.75rem 0}
     .file-row{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;font-size:.77rem}
+    .material-list{padding:.6rem .75rem;border:1px dashed rgba(147,197,253,.35);border-radius:var(--r-sm);background:rgba(59,130,246,.07)}
+    .file-icon{font-size:1rem;line-height:1}
+    .file-name{font-weight:700;color:var(--text-1);overflow-wrap:anywhere}
     .submit-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--glass-border)}
     input[type=file],input[type=month]{max-width:100%;padding:.45rem;border:1px solid var(--glass-border);border-radius:var(--r-sm);background:rgba(0,0,0,.18);color:var(--text-1);font:inherit;font-size:.78rem}
     .calendar-controls{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.8rem}
@@ -112,6 +115,7 @@
   <script src="sia-utils.js"></script>
 </head>
 <body>
+  <script src="sia-ui.js"></script>
   <div class="sia-fondo" id="siaFondo"></div>
   <main class="main">
     <header class="glass topbar">
@@ -199,6 +203,7 @@
         <div><div class="section-title">Información del curso</div><div class="hint">Datos del curso en el que tienes matrícula activa.</div></div>
       </div>
       <div id="detalleCurso"></div>
+      <div id="avanceMateria" hidden></div>
     </section>
 
     <section class="glass panel" id="panel-companeros" role="tabpanel" aria-labelledby="tab-companeros" hidden>
@@ -217,6 +222,7 @@
   </main>
   <div class="msg info" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="sia-chat-curso.js"></script>
   <script>
     'use strict';
@@ -250,6 +256,7 @@
     let cursoInfo = null;
     let companeros = [];
     let chatMontado = false;
+    let socketPlan = null;
     let tareas = [];
     let tareasCargadas = false;
     let asistenciaCargada = false;
@@ -296,12 +303,36 @@
       const fecha = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
       return Number.isNaN(fecha.getTime()) ? String(valor) : fecha.toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' });
     }
+    function formatoFechaHora(valor) {
+      if (!valor) return 'Sin fecha';
+      const fecha = new Date(String(valor).replace(' ', 'T'));
+      return Number.isNaN(fecha.getTime())
+        ? String(valor)
+        : fecha.toLocaleString('es-CO', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
     function fechaISO(fecha) {
       return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
     }
     function etiquetaEstado(estado, entregaTarde = false) {
       if (estado === 'calificada' && entregaTarde) return 'Calificada · entregada tarde';
       return ({ pendiente:'Pendiente', entregada:'Entregada', tarde:'Entregada tarde', calificada:'Calificada', asistio:'Asistió', presente:'Presente', falta:'Falta', ausente:'Ausente', justificada:'Justificada', excusado:'Excusada' })[estado] || estado || 'Pendiente';
+    }
+    function iconoArchivo(nombre, mime) {
+      const ext = String(nombre || '').split('.').pop().toLowerCase();
+      if (ext === 'pdf' || mime === 'application/pdf') return '📄';
+      if (['jpg','jpeg','png','webp','gif'].includes(ext) || String(mime || '').startsWith('image/')) return '🖼️';
+      if (['doc','docx'].includes(ext)) return '📝';
+      if (['xls','xlsx','csv'].includes(ext)) return '📊';
+      if (['ppt','pptx'].includes(ext)) return '📽️';
+      if (['zip','rar','7z'].includes(ext)) return '🗜️';
+      return '📎';
+    }
+    function formatoBytes(bytes) {
+      const n = Number(bytes);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+      return `${(n / (1024 * 1024)).toFixed(1)} MB`;
     }
 
     async function iniciar() {
@@ -371,6 +402,8 @@
           document.getElementById('subtituloMateria').textContent = 'Consulta tu calendario mensual de asistencia.';
           document.querySelectorAll('.tab:not([data-tab="asistencia"])').forEach(tab => { tab.disabled = true; });
         }
+        renderizarInfoCurso();
+        conectarSocketMateria();
         seleccionarPestana(materia || modoCurso ? tabInicial : 'asistencia');
       } catch (err) {
         document.getElementById('cursoEstudiante').textContent = 'No se pudo cargar el curso';
@@ -405,6 +438,37 @@
       }
     }
 
+    function conectarSocketMateria() {
+      if (!materia || typeof window.io !== 'function') return;
+      const asignacion = materias.find(item =>
+        String(item.materia_id) === String(materiaId) && item.docente_materia_id
+      );
+      if (!asignacion) return;
+      socketPlan = window.io(API, { auth: { token } });
+      socketPlan.on('connect', () => {
+        socketPlan.emit('unirse-materia', { docente_materia_id: asignacion.docente_materia_id });
+      });
+      socketPlan.on('plan-evaluacion:update', () => {
+        refrescarDatosMateria().catch(err => {
+          mostrarMensaje('mensajeActividades', err.message || 'No se pudieron actualizar las actividades.', 'error');
+        });
+      });
+      socketPlan.on('connect_error', err => {
+        console.error('No se pudo conectar para recibir actualizaciones de la materia:', err.message);
+      });
+    }
+
+    async function refrescarDatosMateria() {
+      const datos = await pedir('/api/clases/mis-materias-estudiante');
+      planItems = Array.isArray(datos.planItems) ? datos.planItems : [];
+      renderizarPlanEvaluacion();
+      tareasCargadas = false;
+      notasCargadas = false;
+      const pestana = document.querySelector('.tab[aria-selected="true"]')?.dataset.tab;
+      if (pestana === 'actividades') await cargarTareas();
+      if (materia && (pestana === 'notas' || pestana === 'info-curso')) await cargarNotas();
+    }
+
     function configurarAccesosCurso() {
       const asignaciones = [];
       const vistas = new Set();
@@ -419,24 +483,34 @@
       const listaTableros = document.getElementById('listaTablerosCurso');
       const listaVideollamadas = document.getElementById('listaVideollamadasCurso');
       if (!asignaciones.length) {
-        tablero.disabled = true;
         videollamada.disabled = true;
-        listaTableros.innerHTML = '<div class="empty">No hay tableros disponibles.</div>';
         listaVideollamadas.innerHTML = '<div class="empty">No hay videollamadas disponibles.</div>';
         estado.textContent = 'El curso todavía no tiene materias con docente asignado.';
-        return;
       }
       tablero.hidden = true;
       videollamada.hidden = true;
-      estado.textContent = 'Selecciona una materia para abrir su videollamada.';
-      listaTableros.innerHTML = asignaciones.map(item =>
+      if (asignaciones.length) {
+        estado.textContent = 'Selecciona una materia para abrir su videollamada.';
+      }
+      const tarjetaCurso = `<div class="task-card"><div class="task-title">Tablero del curso</div>
+          <button type="button" class="btn btn-primary btn-sm" data-tablero-curso>Abrir tablero del curso en modo solo ver</button></div>`;
+      listaTableros.innerHTML = tarjetaCurso + asignaciones.map(item =>
         `<div class="task-card"><div class="task-title">${escapar(item.materia || 'Materia')}</div>
           <button type="button" class="btn btn-primary btn-sm" data-tablero="${escapar(item.docente_materia_id)}">Abrir tablero en modo solo ver</button></div>`
       ).join('');
-      listaVideollamadas.innerHTML = asignaciones.map(item =>
-        `<div class="task-card"><div class="task-title">${escapar(item.materia || 'Materia')}</div>
-          <button type="button" class="btn btn-primary btn-sm" data-videollamada="${escapar(item.docente_materia_id)}">Abrir videollamada</button></div>`
-      ).join('');
+      if (asignaciones.length) {
+        listaVideollamadas.innerHTML = asignaciones.map(item =>
+          `<div class="task-card"><div class="task-title">${escapar(item.materia || 'Materia')}</div>
+            <button type="button" class="btn btn-primary btn-sm" data-videollamada="${escapar(item.docente_materia_id)}">Abrir videollamada</button></div>`
+        ).join('');
+      }
+      const botonCurso = listaTableros.querySelector('[data-tablero-curso]');
+      if (botonCurso) {
+        botonCurso.addEventListener('click', () => {
+          const destino = `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&materia=0&modo=ver`;
+          window.open(destino, '_blank');
+        });
+      }
       listaTableros.querySelectorAll('[data-tablero]').forEach(boton => {
         boton.addEventListener('click', () => {
           const destino = `pizarron.html?grupo=${encodeURIComponent(matricula.grupo_id)}&materia=${encodeURIComponent(boton.dataset.tablero)}&modo=ver`;
@@ -461,6 +535,11 @@
           <div class="stat"><div class="stat-label">Año lectivo</div><div class="stat-value">${escapar(matricula?.anio_lectivo || '—')}</div></div>
           <div class="stat"><div class="stat-label">Director de curso</div><div class="stat-value">${escapar(info.director || 'Por asignar')}</div></div>
         </div>`;
+      const avance = document.getElementById('avanceMateria');
+      avance.hidden = !materia;
+      avance.innerHTML = materia
+        ? `<div class="average-card"><div><div class="section-title">Avance en ${escapar(materia.materia)}</div><div class="hint" id="avanceMateriaDetalle">Cargando calificaciones…</div></div><div class="average-number" id="avanceMateriaNota">—</div></div>`
+        : '';
     }
 
     function renderizarCompaneros() {
@@ -505,6 +584,7 @@
       }
       if (objetivo === 'asistencia' && !asistenciaCargada) iniciarAsistencia();
       if (objetivo === 'notas' && !notasCargadas) cargarNotas();
+      if (objetivo === 'info-curso' && materia && !notasCargadas) cargarNotas();
       if (objetivo === 'chat') montarChatCurso();
     }
     document.querySelectorAll('.tab').forEach((tab, indice, tabs) => {
@@ -563,14 +643,26 @@
       }
       cont.innerHTML = tareas.map(tarea => {
         const calificable = tarea.estado === 'calificada';
-        const hoy = new Date().toISOString().slice(0, 10);
-        const fechaLimite = String(tarea.fecha_limite || tarea.fecha_entrega || '').slice(0, 10);
+        const fechaLimiteValor = tarea.fecha_limite || tarea.fecha_entrega || '';
+        const fechaLimite = new Date(String(fechaLimiteValor).replace(' ', 'T'));
+        const vencida = !Number.isNaN(fechaLimite.getTime()) && Date.now() > fechaLimite.getTime();
         const recibeEntregas = tarea.recibir_entregas == null || Number(tarea.recibir_entregas) === 1;
         const permiteTardias = tarea.permitir_tardias == null || Number(tarea.permitir_tardias) === 1;
-        const recepcionCerrada = !recibeEntregas || (hoy > fechaLimite && !permiteTardias);
+        const recepcionCerrada = !recibeEntregas || (vencida && !permiteTardias);
         const noModificable = calificable || recepcionCerrada;
         const archivos = Array.isArray(tarea.archivos) ? tarea.archivos : [];
+        const material = tarea.material && tarea.material.id ? tarea.material : null;
         const idArg = escaparArg(tarea.id);
+        const materialHtml = material ? `<div class="file-list material-list">
+          <div class="hint">Material de la actividad</div>
+          <div class="file-row">
+            <span class="file-icon" aria-hidden="true">${iconoArchivo(material.nombre_original, material.mime_type)}</span>
+            <span class="file-name">${escapar(material.nombre_original || 'archivo')}</span>
+            ${formatoBytes(material.tamanio_bytes) ? `<span class="hint">${escapar(formatoBytes(material.tamanio_bytes))}</span>` : ''}
+            <button type="button" class="btn btn-ghost btn-sm" data-material-abrir="${escapar(tarea.id)}">Abrir</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-material-descargar="${escapar(tarea.id)}">⬇ Descargar</button>
+          </div>
+        </div>` : '';
         const archivosHtml = archivos.length ? `<div class="file-list"><div class="hint">Archivos de tu entrega (${archivos.length}/${MAX_ARCHIVOS}):</div>${archivos.map(archivo => `
           <div class="file-row">
             <button type="button" class="btn btn-ghost btn-sm" data-descargar="${escapar(tarea.id)}" data-archivo="${escapar(archivo.id)}">⬇ ${escapar(archivo.nombre_original)}</button>
@@ -589,11 +681,11 @@
           ? 'Recepción cerrada'
           : etiquetaEstado(tarea.estado, tarea.entrega_tarde);
         return `<article class="task-card" data-tarea-id="${escapar(tarea.id)}">
-          <div class="task-top"><div><div class="task-title">${escapar(tarea.titulo)}</div><div class="task-meta">${modoCurso && tarea.materia ? `${escapar(tarea.materia)} · ` : ''}Fecha límite: ${escapar(formatoFecha(tarea.fecha_limite || tarea.fecha_entrega))} · Valor máximo: ${escapar(tarea.valor_max)}</div></div><span class="badge ${escapar(recepcionCerrada && tarea.estado === 'pendiente' ? 'pendiente' : (tarea.estado || 'pendiente'))}">${escapar(estadoVisible)}</span></div>
+          <div class="task-top"><div><div class="task-title">${escapar(tarea.titulo)}</div><div class="task-meta">${modoCurso && tarea.materia ? `${escapar(tarea.materia)} · ` : ''}Peso: ${tarea.peso_pct == null ? 'Sin ponderación' : `${escapar(tarea.peso_pct)}%`} · Fecha límite: ${escapar(formatoFechaHora(fechaLimiteValor))} · Valor máximo: ${escapar(tarea.valor_max)}</div></div><span class="badge ${escapar(recepcionCerrada && tarea.estado === 'pendiente' ? 'pendiente' : (tarea.estado || 'pendiente'))}">${escapar(estadoVisible)}</span></div>
           ${tarea.descripcion ? `<div class="task-description">${escapar(tarea.descripcion)}</div>` : ''}
           ${tarea.nota != null ? `<div class="task-meta"><strong>Nota:</strong> ${escapar(tarea.nota)} / ${escapar(tarea.valor_max)}</div>` : ''}
           ${tarea.feedback_doc ? `<div class="feedback"><strong>Retroalimentación:</strong> ${escapar(tarea.feedback_doc)}</div>` : ''}
-          ${archivosHtml}${controles}
+          ${materialHtml}${archivosHtml}${controles}
         </article>`;
       }).join('');
       cont.querySelectorAll('input[type="file"]').forEach(input => input.addEventListener('change', () => {
@@ -608,6 +700,8 @@
       cont.querySelectorAll('[data-entregar]').forEach(button => button.addEventListener('click', () => entregar(button.dataset.entregar, button)));
       cont.querySelectorAll('[data-quitar]').forEach(button => button.addEventListener('click', () => quitarArchivo(button.dataset.quitar, button.dataset.archivo)));
       cont.querySelectorAll('[data-descargar]').forEach(button => button.addEventListener('click', () => descargarArchivo(button.dataset.descargar, button.dataset.archivo)));
+      cont.querySelectorAll('[data-material-abrir]').forEach(button => button.addEventListener('click', () => abrirMaterial(button.dataset.materialAbrir)));
+      cont.querySelectorAll('[data-material-descargar]').forEach(button => button.addEventListener('click', () => descargarMaterial(button.dataset.materialDescargar)));
       enfocarActividadSolicitada(cont);
     }
     function enfocarActividadSolicitada(contenedor) {
@@ -686,6 +780,39 @@
         const url = URL.createObjectURL(await response.blob());
         const link = document.createElement('a');
         link.href = url; link.download = archivo?.nombre_original || 'archivo';
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      } catch (err) { mostrarMensaje('mensajeActividades', err.message, 'error'); }
+    }
+    async function abrirMaterial(tareaId) {
+      const ventana = window.open('', '_blank');
+      try {
+        const response = await fetch(`${API}/api/tareas/${encodeURIComponent(tareaId)}/archivo?vista=1`, { headers });
+        if (!response.ok) {
+          let data = {};
+          try { data = await response.json(); } catch (err) {}
+          throw new Error(data.mensaje || 'No se pudo abrir el archivo.');
+        }
+        const url = URL.createObjectURL(await response.blob());
+        if (ventana) ventana.location.href = url;
+        else window.open(url, '_blank');
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        if (ventana) ventana.close();
+        mostrarMensaje('mensajeActividades', err.message, 'error');
+      }
+    }
+    async function descargarMaterial(tareaId) {
+      try {
+        const response = await fetch(`${API}/api/tareas/${encodeURIComponent(tareaId)}/archivo`, { headers });
+        if (!response.ok) {
+          let data = {};
+          try { data = await response.json(); } catch (err) {}
+          throw new Error(data.mensaje || 'No se pudo descargar el archivo.');
+        }
+        const material = tareas.find(item => String(item.id) === String(tareaId))?.material;
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url; link.download = material?.nombre_original || 'archivo';
         document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
       } catch (err) { mostrarMensaje('mensajeActividades', err.message, 'error'); }
     }
@@ -993,19 +1120,32 @@
       try {
         const resultados = await Promise.all(materiasNotas.map(async item => {
           const data = await pedir(`/api/notas/estudiante/${encodeURIComponent(usuario.id)}/materia/${encodeURIComponent(item.materia_id)}`);
-          return { materia: item.materia || 'Materia', notas: Array.isArray(data.notas) ? data.notas : [] };
+          return {
+            materia_id: item.materia_id,
+            materia: item.materia || 'Materia',
+            notas: Array.isArray(data.notas) ? data.notas : [],
+          };
         }));
         const resumenes = resultados.map(resultado => {
-          const pesoTotal = resultado.notas.reduce((suma, nota) => suma + Number(nota.peso_pct || 0), 0);
-          const ponderado = resultado.notas.reduce((suma, nota) => {
+          resultado.calificadas = resultado.notas.filter(nota =>
+            nota.valor != null && Number(nota.valor_max) > 0 && Number(nota.peso_pct) > 0
+          );
+          resultado.pesoEvaluado = resultado.calificadas.reduce((suma, nota) => suma + Number(nota.peso_pct), 0);
+          const ponderado = resultado.calificadas.reduce((suma, nota) => {
             const valorMax = Number(nota.valor_max);
-            if (nota.valor == null || valorMax <= 0) return suma;
-            return suma + (Number(nota.valor) / valorMax) * Number(nota.peso_pct || 0);
+            return suma + (Number(nota.valor) / valorMax) * Number(nota.peso_pct);
           }, 0);
-          const promedio = pesoTotal > 0 ? (ponderado / pesoTotal) * 10 : null;
-          return `<div class="average-card"><div><div class="section-title">${escapar(resultado.materia)}</div><div class="hint">${resultado.notas.length} ítem${resultado.notas.length === 1 ? '' : 's'} · ${pesoTotal.toFixed(1)}% del peso registrado</div></div><div class="average-number">${promedio == null ? '—' : promedio.toFixed(2)}</div></div>`;
+          resultado.promedio = resultado.pesoEvaluado > 0 ? (ponderado / resultado.pesoEvaluado) * 10 : null;
+          return `<div class="average-card"><div><div class="section-title">${escapar(resultado.materia)}</div><div class="hint">${resultado.calificadas.length} ítem${resultado.calificadas.length === 1 ? '' : 's'} calificado${resultado.calificadas.length === 1 ? '' : 's'} · ${resultado.pesoEvaluado.toFixed(1)}% de la nota evaluada</div></div><div class="average-number">${resultado.promedio == null ? '—' : resultado.promedio.toFixed(2)}</div></div>`;
         });
         document.getElementById('resumenNotas').innerHTML = resumenes.join('');
+        const avance = resultados.find(resultado => String(resultado.materia_id) === String(materiaId));
+        if (materia && avance) {
+          document.getElementById('avanceMateriaNota').textContent =
+            avance.promedio == null ? '—' : `${avance.promedio.toFixed(2)} / 10`;
+          document.getElementById('avanceMateriaDetalle').textContent =
+            `Nota acumulada ponderada con ${avance.calificadas.length} actividad(es) calificada(s). ${avance.pesoEvaluado.toFixed(1)}% de la nota total evaluado.`;
+        }
         const tablas = resultados.map(resultado => resultado.notas.length
           ? `<h3 class="section-title">${escapar(resultado.materia)}</h3><table class="grades-table"><thead><tr><th>Actividad</th><th>Fecha</th><th>Porcentaje</th><th>Nota</th><th>Observación</th></tr></thead><tbody>${resultado.notas.map(nota => `<tr><td>${escapar(nota.descripcion || nota.tipo_nota || 'Evaluación')}</td><td>${escapar(formatoFecha(nota.fecha_eval))}</td><td>${escapar(Number(nota.peso_pct || 0))}%</td><td>${nota.valor == null ? 'Pendiente' : `${escapar(nota.valor)} / ${escapar(nota.valor_max)}`}</td><td>${escapar(nota.observacion || '—')}</td></tr>`).join('')}</tbody></table>`
           : `<h3 class="section-title">${escapar(resultado.materia)}</h3><div class="empty">Aún no tienes notas registradas en esta materia.</div>`
@@ -1015,6 +1155,10 @@
       } catch (err) {
         mostrarMensaje('mensajeNotas', err.message, 'error');
         document.getElementById('tablaNotas').innerHTML = '<div class="empty">No se pudieron cargar las notas.</div>';
+        if (materia) {
+          document.getElementById('avanceMateriaNota').textContent = '—';
+          document.getElementById('avanceMateriaDetalle').textContent = 'No se pudieron cargar las calificaciones.';
+        }
       }
     }
 

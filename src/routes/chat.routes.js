@@ -81,6 +81,7 @@ router.get('/curso/:grupoId',            ctrlCurso.abrir);
 router.post('/curso/:grupoId/mensajes',  ctrlCurso.enviar);
 
 router.get('/:chatId/mensajes',   ctrl.mensajes);
+router.delete('/:chatId/mensajes/:mensajeId', ctrl.eliminarMensaje);
 router.get('/:chatId/adjuntos/:mensajeId', ctrl.descargarAdjunto);
 router.post('/:chatId/enviar',    recibirAdjunto, ctrl.enviar);
 router.post('/:chatId/bloquear',  ctrl.bloquear);

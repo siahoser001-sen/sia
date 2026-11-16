@@ -235,6 +235,7 @@
     var hora = String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0');
     var nodo = document.createElement('div');
     nodo.className = 'sia-chat-msg ' + (mio ? 'sia-mio' : 'sia-suyo');
+    nodo.setAttribute('data-mensaje-id', m.id);
 
     if (m.archivo_id) {
       var cabecera = document.createElement('div');
@@ -284,11 +285,124 @@
       nodo.appendChild(transcripcion);
     }
 
+    var pie = document.createElement('div');
+    pie.style.cssText = 'display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:3px;';
+
     var marcaTiempo = document.createElement('span');
     marcaTiempo.className = 'sia-chat-msg-hora';
     marcaTiempo.textContent = hora;
-    nodo.appendChild(marcaTiempo);
+    marcaTiempo.style.marginTop = '0';
+    pie.appendChild(marcaTiempo);
+
+    var menuBtn = document.createElement('button');
+    menuBtn.type = 'button';
+    menuBtn.className = 'sia-chat-msg-menu-btn';
+    menuBtn.textContent = '⋯';
+    menuBtn.title = 'Opciones del mensaje';
+    menuBtn.setAttribute('aria-label', 'Opciones del mensaje');
+    menuBtn.style.cssText = 'border:0;background:transparent;color:inherit;cursor:pointer;font-size:1rem;line-height:1;padding:0 2px;opacity:.75;';
+    menuBtn.addEventListener('click', function (evento) {
+      evento.stopPropagation();
+      abrirMenuMensaje(m, mio, menuBtn);
+    });
+    pie.appendChild(menuBtn);
+    nodo.appendChild(pie);
     return nodo;
+  }
+
+  var menuMensajeAbierto = null;
+
+  function cerrarMenuAlClicFuera(evento) {
+    var menu = $('siaChatMenuMensaje');
+    if (evento.target.closest && evento.target.closest('.sia-chat-msg-menu-btn')) return;
+    if (menu && !menu.contains(evento.target)) cerrarMenuMensaje();
+  }
+
+  function cerrarMenuAlEscape(evento) {
+    if (evento.key === 'Escape') cerrarMenuMensaje();
+  }
+
+  function cerrarMenuMensaje() {
+    var menu = $('siaChatMenuMensaje');
+    if (menu) {
+      menu.style.display = 'none';
+      menu.innerHTML = '';
+    }
+    menuMensajeAbierto = null;
+    document.removeEventListener('click', cerrarMenuAlClicFuera, true);
+    document.removeEventListener('keydown', cerrarMenuAlEscape, true);
+  }
+
+  function abrirMenuMensaje(mensaje, mio, boton) {
+    var menu = $('siaChatMenuMensaje');
+    if (!menu) return;
+    var yaAbierto = menuMensajeAbierto === mensaje.id && menu.style.display !== 'none';
+    cerrarMenuMensaje();
+    if (yaAbierto) return;
+
+    var opcion = document.createElement('button');
+    opcion.type = 'button';
+    opcion.setAttribute('role', 'menuitem');
+    opcion.textContent = 'Eliminar mensaje';
+    opcion.style.cssText = 'display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#fecaca;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;';
+    opcion.addEventListener('mouseenter', function () { opcion.style.background = 'rgba(239,68,68,0.18)'; });
+    opcion.addEventListener('mouseleave', function () { opcion.style.background = 'transparent'; });
+    opcion.addEventListener('click', function () {
+      cerrarMenuMensaje();
+      eliminarMensaje(mensaje, mio);
+    });
+    menu.appendChild(opcion);
+    menu.style.display = 'block';
+    menuMensajeAbierto = mensaje.id;
+
+    var rect = boton.getBoundingClientRect();
+    var ancho = menu.offsetWidth || 168;
+    var alto = menu.offsetHeight || 40;
+    var izquierda = Math.min(Math.max(8, rect.right - ancho), window.innerWidth - ancho - 8);
+    var arriba = rect.bottom + 4;
+    if (arriba + alto > window.innerHeight - 8) arriba = Math.max(8, rect.top - alto - 4);
+    menu.style.left = izquierda + 'px';
+    menu.style.top = arriba + 'px';
+
+    setTimeout(function () {
+      if (!menuMensajeAbierto) return;
+      document.addEventListener('click', cerrarMenuAlClicFuera, true);
+      document.addEventListener('keydown', cerrarMenuAlEscape, true);
+    }, 0);
+  }
+
+  function quitarMensaje(mensajeId) {
+    var cont = $('siaChatMensajes');
+    if (!cont) return;
+    cont.querySelectorAll('.sia-chat-msg[data-mensaje-id]').forEach(function (nodo) {
+      if (nodo.getAttribute('data-mensaje-id') === mensajeId) nodo.remove();
+    });
+    if (!cont.querySelector('.sia-chat-msg')) {
+      cont.innerHTML = '<div class="sia-chat-vacio">No hay mensajes.</div>';
+    }
+  }
+
+  async function eliminarMensaje(mensaje, mio) {
+    if (!estado.activaId) return;
+    var pregunta = mio
+      ? '¿Eliminar este mensaje para todos? También se borrarán sus adjuntos.'
+      : '¿Ocultar este mensaje solo para ti?';
+    if (!confirm(pregunta)) return;
+    try {
+      var res = await fetch(API + '/api/chat/' + estado.activaId + '/mensajes/' + encodeURIComponent(mensaje.id), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token() },
+      });
+      var data = await res.json();
+      if (!data.ok) {
+        alert(data.mensaje || 'No se pudo eliminar el mensaje.');
+        return;
+      }
+      quitarMensaje(mensaje.id);
+      cargarConversaciones();
+    } catch (e) {
+      alert('Error de conexión.');
+    }
   }
 
   function limpiarAdjuntoPendiente() {
@@ -793,6 +907,16 @@ function mensajeVacio() {
         }
       });
       estado.socket.on('chat:leido', function () { cargarConversaciones(); });
+      estado.socket.on('chat:mensaje-eliminado', function (payload) {
+        if (payload && payload.mensaje_id) quitarMensaje(payload.mensaje_id);
+        cargarConversaciones();
+      });
+      estado.socket.on('chat:mensaje-oculto', function (payload) {
+        if (payload && payload.mensaje_id && payload.chat_id === estado.activaId) {
+          quitarMensaje(payload.mensaje_id);
+        }
+        cargarConversaciones();
+      });
     } catch (e) { /* socket no disponible */ }
   }
 

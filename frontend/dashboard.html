@@ -356,7 +356,7 @@ var miniFondos = '';
       --text-3: rgba(255,255,255,0.42);
 
       --font-d: 'Nunito', sans-serif;
-      --font-b: 'Inter', sans-serif;
+      --font-b: system-ui, sans-serif;
 
       --r-sm: 8px;
       --r-md: 14px;
@@ -564,33 +564,8 @@ var miniFondos = '';
 </head>
 <body>
 
+<script src="sia-ui.js"></script>
 <div class="sia-fondo" id="siaFondo"></div>
-
-<aside class="sidebar">
-  <div class="sidebar-logo">
-<img src="static/logo/SIA_LOGO.svg?v=2" id="logoInstImg" alt="SIA"
-         onerror="this.style.display='none'; document.getElementById('logoFb').style.display='flex'" />
-    <div class="logo-fallback" id="logoFb" style="display:none">S</div>
-    <input type="file" id="inputLogoInst" accept="image/jpeg,image/png,image/webp" style="display:none">
-    <div class="logo-txt">
-      <div class="sigla">SIA</div>
-      <div class="rol" id="sidebarRolTxt">—</div>
-    </div>
-  </div>
-  <div class="sidebar-inst" id="sidebarInst">Mi institución</div>
-
-  <nav class="sidebar-nav" id="sidebarNav">
-    <div class="nav-section">Principal</div>
-  </nav>
-
-  <div class="sidebar-profile" id="btnPerfil">
-    <div class="avatar-sm" id="sidebarAvatar">A</div>
-    <div class="profile-info">
-      <div class="profile-name" id="perfilNombre">—</div>
-      <div class="profile-role">Ver perfil</div>
-    </div>
-  </div>
-</aside>
 
 <main class="main">
   <div class="glass topbar ani">
@@ -750,38 +725,11 @@ var miniFondos = '';
   document.getElementById('nombreUsuario').textContent = usuario.nombres || '—';
   document.getElementById('perfilNombre').textContent  = usuario.nombres || 'Usuario';
   document.getElementById('sidebarAvatar').textContent = (usuario.nombres || 'A').charAt(0).toUpperCase();
-  document.getElementById('sidebarRolTxt').textContent = usuario.rol || '—';
+  document.getElementById('sidebarRol').textContent = usuario.rol || '—';
   if (usuario.institucion_nombre) {
     document.getElementById('sidebarInst').textContent = usuario.institucion_nombre;
     document.getElementById('instUsuario').textContent = usuario.institucion_nombre;
   }
-
-  const navPorRol = {
-    superadmin: [ { icon:'🏫', label:'Instituciones', href:'panel-superadmin.html' } ],
-    admin: [
-      { icon:'👨‍🏫', label:'Docentes',        href:'panel-admin.html' },
-      { icon:'🎓',   label:'Gestión académica', href:'academico.html' },
-      { icon:'📢',   label:'Comunicados',       href:'comunicados.html' },
-      { icon:'📅',   label:'Calendario',        href:'calendario.html' },
-    ],
-    docente: [
-      { icon:'📝', label:'Mis clases',   href:'mis-clases.html' },
-      { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
-      { icon:'📅', label:'Calendario',   href:'calendario.html' },
-    ],
-    estudiante: [
-      { icon:'📖', label:'Mis materias', href:'mis-materias.html' },
-      { icon:'📂', label:'Tareas',       href:'#cardMisTareas' },
-      { icon:'📅', label:'Asistencia',   href:'materia-estudiante.html?tab=asistencia' },
-      { icon:'📢', label:'Comunicados',  href:'comunicados.html' },
-      { icon:'📅', label:'Calendario',   href:'calendario.html' },
-    ],
-acudiente: [
-      { icon:'👦', label:'Mi acudido',  href:'reporte-estudiante.html' },
-      { icon:'📢', label:'Comunicados', href:'comunicados.html' },
-      { icon:'📅', label:'Calendario',  href:'calendario.html' },
-    ],
-  };
 
   const accesosPorRol = {
     superadmin: [
@@ -795,7 +743,7 @@ acudiente: [
     ],
     docente: [
       { icon:'📝', nombre:'Mis clases',  desc:'Notas y asistencia',  href:'mis-clases.html' },
-      { icon:'📂', nombre:'Tareas',      desc:'Asignar actividades', href:'#' },
+      { icon:'📂', nombre:'Tareas',      desc:'Asignar actividades', href:'mis-clases.html' },
       { icon:'📢', nombre:'Comunicados', desc:'Avisos del colegio',  href:'comunicados.html' },
       { icon:'📅', nombre:'Calendario',  desc:'Eventos de tus cursos', href:'calendario.html' },
     ],
@@ -814,20 +762,6 @@ acudiente: [
   };
 
   const rol = usuario.rol || 'estudiante';
-
-  const nav = document.getElementById('sidebarNav');
-  (navPorRol[rol] || []).forEach(item => {
-    const a = document.createElement('a');
-    a.className = 'nav-item';
-    a.href = item.href;
-    a.innerHTML = `<span style="width:16px;text-align:center">${item.icon}</span><span>${item.label}</span>`;
-    nav.appendChild(a);
-  });
-  const navDash = document.createElement('a');
-  navDash.className = 'nav-item activo';
-  navDash.href = 'dashboard.html';
-  navDash.innerHTML = `<span style="width:16px;text-align:center">📊</span><span>Dashboard</span>`;
-  nav.appendChild(navDash);
 
   const accesosEl = document.getElementById('accesos');
   (accesosPorRol[rol] || []).forEach(item => {

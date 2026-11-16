@@ -57,12 +57,12 @@
   <body>
     <div class="app-shell">
       <header class="toolbar">
-        <div class="tool-group" id="toolControls">
+        <div class="tool-group" id="toolControls" hidden>
           <button class="tool-btn active" data-tool="pen">Lápiz</button>
           <button class="tool-btn" data-tool="eraser">Borrador</button>
           <button class="tool-btn" data-tool="text">Texto</button>
         </div>
-        <div class="tool-group" id="styleControls">
+        <div class="tool-group" id="styleControls" hidden>
           <label class="color-field">
             Color
             <input type="color" id="colorPicker" value="#1f2937" />
@@ -72,7 +72,7 @@
             <input type="range" id="lineWidth" min="1" max="20" value="4" />
           </label>
         </div>
-        <div class="tool-group" id="clearControls">
+        <div class="tool-group" id="clearControls" hidden>
           <button id="clearBoard" type="button">Borrar tablero</button>
         </div>
         <div class="tool-group text-format-controls" id="textFormatControls" hidden>
@@ -111,21 +111,5 @@
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="static/js/pizarron.js"></script>
-    <script>
-      // TEMPORAL (diagnóstico): verifica el rol y el modo real del pizarrón.
-      function registrarDiagnosticoPizarron() {
-        console.log({
-          rol: obtenerUsuario().rol,
-          grupo: grupoId,
-          materia: materiaId,
-          modoEdicion: puedeDibujar,
-        });
-      }
-      if (socket) {
-        socket.on("pizarron:carga", registrarDiagnosticoPizarron);
-        socket.on("error-autorizacion", registrarDiagnosticoPizarron);
-      }
-      window.addEventListener("load", () => setTimeout(registrarDiagnosticoPizarron, 1000));
-    </script>
   </body>
 </html>

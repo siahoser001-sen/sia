@@ -30,6 +30,15 @@ const {
 const {
   archivosPorEstudianteGrupo,
   archivosPorTarea,
+  normalizarFechaHora,
+  fechaLimitePasada,
+  soloFecha,
+  hoyISO,
+  obtenerPeriodo,
+  periodoAbierto,
+  estudianteMatriculado,
+  puedeVerEntregas,
+  limpiarArchivosTemporales,
 } = require('../utils/tareas-entrega.util');
 
 const RAIZ_ENTREGAS = path.resolve(__dirname, '../../storage_privado/entregas-tareas');
@@ -71,16 +80,89 @@ function _valorBooleano(valor, predeterminado) {
   return valor === true || valor === 1 || valor === '1' || valor === 'true';
 }
 
-function _limpiarArchivoTemporal(file) {
-  if (!file?.path) return;
-  fs.promises.unlink(file.path).catch(err => {
-    if (err.code !== 'ENOENT') console.error('No se pudo limpiar el archivo temporal de actividad:', err.message);
-  });
-}
-
 async function _puedeGestionar(req, materia, grupoId = null) {
   return _puedeVerTareas(req, materia, grupoId);
 }
+
+async function emitirActualizacionPlanMateria(io, materiaId, grupoId, datos = {}) {
+  if (!io || !materiaId || !grupoId) return;
+  const [asignaciones] = await pool.query(
+    `SELECT id FROM docentes_materias WHERE materia_id = ? AND grupo_id = ?`,
+    [materiaId, grupoId]
+  );
+  for (const asignacion of asignaciones) {
+    io.to(`materia:${asignacion.id}`).emit('plan-evaluacion:update', {
+      materia_id: materiaId,
+      grupo_id: grupoId,
+      ...datos,
+    });
+  }
+}
+
+async function eliminarActividadEnTransaccion(conn, planItemId) {
+  const [tareas] = await conn.query(
+    `SELECT id, archivo_id FROM tareas WHERE plan_item_id = ? FOR UPDATE`,
+    [planItemId]
+  );
+  const tarea = tareas[0] || null;
+  const archivoIds = new Set(tarea?.archivo_id ? [tarea.archivo_id] : []);
+  if (tarea) {
+    const [entregas] = await conn.query(
+      `SELECT archivo_id FROM entregas_tareas
+       WHERE tarea_id = ? AND archivo_id IS NOT NULL FOR UPDATE`,
+      [tarea.id]
+    );
+    const [archivosEntrega] = await conn.query(
+      `SELECT ea.archivo_id
+       FROM entregas_archivos ea
+       JOIN entregas_tareas e ON e.id = ea.entrega_id
+       WHERE e.tarea_id = ? FOR UPDATE`,
+      [tarea.id]
+    );
+    for (const entrega of entregas) archivoIds.add(entrega.archivo_id);
+    for (const archivo of archivosEntrega) archivoIds.add(archivo.archivo_id);
+  }
+
+  const ids = [...archivoIds];
+  let archivos = [];
+  if (ids.length) {
+    [archivos] = await conn.query(
+      `SELECT id, ruta_storage FROM archivos WHERE id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+  }
+  await conn.query(`DELETE FROM notas WHERE plan_item_id = ?`, [planItemId]);
+  await conn.query(`DELETE FROM tareas WHERE plan_item_id = ?`, [planItemId]);
+  if (ids.length) {
+    await conn.query(
+      `DELETE FROM archivos WHERE id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+  }
+  await conn.query(`DELETE FROM plan_evaluacion_items WHERE id = ?`, [planItemId]);
+  return archivos.map(archivo => archivo.ruta_storage).filter(Boolean);
+}
+
+async function limpiarArchivosBorrados(rutas) {
+  for (const rutaStorage of rutas) {
+    const ruta = path.resolve(__dirname, '../..', rutaStorage);
+    if (!ruta.startsWith(`${RAIZ_ENTREGAS}${path.sep}`)) {
+      throw new Error('La ruta de un archivo asociado está fuera del almacenamiento de entregas.');
+    }
+    try {
+      await fs.promises.unlink(ruta);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        console.error('No se pudo borrar un archivo de actividad:', err.message);
+        throw new Error('No se pudieron eliminar todos los archivos asociados a la actividad.');
+      }
+    }
+  }
+}
+
+exports.emitirActualizacionPlanMateria = emitirActualizacionPlanMateria;
+exports.eliminarActividadEnTransaccion = eliminarActividadEnTransaccion;
+exports.limpiarArchivosBorrados = limpiarArchivosBorrados;
 
 // Verifica que la materia exista y pertenezca a la institución del
 // usuario (o que sea superadmin).
@@ -102,32 +184,14 @@ async function _resolverPeriodoId(periodoIdRecibido, institucionId) {
 }
 
 // ── Ciclo lectivo / límites (D6) ─────────────────────────────
-// Normaliza un DATE de MySQL (Date o string) a 'YYYY-MM-DD'.
-function _soloFecha(valor) {
-  if (!valor) return null;
-  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
-  return String(valor).slice(0, 10);
-}
-function _hoyISO() { return new Date().toISOString().slice(0, 10); }
-
-// Periodo con sus fechas (para saber si está abierto).
-async function _obtenerPeriodo(periodoId) {
-  const [rows] = await pool.query(
-    `SELECT id, nombre, anio_lectivo, fecha_inicio, fecha_fin
-     FROM periodos_academicos WHERE id = ? LIMIT 1`,
-    [periodoId]
-  );
-  return rows.length ? rows[0] : null;
-}
-function _periodoAbierto(periodo, hoyISO) {
-  if (!periodo) return false;
-  return hoyISO >= _soloFecha(periodo.fecha_inicio) && hoyISO <= _soloFecha(periodo.fecha_fin);
-}
+// Las reglas de fecha/periodo viven en tareas-entrega.util.js
+// (soloFecha, hoyISO, obtenerPeriodo, periodoAbierto) para no
+// duplicarlas entre los controladores de tareas.
 
 // Publica automáticamente los borradores cuyo periodo ya abrió y avisa a
 // los estudiantes del curso (mismo mensaje que al asignar una tarea).
 async function _promoverBorradores(institucionId) {
-  const hoy = _hoyISO();
+  const hoy = hoyISO();
   const [rows] = await pool.query(
     `SELECT t.id, t.titulo, t.grupo_id, t.fecha_entrega
      FROM tareas t
@@ -155,7 +219,7 @@ async function _promoverBorradores(institucionId) {
       [t.grupo_id]
     );
     if (!dest.length) continue;
-    const fechaTxt = new Date(_soloFecha(t.fecha_entrega) + 'T00:00:00').toLocaleDateString('es-CO');
+    const fechaTxt = new Date(soloFecha(t.fecha_entrega) + 'T00:00:00').toLocaleDateString('es-CO');
     await crearNotificacionLote({
       destinatarios: dest.map(d => d.id),
       tipo: 'tarea_asignada',
@@ -194,7 +258,8 @@ exports.listarPorMateria = async (req, res) => {
     }
 
     const [tareas] = await pool.query(
-      `SELECT t.id, t.plan_item_id, t.titulo, t.descripcion, t.fecha_asig, t.fecha_entrega,
+      `SELECT t.id, t.plan_item_id, t.titulo, t.descripcion, t.fecha_asig,
+              DATE_FORMAT(t.fecha_entrega, '%Y-%m-%d %H:%i:%s') AS fecha_entrega,
               t.valor_max, t.estado, t.permitir_tardias, t.recibir_entregas,
               t.archivo_id, a.nombre_original AS archivo_nombre,
               pi.peso_pct,
@@ -227,8 +292,13 @@ exports.crear = async (req, res) => {
   const grupo_body = req.body.grupo_id || null;
   let { periodo_id } = req.body;
   if (!materia_id || !titulo || !fecha_entrega || !plan_item_id) {
-    _limpiarArchivoTemporal(req.file);
+    await limpiarArchivosTemporales(req.file);
     return res.status(400).json({ ok: false, mensaje: 'Crea la tarea desde una actividad del plan con porcentaje asignado.' });
+  }
+  const fechaEntrega = normalizarFechaHora(fecha_entrega);
+  if (!fechaEntrega) {
+    await limpiarArchivosTemporales(req.file);
+    return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no son válidas.' });
   }
 
   let conn;
@@ -237,8 +307,8 @@ exports.crear = async (req, res) => {
     const materia = await _materiaDeLaInstitucion(req, materia_id);
     if (!materia) return res.status(404).json({ ok: false, mensaje: 'Materia no encontrada.' });
 
-    if (_soloFecha(fecha_entrega) < _hoyISO()) {
-      return res.status(400).json({ ok: false, mensaje: 'La fecha de entrega no puede ser anterior a hoy.' });
+    if (fechaLimitePasada(fechaEntrega)) {
+      return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no pueden estar en el pasado.' });
     }
 
     periodo_id = await _resolverPeriodoId(periodo_id, materia.institucion_id);
@@ -294,12 +364,12 @@ exports.crear = async (req, res) => {
       }
     }
 
-    const periodo = await _obtenerPeriodo(periodo_id);
+    const periodo = await obtenerPeriodo(periodo_id);
     if (!periodo) {
       return res.status(404).json({ ok: false, mensaje: 'Periodo académico no encontrado.' });
     }
     // Si el periodo no está abierto HOY, la tarea queda como borrador (D6).
-    const abierta = _periodoAbierto(periodo, _hoyISO());
+    const abierta = periodoAbierto(periodo, hoyISO());
     const estado  = abierta ? 'publicada' : 'borrador';
     const tituloActividad = planItem ? planItem.nombre : titulo.trim();
 
@@ -315,7 +385,7 @@ exports.crear = async (req, res) => {
         id, req.usuario.id, materia_id, grupoId, periodo_id, plan_item_id || null,
         tituloActividad, descripcion || null,
         valor_max != null ? Number(valor_max) : 10.0,
-        fecha_entrega, estado,
+        fechaEntrega, estado,
         _valorBooleano(permitir_tardias, true),
         _valorBooleano(recibir_entregas, true),
       ]
@@ -338,6 +408,7 @@ exports.crear = async (req, res) => {
     }
     await conn.commit();
     archivoGuardado = Boolean(req.file);
+    await emitirActualizacionPlanMateria(req.app.get('io'), materia_id, grupoId, { tarea_id: id });
 
     // Solo se avisa (y se muestra al estudiante) si la tarea nace publicada.
     if (abierta) {
@@ -351,7 +422,7 @@ exports.crear = async (req, res) => {
         `SELECT nombre FROM instituciones WHERE id = ? LIMIT 1`,
         [materia.institucion_id]
       );
-      const fechaEntregaTxt = new Date(fecha_entrega + 'T00:00:00').toLocaleDateString('es-CO');
+      const fechaEntregaTxt = new Date(`${fechaEntrega.slice(0, 10)}T00:00:00`).toLocaleDateString('es-CO');
       await crearNotificacionLote({
         destinatarios: destinatarios.map(r => r.id),
         tipo:          'tarea_asignada',
@@ -394,7 +465,7 @@ exports.crear = async (req, res) => {
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
   } finally {
     if (conn) conn.release();
-    if (req.file && !archivoGuardado) _limpiarArchivoTemporal(req.file);
+    if (req.file && !archivoGuardado) await limpiarArchivosTemporales(req.file);
   }
 };
 
@@ -414,8 +485,12 @@ exports.actualizar = async (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para editar esta tarea.' });
     }
 
-    if (fecha_entrega !== undefined && _soloFecha(fecha_entrega) < _hoyISO()) {
-      return res.status(400).json({ ok: false, mensaje: 'La fecha de entrega no puede ser anterior a hoy.' });
+    const fechaEntrega = fecha_entrega === undefined ? undefined : normalizarFechaHora(fecha_entrega);
+    if (fecha_entrega !== undefined && !fechaEntrega) {
+      return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no son válidas.' });
+    }
+    if (fechaEntrega && fechaLimitePasada(fechaEntrega)) {
+      return res.status(400).json({ ok: false, mensaje: 'La fecha y hora límite no pueden estar en el pasado.' });
     }
 
     await pool.query(
@@ -430,13 +505,14 @@ exports.actualizar = async (req, res) => {
       [
         titulo !== undefined ? titulo.trim() : null,
         descripcion !== undefined ? descripcion : null,
-        fecha_entrega || null,
+        fechaEntrega || null,
         valor_max !== undefined ? Number(valor_max) : null,
         permitir_tardias !== undefined ? _valorBooleano(permitir_tardias, true) : null,
         recibir_entregas !== undefined ? _valorBooleano(recibir_entregas, true) : null,
         id,
       ]
     );
+    await emitirActualizacionPlanMateria(req.app.get('io'), materia.id, tarea.grupo_id, { tarea_id: id });
     return res.json({ ok: true, mensaje: 'Tarea actualizada.' });
   } catch (err) {
     console.error('actualizar tareas:', err.message);
@@ -467,7 +543,7 @@ exports.eliminar = async (req, res) => {
       await pool.query(`DELETE FROM archivos WHERE id = ?`, [tarea.archivo_id]);
       if (archivo?.ruta_storage) {
         const ruta = path.resolve(__dirname, '../..', archivo.ruta_storage);
-        if (ruta.startsWith(`${RAIZ_ENTREGAS}${path.sep}`)) _limpiarArchivoTemporal({ path: ruta });
+        if (ruta.startsWith(`${RAIZ_ENTREGAS}${path.sep}`)) await limpiarArchivosTemporales({ path: ruta });
       }
     }
     return res.json({ ok: true, mensaje: 'Tarea eliminada.' });
@@ -499,6 +575,8 @@ exports.publicar = async (req, res) => {
     }
 
     await pool.query(`UPDATE tareas SET estado = 'publicada' WHERE id = ?`, [id]);
+    const io = req.app.get('io');
+    await emitirActualizacionPlanMateria(io, tarea.materia_id, tarea.grupo_id, { tarea_id: id });
 
     const [destinatarios] = await pool.query(
       `SELECT estudiante_id AS id FROM matriculas WHERE grupo_id = ? AND estado = 'activa'`,
@@ -508,7 +586,7 @@ exports.publicar = async (req, res) => {
       `SELECT nombre FROM instituciones WHERE id = ? LIMIT 1`,
       [materia.institucion_id]
     );
-    const fechaEntregaTxt = new Date(_soloFecha(tarea.fecha_entrega) + 'T00:00:00').toLocaleDateString('es-CO');
+    const fechaEntregaTxt = new Date(soloFecha(tarea.fecha_entrega) + 'T00:00:00').toLocaleDateString('es-CO');
     await crearNotificacionLote({
       destinatarios: destinatarios.map(r => r.id),
       tipo:          'tarea_asignada',
@@ -519,7 +597,6 @@ exports.publicar = async (req, res) => {
       institucion_nombre: instRows[0]?.nombre || null,
     });
 
-    const io = req.app.get('io');
     if (io) for (const est of destinatarios) io.to(`usuario:${est.id}`).emit('tareas:update', { tarea_id: id });
 
     // Chat del curso (Ronda F, F5): el sistema avisa que la actividad se publicó.
@@ -564,9 +641,17 @@ exports.listarPorEstudiante = async (req, res) => {
 
     const [tareas] = await pool.query(
       `SELECT t.id, t.materia_id, m.nombre AS materia, t.titulo, t.descripcion,
-              t.fecha_asig, t.fecha_entrega, t.fecha_entrega AS fecha_limite,
+              t.fecha_asig,
+              DATE_FORMAT(t.fecha_entrega, '%Y-%m-%d %H:%i:%s') AS fecha_entrega,
+              DATE_FORMAT(t.fecha_entrega, '%Y-%m-%d %H:%i:%s') AS fecha_limite,
+              pi.peso_pct,
               t.valor_max, t.estado AS tarea_estado,
               t.permitir_tardias, t.recibir_entregas,
+              t.archivo_id AS material_id,
+              a.nombre_original AS material_nombre,
+              a.mime_type AS material_mime,
+              a.tamanio_bytes AS material_tamanio,
+              a.created_at AS material_creado,
               e.id AS entrega_id, COALESCE(e.estado, 'pendiente') AS estado,
               COALESCE(e.entrega_tarde, FALSE) AS entrega_tarde,
               e.calificacion, e.calificacion AS nota,
@@ -574,6 +659,8 @@ exports.listarPorEstudiante = async (req, res) => {
               e.comentario, e.fecha_entrega AS fec_entrega
        FROM tareas t
        JOIN materias m ON m.id = t.materia_id
+       LEFT JOIN plan_evaluacion_items pi ON pi.id = t.plan_item_id
+       LEFT JOIN archivos a ON a.id = t.archivo_id
        LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = ?
        WHERE t.grupo_id = ? AND t.estado = 'publicada' ${filtroMateria}
        ORDER BY t.fecha_entrega ASC, t.created_at ASC`,
@@ -583,6 +670,24 @@ exports.listarPorEstudiante = async (req, res) => {
     const archivosPorTareaMap = await archivosPorEstudianteGrupo(estudianteId, grupoId);
     for (const tarea of tareas) {
       tarea.archivos = archivosPorTareaMap[tarea.id] || [];
+      // Material que subió el docente a la actividad (tareas.archivo_id).
+      // console.log temporal: verificar cuántos archivos del profesor devuelve por actividad.
+      console.log('[DEBUG listarPorEstudiante] tarea_id=%s material=%s archivos_entrega=%s', tarea.id, tarea.material_id ? 'si' : 'no', Array.isArray(tarea.archivos) ? tarea.archivos.length : 0);
+      tarea.material = tarea.material_id
+        ? {
+            id: tarea.material_id,
+            nombre_original: tarea.material_nombre,
+            mime_type: tarea.material_mime,
+            tamanio_bytes: tarea.material_tamanio,
+            creado_en: tarea.material_creado,
+            url: `/api/tareas/${tarea.id}/archivo`,
+          }
+        : null;
+      delete tarea.material_id;
+      delete tarea.material_nombre;
+      delete tarea.material_mime;
+      delete tarea.material_tamanio;
+      delete tarea.material_creado;
     }
 
     return res.json({ ok: true, tareas });
@@ -592,12 +697,16 @@ exports.listarPorEstudiante = async (req, res) => {
   }
 };
 
-// GET /api/tareas/:id/archivo — descarga autenticada del material docente.
+// GET /api/tareas/:id/archivo[?vista=1]
+// Material que subió el docente a la actividad. Sin `vista` se
+// descarga; con `vista=1` se abre en el navegador. Lo puede ver el
+// estudiante matriculado activo en el curso de esa materia, el
+// docente asignado/director y admin/superadmin de la institución.
 exports.descargarArchivoActividad = async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await pool.query(
-      `SELECT t.materia_id, t.grupo_id, t.estado, ar.nombre_original, ar.ruta_storage
+      `SELECT t.materia_id, t.grupo_id, t.estado, ar.nombre_original, ar.ruta_storage, ar.mime_type
        FROM tareas t
        JOIN archivos ar ON ar.id = t.archivo_id
        WHERE t.id = ? LIMIT 1`,
@@ -609,18 +718,11 @@ exports.descargarArchivoActividad = async (req, res) => {
       if (tarea.estado !== 'publicada') {
         return res.status(404).json({ ok: false, mensaje: 'Archivo de actividad no encontrado.' });
       }
-      const [matriculas] = await pool.query(
-        `SELECT 1 FROM matriculas WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'activa' LIMIT 1`,
-        [req.usuario.id, tarea.grupo_id]
-      );
-      if (!matriculas.length) {
-        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para descargar este archivo.' });
+      if (!(await estudianteMatriculado(req.usuario.id, tarea.grupo_id))) {
+        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver este archivo.' });
       }
-    } else {
-      const materia = await _materiaDeLaInstitucion(req, tarea.materia_id);
-      if (!materia || !(await _puedeVerTareas(req, materia, tarea.grupo_id))) {
-        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para descargar este archivo.' });
-      }
+    } else if (!(await puedeVerEntregas(req.usuario, { materia_id: tarea.materia_id, grupo_id: tarea.grupo_id }))) {
+      return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para ver este archivo.' });
     }
 
     const ruta = path.resolve(__dirname, '../..', tarea.ruta_storage);
@@ -628,17 +730,27 @@ exports.descargarArchivoActividad = async (req, res) => {
       console.error('Ruta del material de actividad fuera de su carpeta.');
       return res.status(500).json({ ok: false, mensaje: 'No se pudo abrir el archivo.' });
     }
-    return res.download(ruta, tarea.nombre_original, err => {
-      if (err) {
-        console.error('descargar archivo de actividad:', err.message);
-        if (!res.headersSent) {
-          res.status(err.code === 'ENOENT' ? 404 : 500).json({
-            ok: false,
-            mensaje: err.code === 'ENOENT' ? 'Archivo no encontrado.' : 'No se pudo abrir el archivo.',
-          });
-        }
+    const alFallar = err => {
+      if (!err) return;
+      console.error('descargar archivo de actividad:', err.message);
+      if (!res.headersSent) {
+        res.status(err.code === 'ENOENT' ? 404 : 500).json({
+          ok: false,
+          mensaje: err.code === 'ENOENT' ? 'Archivo no encontrado.' : 'No se pudo abrir el archivo.',
+        });
       }
-    });
+    };
+
+    const vista = ['1', 'true', 'inline', 'vista'].includes(String(req.query.vista || '').toLowerCase());
+    if (vista) {
+      res.setHeader('Content-Type', tarea.mime_type || 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename*=UTF-8''${encodeURIComponent(tarea.nombre_original || 'archivo')}`
+      );
+      return res.sendFile(ruta, alFallar);
+    }
+    return res.download(ruta, tarea.nombre_original, alFallar);
   } catch (err) {
     console.error('descargarArchivoActividad tareas:', err.message);
     return res.status(500).json({ ok: false, mensaje: 'Error interno.' });
@@ -668,21 +780,20 @@ exports.entregar = async (req, res) => {
     }
 
     // D6: no se entrega si la tarea aún no está publicada o si el periodo cerró.
-    const periodo = await _obtenerPeriodo(tarea.periodo_id);
-    const hoy = _hoyISO();
-    const abierto = _periodoAbierto(periodo, hoy);
+    const periodo = await obtenerPeriodo(tarea.periodo_id);
+    const hoy = hoyISO();
+    const abierto = periodoAbierto(periodo, hoy);
     if (tarea.estado !== 'publicada' && !abierto) {
       return res.status(409).json({ ok: false, mensaje: 'Esta tarea todavía no está publicada.' });
     }
-    const fechaLimite = _soloFecha(tarea.fecha_entrega);
-    const tardia = hoy > fechaLimite;
+    const tardia = fechaLimitePasada(tarea.fecha_entrega);
     if (!tarea.recibir_entregas) {
       return res.status(409).json({ ok: false, mensaje: 'El docente cerró la recepción de entregas para esta actividad.' });
     }
     if (tardia && !tarea.permitir_tardias) {
       return res.status(409).json({ ok: false, mensaje: 'La fecha límite ya pasó y esta actividad no admite entregas tardías.' });
     }
-    const finPeriodo = periodo ? _soloFecha(periodo.fecha_fin) : null;
+    const finPeriodo = periodo ? soloFecha(periodo.fecha_fin) : null;
     if (finPeriodo && hoy > finPeriodo && !tardia) {
       return res.status(409).json({ ok: false, mensaje: 'El periodo de esta tarea ya cerró; no se pueden registrar entregas.' });
     }
@@ -708,6 +819,7 @@ exports.entregar = async (req, res) => {
          fecha_entrega = VALUES(fecha_entrega)`,
       [randomUUID(), id, req.usuario.id, comentario || null, estado, tardia, ahora]
     );
+    await emitirActualizacionPlanMateria(req.app.get('io'), tarea.materia_id, tarea.grupo_id, { tarea_id: id });
 
     return res.json({ ok: true, mensaje: 'Tarea entregada.', estado, entrega_tarde: tardia });
   } catch (err) {
@@ -859,6 +971,7 @@ exports.calificarEntrega = async (req, res) => {
     // La tarjeta "Mis tareas" del estudiante se refresca en vivo (punto 4).
     const io = req.app.get('io');
     if (io) io.to(`usuario:${estudiante_id}`).emit('tareas:update', { tarea_id: id });
+    await emitirActualizacionPlanMateria(io, tarea.materia_id, tarea.grupo_id, { tarea_id: id });
 
     // La calificación de una entrega también aparece en el reporte.
     await notificarReporte(io, estudiante_id, { motivo: 'entrega', ref_id: id });

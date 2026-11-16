@@ -18,7 +18,7 @@ const textColorInput = document.getElementById("textColor");
 const deleteTextBoxButton = document.getElementById("deleteTextBox");
 const readOnlyNotice = document.getElementById("readOnlyNotice");
 const boardStatus = document.getElementById("boardStatus");
-const API = `${window.location.protocol}//${window.location.hostname}:3000`;
+const API = window.location.origin;
 const token = sessionStorage.getItem("sia_token");
 const parametrosPagina = new URLSearchParams(window.location.search);
 const grupoId = parametrosPagina.get("grupo");
@@ -386,7 +386,7 @@ function iniciarArrastreCaja(event, registro) {
         // El navegador ya liberó la captura.
       }
     }
-    if (registro.datos.texto.trim()) guardarCaja(registro);
+    if (registro.datos.texto.trim()) programarGuardadoCaja(registro);
   };
 
   tirador.addEventListener("pointermove", mover);
@@ -428,7 +428,7 @@ function iniciarRedimensionCaja(event, registro) {
         // El navegador ya liberó la captura.
       }
     }
-    if (registro.datos.texto.trim()) guardarCaja(registro);
+    if (registro.datos.texto.trim()) programarGuardadoCaja(registro);
   };
 
   tirador.addEventListener("pointermove", mover);
